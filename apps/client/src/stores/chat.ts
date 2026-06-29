@@ -32,6 +32,8 @@ export const useChatStore = defineStore('chat', () => {
   const isStreaming = ref(false)
   const pendingApproval = ref<{ tool_call_id: string; tool_name: string; description: string } | null>(null)
   const collapsedWorkspaces = ref<Set<string>>(new Set())
+  const isBatchMode = ref(false)
+  const selectedSessionIds = ref<Set<string>>(new Set())
 
   const workspaceGroups = computed<WorkspaceGroup[]>(() => {
     const groups = new Map<string, Session[]>()
@@ -191,10 +193,46 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  function toggleBatchMode() {
+    isBatchMode.value = !isBatchMode.value
+    if (!isBatchMode.value) {
+      selectedSessionIds.value.clear()
+    }
+  }
+
+  function toggleSessionSelection(sessionId: string) {
+    if (selectedSessionIds.value.has(sessionId)) {
+      selectedSessionIds.value.delete(sessionId)
+    } else {
+      selectedSessionIds.value.add(sessionId)
+    }
+  }
+
+  function selectAllSessions() {
+    if (selectedSessionIds.value.size === sessions.value.length) {
+      selectedSessionIds.value.clear()
+    } else {
+      sessions.value.forEach(session => {
+        selectedSessionIds.value.add(session.id)
+      })
+    }
+  }
+
+  async function batchDeleteSessions() {
+    const ids = Array.from(selectedSessionIds.value)
+    await Promise.all(ids.map(id => sessionsApi.deleteSession(id)))
+    sessions.value = sessions.value.filter(s => !selectedSessionIds.value.has(s.id))
+    if (activeSessionId.value && selectedSessionIds.value.has(activeSessionId.value)) {
+      activeSessionId.value = null
+    }
+    selectedSessionIds.value.clear()
+    isBatchMode.value = false
+  }
+
   return {
     sessions, activeSessionId, activeSession, isStreaming, pendingApproval,
-    collapsedWorkspaces, workspaceGroups,
+    collapsedWorkspaces, workspaceGroups, isBatchMode, selectedSessionIds,
     loadSessions, createSession, switchSession, sendMessage, respondApproval, abortRun,
-    toggleWorkspaceCollapse,
+    toggleWorkspaceCollapse, toggleBatchMode, toggleSessionSelection, selectAllSessions, batchDeleteSessions,
   }
 })

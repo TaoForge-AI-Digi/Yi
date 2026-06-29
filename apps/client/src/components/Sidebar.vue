@@ -3,6 +3,10 @@ import SearchBar from './Sidebar/SearchBar.vue'
 import FilterBar from './Sidebar/FilterBar.vue'
 import SessionList from './SessionList.vue'
 import SettingsBtn from './SettingsBtn.vue'
+import BatchActions from './Sidebar/BatchActions.vue'
+import { useChatStore } from '@/stores/chat'
+
+const chatStore = useChatStore()
 </script>
 
 <template>
@@ -11,6 +15,7 @@ import SettingsBtn from './SettingsBtn.vue'
     <FilterBar />
     <SessionList />
     <SettingsBtn />
+    <BatchActions v-if="chatStore.isBatchMode" />
   </aside>
 </template>
 
