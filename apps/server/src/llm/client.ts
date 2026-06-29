@@ -53,72 +53,86 @@ export async function* streamChatCompletion(opts: LLMOptions): AsyncGenerator<LL
     if (reasoning_effort) body.reasoning_effort = reasoning_effort
   }
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {}),
-    },
-    body: JSON.stringify(body),
-    signal,
-  })
+  let reader: any = null
+  const onAbort = () => { reader?.cancel().catch(() => {}) }
+  signal?.addEventListener('abort', onAbort, { once: true })
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    yield { type: 'error', text: `LLM API ${res.status}: ${text}` }
-    return
-  }
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {}),
+      },
+      body: JSON.stringify(body),
+      signal,
+    })
 
-  const reader = res.body?.getReader()
-  if (!reader) { yield { type: 'error', text: 'No response body' }; return }
-  const decoder = new TextDecoder()
-  let buffer = ''
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop() || ''
-
-    for (const line of lines) {
-      const trimmed = line.trim()
-      if (!trimmed || !trimmed.startsWith('data: ')) continue
-      const data = trimmed.slice(6)
-      if (data === '[DONE]') { yield { type: 'done' }; return }
-
-      try {
-        const parsed = JSON.parse(data)
-        const delta = parsed.choices?.[0]?.delta || {}
-        const finish = parsed.choices?.[0]?.finish_reason
-
-        if (delta.reasoning_content) {
-          yield { type: 'delta', reasoning: delta.reasoning_content }
-        }
-        if (delta.content) {
-          yield { type: 'delta', text: delta.content }
-        }
-        if (delta.tool_calls) {
-          yield { type: 'delta', tool_calls: delta.tool_calls.map((tc: any) => ({
-            id: tc.id || '',
-            index: tc.index,
-            type: 'function' as const,
-            function: { name: tc.function?.name || '', arguments: tc.function?.arguments || '' },
-          }))}
-        }
-        if (finish) {
-          yield {
-            type: 'done',
-            finish_reason: finish,
-            usage: parsed.usage ? {
-              input_tokens: parsed.usage.prompt_tokens || parsed.usage.input_tokens || 0,
-              output_tokens: parsed.usage.completion_tokens || parsed.usage.output_tokens || 0,
-            } : undefined,
-          }
-          return
-        }
-      } catch { /* skip malformed SSE lines */ }
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      yield { type: 'error', text: `LLM API ${res.status}: ${text}` }
+      return
     }
+
+    reader = res.body?.getReader()
+    if (!reader) { yield { type: 'error', text: 'No response body' }; return }
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      if (signal?.aborted) return
+      const { done, value } = await reader.read()
+      if (signal?.aborted) return
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed || !trimmed.startsWith('data: ')) continue
+        const data = trimmed.slice(6)
+        if (data === '[DONE]') { yield { type: 'done' }; return }
+
+        try {
+          const parsed = JSON.parse(data)
+          const delta = parsed.choices?.[0]?.delta || {}
+          const finish = parsed.choices?.[0]?.finish_reason
+
+          if (delta.reasoning_content) {
+            yield { type: 'delta', reasoning: delta.reasoning_content }
+          }
+          if (delta.content) {
+            yield { type: 'delta', text: delta.content }
+          }
+          if (delta.tool_calls) {
+            yield { type: 'delta', tool_calls: delta.tool_calls.map((tc: any) => ({
+              id: tc.id || '',
+              index: tc.index,
+              type: 'function' as const,
+              function: { name: tc.function?.name || '', arguments: tc.function?.arguments || '' },
+            }))}
+          }
+          if (finish) {
+            yield {
+              type: 'done',
+              finish_reason: finish,
+              usage: parsed.usage ? {
+                input_tokens: parsed.usage.prompt_tokens || parsed.usage.input_tokens || 0,
+                output_tokens: parsed.usage.completion_tokens || parsed.usage.output_tokens || 0,
+              } : undefined,
+            }
+            return
+          }
+        } catch { /* skip malformed SSE lines */ }
+      }
+    }
+  } catch (err: any) {
+    if (err.name === 'AbortError' || signal?.aborted) return
+    yield { type: 'error', text: err.message }
+    return
+  } finally {
+    signal?.removeEventListener('abort', onAbort)
   }
   yield { type: 'done' }
 }

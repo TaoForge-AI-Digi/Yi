@@ -46,7 +46,7 @@ function checkPermission(characterId: string, toolName: string): 'allow' | 'ask'
   if (!character) return 'allow'
   const p = character.permissions
   if (!p) return 'allow'
-  const category = toolName === 'bash' ? 'bash' : toolName === 'webfetch' ? 'webfetch' : 'edit'
+  const category = toolName === 'bash' ? 'bash' : (toolName === 'webfetch' || toolName === 'websearch') ? 'webfetch' : 'edit'
   return (p as any)[category] || 'allow'
 }
 
@@ -197,7 +197,7 @@ export async function runAgent(io: Server, socket: Socket, sessionId: string, si
       }
 
       const startTime = Date.now()
-      const result = await executeTool(name, args, session.workspace || process.cwd())
+      const result = await executeTool(name, args, session.workspace || process.cwd(), signal)
       const duration = Date.now() - startTime
 
       messageStore.addMessage(sessionId, {
@@ -222,7 +222,9 @@ export async function runAgent(io: Server, socket: Socket, sessionId: string, si
     })
   }
 
-  if (!signal?.aborted) {
+  if (signal?.aborted) {
+    socket.emit('run.completed', { session_id: sessionId, status: 'cancelled' })
+  } else {
     socket.emit('run.completed', { session_id: sessionId, status: turn >= MAX_TURNS ? 'max_turns' : 'stop' })
   }
 }

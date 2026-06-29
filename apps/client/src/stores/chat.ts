@@ -23,7 +23,8 @@ function uid(): string { return Date.now().toString(36) + Math.random().toString
 export interface Message {
   id: string; role: 'user' | 'assistant' | 'tool'; content: string
   tool_name?: string; tool_input?: string; tool_output?: string
-  tool_status?: 'running' | 'done' | 'error'
+  tool_call_id?: string
+  tool_status?: 'running' | 'done' | 'success' | 'error'
   is_streaming?: boolean
   reasoning?: string
   reasoning_duration?: number
@@ -53,6 +54,25 @@ export const useChatStore = defineStore('chat', () => {
   const collapsedWorkspaces = ref<Set<string>>(new Set())
   const isBatchMode = ref(false)
   const selectedSessionIds = ref<Set<string>>(new Set())
+
+  const attachments = ref<{ name: string; content: string; type: 'text' | 'image' }[]>([])
+
+  function addAttachment(name: string, content: string, type: 'text' | 'image') {
+    attachments.value.push({ name, content, type })
+  }
+  function removeAttachment(idx: number) {
+    attachments.value.splice(idx, 1)
+  }
+  function clearAttachments() {
+    attachments.value = []
+  }
+  function getAttachmentPreviewText(): string {
+    return attachments.value.map(a =>
+      a.type === 'image'
+        ? `![${a.name}](${a.content})`
+        : `[Attachment: ${a.name}]\n\`\`\`\n${a.content}\n\`\`\``
+    ).join('\n\n')
+  }
 
   const workspaceGroups = computed<WorkspaceGroup[]>(() => {
     const groups = new Map<string, Session[]>()
@@ -152,7 +172,14 @@ export const useChatStore = defineStore('chat', () => {
       activeSessionId.value = session.id
     }
 
-    const userMsg: Message = { id: uid(), role: 'user', content: input, timestamp: Date.now() }
+    let fullInput = input
+    if (attachments.value.length > 0) {
+      const attachText = getAttachmentPreviewText()
+      fullInput = `${attachText}\n\n${input}`
+      attachments.value = []
+    }
+
+    const userMsg: Message = { id: uid(), role: 'user', content: fullInput, timestamp: Date.now() }
     session.messages.push(userMsg)
     isStreaming.value = true
 
@@ -166,7 +193,7 @@ export const useChatStore = defineStore('chat', () => {
     socket.emit('chat-run', {
       session_id: session.id,
       character_id: session.character_id,
-      input,
+      input: fullInput,
       model: session.model || undefined,
       provider_id: session.provider_id || undefined,
       workspace: session.workspace || undefined,
@@ -194,13 +221,13 @@ export const useChatStore = defineStore('chat', () => {
         id: uid(), role: 'tool', content: '',
         tool_name: data.tool_name, tool_input: data.tool_input,
         tool_status: 'running', timestamp: Date.now(),
+        tool_call_id: data.tool_call_id,
       })
     }
     const onToolCompleted = (data: RunEvent) => {
       if (data.session_id !== session!.id) return
-      const tools = session!.messages.filter(m => m.role === 'tool' && m.tool_name === data.tool_name)
-      const last = tools[tools.length - 1]
-      if (last) { last.tool_status = 'done'; last.tool_output = data.tool_output }
+      const tool = session!.messages.find(m => m.role === 'tool' && m.tool_call_id === data.tool_call_id)
+      if (tool) { tool.tool_status = 'success'; tool.tool_output = data.tool_output }
     }
     const onApprovalRequested = (data: RunEvent) => {
       if (data.session_id !== session!.id) return
@@ -316,6 +343,7 @@ export const useChatStore = defineStore('chat', () => {
   return {
     sessions, activeSessionId, activeSession, isStreaming, pendingApproval,
     collapsedWorkspaces, workspaceGroups, isBatchMode, selectedSessionIds,
+    attachments, addAttachment, removeAttachment, clearAttachments,
     loadSessions, createSession, switchSession, sendMessage, respondApproval, abortRun,
     renameSession, deleteSingleSession, resetToMessage,
     toggleSessionStar,

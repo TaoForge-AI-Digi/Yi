@@ -10,7 +10,7 @@ const store = useCharactersStore()
 const searchQuery = ref('')
 const selectedId = ref<string | null>(null)
 const showForm = ref(false)
-const activeTab = ref<'basic' | 'memory' | 'skills' | 'knowledge'>('basic')
+const activeTab = ref<'basic' | 'memory' | 'tools' | 'skills' | 'knowledge'>('basic')
 
 const editingSection = ref<'soul' | 'user' | 'memory' | null>(null)
 const editContent = ref('')
@@ -210,7 +210,7 @@ function setPermission(key: string, value: string) {
           <!-- Sub Tabs -->
           <div class="sub-tabs">
             <button
-              v-for="tab in (isNew ? ['basic'] : ['basic', 'memory', 'skills', 'knowledge'])"
+              v-for="tab in (isNew ? ['basic'] : ['basic', 'memory', 'tools', 'skills', 'knowledge'])"
               :key="tab"
               :class="['sub-tab', { active: activeTab === tab }]"
               @click="activeTab = tab as any"
@@ -326,10 +326,11 @@ function setPermission(key: string, value: string) {
               </div>
             </div>
 
-            <div class="form-divider"></div>
+          </div>
 
+          <!-- Tools Tab -->
+          <div v-if="activeTab === 'tools'" class="tab-content">
             <div class="permissions-section">
-              <h4 class="section-subtitle">{{ t('role.toolPermissions') }}</h4>
               <div class="perm-grid">
                 <div class="perm-row">
                   <span class="perm-key">Edit</span>
@@ -339,6 +340,7 @@ function setPermission(key: string, value: string) {
                       <span>{{ p.charAt(0).toUpperCase() + p.slice(1) }}</span>
                     </label>
                   </div>
+                  <span class="perm-desc">read / write / edit / grep / glob</span>
                 </div>
                 <div class="perm-row">
                   <span class="perm-key">Bash</span>
@@ -348,6 +350,7 @@ function setPermission(key: string, value: string) {
                       <span>{{ p.charAt(0).toUpperCase() + p.slice(1) }}</span>
                     </label>
                   </div>
+                  <span class="perm-desc">bash / sh</span>
                 </div>
                 <div class="perm-row">
                   <span class="perm-key">Webfetch</span>
@@ -357,6 +360,7 @@ function setPermission(key: string, value: string) {
                       <span>{{ p.charAt(0).toUpperCase() + p.slice(1) }}</span>
                     </label>
                   </div>
+                  <span class="perm-desc">webfetch / websearch</span>
                 </div>
               </div>
             </div>
@@ -878,6 +882,13 @@ function setPermission(key: string, value: string) {
 }
 
 .perm-radio input { display: none; }
+
+.perm-desc {
+  font-size: 11px;
+  color: #aaa;
+  margin-left: 8px;
+  font-family: 'SF Mono', 'Consolas', monospace;
+}
 
 /* ── Memory Tab ── */
 .memory-section {

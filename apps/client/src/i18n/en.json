@@ -103,6 +103,7 @@
       "basic": "Basic",
       "memory": "Memory",
       "skills": "Skills",
+      "tools": "Tools",
       "knowledge": "Knowledge"
     },
     "uploadAvatar": "Upload",

@@ -226,6 +226,7 @@ chat-run
 | `grep` | `{ pattern, path? }` | 搜索文件内容 |
 | `glob` | `{ pattern }` | 文件名模式匹配 |
 | `webfetch` | `{ url }` | 获取网页内容 |
+| `websearch` | `{ query }` | 搜索网络（默认 DuckDuckGo，可配置 `SEARCH_API_URL` 环境变量） |
 
 ## 6. Permission
 
@@ -235,7 +236,7 @@ type PermissionLevel = 'allow' | 'ask' | 'deny'
 interface CharacterPermission {
   edit?: PermissionLevel      // read/write/edit/grep/glob
   bash?: PermissionLevel      // bash/sh
-  webfetch?: 'allow' | 'deny' // webfetch
+  webfetch?: 'allow' | 'deny' // webfetch, websearch
 }
 ```
 

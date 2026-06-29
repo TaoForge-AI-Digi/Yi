@@ -67,9 +67,17 @@ const expanded = ref(false)
   background: #d4edda;
   color: #155724;
 }
+.status-badge.success {
+  background: #d4edda;
+  color: #155724;
+}
 .status-badge.error {
   background: #f8d7da;
   color: #721c24;
+}
+.status-badge.denied {
+  background: #fff3cd;
+  color: #856404;
 }
 .expand-icon {
   margin-left: auto;
