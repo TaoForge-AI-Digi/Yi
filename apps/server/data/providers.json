@@ -1,0 +1,11 @@
+[
+  {
+    "id": "opencode-go",
+    "name": "OpenCode Go",
+    "base_url": "https://opencode.ai/zen/go/v1/",
+    "api_key": "",
+    "models": [
+      { "id": "deepseek-v4-flash", "name": "DeepSeek V4 Flash" }
+    ]
+  }
+]
