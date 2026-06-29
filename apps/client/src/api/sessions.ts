@@ -24,3 +24,4 @@ export const createSession = (data: Partial<SessionSummary> & { id: string }) =>
 export const renameSession = (id: string, title: string) => apiPut<SessionSummary>(`/api/sessions/${id}`, { title })
 export const deleteSession = (id: string) => apiDelete(`/api/sessions/${id}`)
 export const fetchSessionMessages = (id: string) => apiGet<{ session: SessionSummary; messages: any[]; total: number }>(`/api/sessions/${id}/messages`)
+export const keepMessages = (sessionId: string, count: number) => apiDelete(`/api/sessions/${sessionId}/messages?keep=${count}`)

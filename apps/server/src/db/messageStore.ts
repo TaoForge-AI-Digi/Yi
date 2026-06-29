@@ -16,6 +16,11 @@ export const messageStore = {
     const r = getDb().prepare('SELECT COUNT(*) as c FROM messages WHERE session_id = ?').get(sessionId) as { c: number }
     return r.c
   },
+  keepFirst(sessionId: string, count: number) {
+    const ids = getDb().prepare('SELECT id FROM messages WHERE session_id = ? ORDER BY id ASC LIMIT ?').all(sessionId, count) as { id: number }[]
+    if (ids.length < count) return
+    getDb().prepare('DELETE FROM messages WHERE session_id = ? AND id > ?').run(sessionId, ids[ids.length - 1].id)
+  },
   addMessage(sessionId: string, data: Partial<MessageRow> & { role: string }): MessageRow {
     const now = Date.now()
     const row: MessageRow = {

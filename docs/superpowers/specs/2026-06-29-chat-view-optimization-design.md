@@ -227,7 +227,7 @@ npm install xterm xterm-addon-fit xterm-addon-web-links katex mermaid markdown-i
 #### 2.3.2 命令功能
 
 **功能清单：**
-- [x] 上下文编辑：编辑用户消息 + 删除任意消息
+- [x] 上下文编辑：重置到该处（截断后续对话）
 - [ ] Slash 命令：快捷命令
 
 ---

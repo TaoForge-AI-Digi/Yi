@@ -228,16 +228,13 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  function updateMessage(sessionId: string, messageId: string, content: string) {
+  async function resetToMessage(sessionId: string, messageId: string) {
     const s = sessions.value.find(x => x.id === sessionId)
     if (!s) return
-    const msg = s.messages.find(m => m.id === messageId)
-    if (msg) msg.content = content
-  }
-
-  function deleteMessage(sessionId: string, messageId: string) {
-    const s = sessions.value.find(x => x.id === sessionId)
-    if (s) s.messages = s.messages.filter(m => m.id !== messageId)
+    const idx = s.messages.findIndex(m => m.id === messageId)
+    if (idx < 0) return
+    s.messages = s.messages.slice(0, idx + 1)
+    try { await sessionsApi.keepMessages(sessionId, idx + 1) } catch { /* best-effort */ }
   }
 
   function toggleBatchMode() {
@@ -289,7 +286,7 @@ export const useChatStore = defineStore('chat', () => {
     sessions, activeSessionId, activeSession, isStreaming, pendingApproval,
     collapsedWorkspaces, workspaceGroups, isBatchMode, selectedSessionIds,
     loadSessions, createSession, switchSession, sendMessage, respondApproval, abortRun,
-    renameSession, deleteSingleSession, updateMessage, deleteMessage,
+    renameSession, deleteSingleSession, resetToMessage,
     toggleSessionStar,
     toggleWorkspaceCollapse, toggleBatchMode, toggleSessionSelection, selectAllSessions, batchDeleteSessions,
   }

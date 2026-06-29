@@ -20,6 +20,14 @@ router.delete('/:id', (c) => {
   if (!sessionStore.delete(c.req.param('id'))) return c.json({ error: 'Not found' }, 404)
   return c.json({ ok: true })
 })
+router.delete('/:id/messages', (c) => {
+  const keep = c.req.query('keep')
+  if (!keep) return c.json({ error: 'Missing keep param' }, 400)
+  const count = parseInt(keep, 10)
+  if (isNaN(count) || count < 0) return c.json({ error: 'Invalid keep param' }, 400)
+  messageStore.keepFirst(c.req.param('id'), count)
+  return c.json({ ok: true })
+})
 router.get('/:id/messages', (c) => {
   const id = c.req.param('id')
   const session = sessionStore.getById(id)
