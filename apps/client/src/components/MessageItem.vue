@@ -7,7 +7,7 @@ defineProps<{ message: import('@/stores/chat').Message }>()
 </script>
 
 <template>
-  <div class="message" :class="message.role">
+  <div :id="`msg-${message.id}`" class="message" :class="message.role">
     <div class="bubble">
       <ThinkingBlock
         v-if="message.reasoning"

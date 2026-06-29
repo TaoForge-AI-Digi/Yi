@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import FilesPanel from './FilesPanel.vue'
+import OutlinePanel from './OutlinePanel.vue'
 
 const activePanel = ref<'files' | 'outline'>('files')
 </script>
@@ -23,7 +24,7 @@ const activePanel = ref<'files' | 'outline'>('files')
     </div>
     <div class="panel-content">
       <FilesPanel v-if="activePanel === 'files'" />
-      <div v-else class="outline-panel">大纲功能开发中...</div>
+      <OutlinePanel v-else />
     </div>
   </div>
 </template>
