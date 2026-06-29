@@ -6,14 +6,15 @@ import { grepSync } from './grep.js'
 import { ToolResult, PathEscapeError } from './definitions.js'
 
 function resolvedSafe(p: string, workspace: string): boolean {
-  try {
-    const full = resolve(workspace, p)
-    const real = realpathSync(full)
-    const rel = relative(workspace, real)
-    return !rel.startsWith('..') && !relative(workspace, resolve(workspace, '.')).startsWith('..')
-  } catch {
-    return false
+  const full = resolve(workspace, p)
+  let target = full
+  try { target = realpathSync(full) } catch {
+    const parent = resolve(full, '..')
+    try { target = realpathSync(parent) } catch { return false }
+    if (relative(workspace, target).startsWith('..')) return false
+    return relative(workspace, full).startsWith('..') === false
   }
+  return !relative(workspace, target).startsWith('..')
 }
 
 function assertPathSafe(p: string, workspace: string): void {
