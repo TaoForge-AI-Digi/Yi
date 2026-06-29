@@ -10,6 +10,12 @@ router.post('/', async (c) => {
   const session = sessionStore.create({ id: body.id, ...body })
   return c.json(session, 201)
 })
+router.put('/:id', async (c) => {
+  const body = await c.req.json()
+  const updated = sessionStore.update(c.req.param('id'), body)
+  if (!updated) return c.json({ error: 'Not found' }, 404)
+  return c.json(updated)
+})
 router.delete('/:id', (c) => {
   if (!sessionStore.delete(c.req.param('id'))) return c.json({ error: 'Not found' }, 404)
   return c.json({ ok: true })

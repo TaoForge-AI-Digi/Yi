@@ -21,6 +21,13 @@ export function registerChatSocket(io: Server, socket: Socket) {
           provider_id: (data.provider_id as string) || undefined,
           workspace: (data.workspace as string) || undefined,
         })
+      } else {
+        const patch: Record<string, unknown> = {}
+        if (data.provider_id) patch.provider_id = data.provider_id
+        if (data.model) patch.model = data.model
+        if (data.workspace) patch.workspace = data.workspace
+        if (data.character_id) patch.character_id = data.character_id
+        if (Object.keys(patch).length > 0) sessionStore.update(sessionId, patch)
       }
 
       const input = (data.input as string) || ''
@@ -32,7 +39,10 @@ export function registerChatSocket(io: Server, socket: Socket) {
       activeRuns.set(sessionId, { abort: () => abortController.abort() })
       ack?.({ run_id: `run_${sessionId}_${Date.now()}`, status: 'started' })
 
-      await runAgent(io, socket, sessionId, abortController.signal)
+      await runAgent(io, socket, sessionId, abortController.signal, {
+        thinking: !!data.thinking,
+        reasoning_effort: data.reasoning_effort as string | undefined,
+      })
     } catch (err) {
       console.error('chat-run error:', err)
       socket.emit('run.failed', { session_id: data.session_id, error: String(err) })

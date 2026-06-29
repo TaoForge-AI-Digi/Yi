@@ -1,17 +1,17 @@
 <script setup lang="ts">
 defineProps<{
-  activeFilter: 'all' | 'pinned'
+  activeFilter: 'all' | 'starred'
 }>()
 
 const emit = defineEmits<{
-  filter: [type: 'all' | 'pinned']
+  filter: [type: 'all' | 'starred']
 }>()
 </script>
 
 <template>
   <div class="filter-bar">
     <button class="filter-btn" :class="{ active: activeFilter === 'all' }" @click="emit('filter', 'all')">全部</button>
-    <button class="filter-btn" :class="{ active: activeFilter === 'pinned' }" @click="emit('filter', 'pinned')">置顶</button>
+    <button class="filter-btn" :class="{ active: activeFilter === 'starred' }" @click="emit('filter', 'starred')">收藏</button>
   </div>
 </template>
 

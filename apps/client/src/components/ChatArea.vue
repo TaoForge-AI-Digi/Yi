@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import ConfigBar from './ConfigBar.vue'
 import MessageList from './MessageList.vue'
 import ChatInput from './ChatInput.vue'
 import ApprovalDialog from './ApprovalDialog.vue'
@@ -10,7 +9,6 @@ const chatStore = useChatStore()
 
 <template>
   <main class="chat-area">
-    <ConfigBar />
     <MessageList />
     <ChatInput />
     <ApprovalDialog

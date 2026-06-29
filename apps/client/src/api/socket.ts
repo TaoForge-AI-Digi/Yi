@@ -15,6 +15,7 @@ export function disconnectSocket() { socket?.disconnect(); socket = null }
 export interface RunEvent {
   session_id: string
   delta?: string
+  reasoning?: string
   tool_call_id?: string
   tool_name?: string
   tool_input?: string

@@ -1,12 +1,14 @@
 export interface LLMMessage {
   role: 'system' | 'user' | 'assistant' | 'tool'
   content: string | null
+  reasoning_content?: string
   tool_calls?: ToolCall[]
   tool_call_id?: string
 }
 
 export interface ToolCall {
   id: string
+  index?: number
   type: 'function'
   function: { name: string; arguments: string }
 }
@@ -14,6 +16,7 @@ export interface ToolCall {
 export interface LLMChunk {
   type: 'delta' | 'done' | 'error'
   text?: string
+  reasoning?: string
   finish_reason?: string
   usage?: { input_tokens: number; output_tokens: number }
   tool_calls?: ToolCall[]
@@ -32,17 +35,23 @@ export interface LLMOptions {
       parameters: Record<string, unknown>
     }
   }>
+  thinking?: boolean
+  reasoning_effort?: string
   signal?: AbortSignal
   onChunk?: (chunk: LLMChunk) => void
 }
 
 export async function* streamChatCompletion(opts: LLMOptions): AsyncGenerator<LLMChunk> {
-  const { baseUrl, apiKey, model, messages, tools, signal } = opts
+  const { baseUrl, apiKey, model, messages, tools, thinking, reasoning_effort, signal } = opts
   const url = `${baseUrl.replace(/\/+$/, '')}/chat/completions`
   const body: Record<string, unknown> = {
     model, messages, stream: true, stream_options: { include_usage: true },
   }
   if (tools && tools.length > 0) body.tools = tools
+  if (thinking) {
+    body.thinking = { type: 'enabled' }
+    if (reasoning_effort) body.reasoning_effort = reasoning_effort
+  }
 
   const res = await fetch(url, {
     method: 'POST',
@@ -83,12 +92,16 @@ export async function* streamChatCompletion(opts: LLMOptions): AsyncGenerator<LL
         const delta = parsed.choices?.[0]?.delta || {}
         const finish = parsed.choices?.[0]?.finish_reason
 
+        if (delta.reasoning_content) {
+          yield { type: 'delta', reasoning: delta.reasoning_content }
+        }
         if (delta.content) {
           yield { type: 'delta', text: delta.content }
         }
         if (delta.tool_calls) {
           yield { type: 'delta', tool_calls: delta.tool_calls.map((tc: any) => ({
             id: tc.id || '',
+            index: tc.index,
             type: 'function' as const,
             function: { name: tc.function?.name || '', arguments: tc.function?.arguments || '' },
           }))}

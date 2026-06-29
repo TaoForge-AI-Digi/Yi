@@ -1,28 +1,26 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps<{
   visible: boolean
   x: number
   y: number
   sessionId: string
+  pinned: boolean
 }>()
+
+const menuItems = computed(() => [
+  { label: props.pinned ? '取消收藏' : '收藏', key: 'pin' },
+  { label: '重命名', key: 'rename' },
+  { label: '复制 ID', key: 'copy-id' },
+  { label: '导出', key: 'export' },
+  { label: '删除', key: 'delete', danger: true },
+])
 
 const emit = defineEmits<{
   close: []
   action: [action: string, sessionId: string]
 }>()
-
-const menuItems = [
-  { label: '置顶', key: 'pin' },
-  { label: '重命名', key: 'rename' },
-  { label: '设置工作区', key: 'workspace' },
-  { label: '切换模型', key: 'model' },
-  { label: '复制链接', key: 'copy-link' },
-  { label: '复制 ID', key: 'copy-id' },
-  { label: '导出', key: 'export' },
-  { label: '删除', key: 'delete', danger: true },
-]
 
 function handleClickOutside(event: MouseEvent) {
   const target = event.target as HTMLElement

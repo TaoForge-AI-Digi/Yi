@@ -10,11 +10,11 @@ import { useChatStore } from '@/stores/chat'
 const chatStore = useChatStore()
 
 const searchQuery = ref('')
-const filterType = ref<'all' | 'pinned'>('all')
+const filterType = ref<'all' | 'starred'>('all')
 
 const filteredWorkspaces = computed(() => {
   let groups = chatStore.workspaceGroups
-  if (filterType.value === 'pinned') {
+  if (filterType.value === 'starred') {
     groups = groups.map(g => ({
       ...g,
       sessions: g.sessions.filter(s => s.pinned),
@@ -34,7 +34,7 @@ function handleSearch(value: string) {
   searchQuery.value = value
 }
 
-function handleFilter(type: 'all' | 'pinned') {
+function handleFilter(type: 'all' | 'starred') {
   filterType.value = type
 }
 </script>

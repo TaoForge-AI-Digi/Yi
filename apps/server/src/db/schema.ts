@@ -11,6 +11,7 @@ export function getDb(): Database.Database {
   mkdirSync(DATA_DIR, { recursive: true })
   db = new Database(resolve(DATA_DIR, 'sessions.db'))
   db.pragma('journal_mode = WAL')
+  try { db.exec('ALTER TABLE messages ADD COLUMN reasoning_content TEXT') } catch { /* column may already exist */ }
   db.exec(`
     CREATE TABLE IF NOT EXISTS sessions (
       id TEXT PRIMARY KEY,
@@ -29,6 +30,7 @@ export function getDb(): Database.Database {
       session_id TEXT NOT NULL REFERENCES sessions(id),
       role TEXT NOT NULL,
       content TEXT NOT NULL DEFAULT '',
+      reasoning_content TEXT,
       tool_name TEXT,
       tool_input TEXT,
       tool_output TEXT,

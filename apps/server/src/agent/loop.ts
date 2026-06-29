@@ -13,19 +13,32 @@ const MAX_TURNS = 20
 
 function rowToLLMMessage(row: MessageRow): LLMMessage | null {
   if (row.role === 'tool') {
-    let callId = row.tool_name || ''
+    let callId = ''
     try { const p = JSON.parse(row.tool_input || '{}'); if (p.call_id) callId = p.call_id } catch {}
-    return { role: 'tool', content: row.content || '', tool_call_id: callId || 'call_unknown' }
+    if (!callId) return null
+    return { role: 'tool', content: row.content || '', tool_call_id: callId }
   }
   if (row.role === 'assistant' && row.tool_input) {
-    try { return { role: 'assistant', content: row.content || null, tool_calls: JSON.parse(row.tool_input) } } catch {}
+    try {
+      const msg: LLMMessage = { role: 'assistant', content: row.content || null, tool_calls: JSON.parse(row.tool_input) }
+      if (row.reasoning_content) msg.reasoning_content = row.reasoning_content
+      return msg
+    } catch {}
   }
-  if (row.role === 'assistant' && !row.content) return null
-  return { role: row.role as LLMMessage['role'], content: row.content || '' }
+  if (row.role === 'assistant' && !row.content && !row.tool_input) return null
+  const msg: LLMMessage = { role: row.role as LLMMessage['role'], content: row.content || '' }
+  if (row.reasoning_content) msg.reasoning_content = row.reasoning_content
+  return msg
+}
+
+function matchToolCall(acc: ToolCall[], tc: ToolCall): ToolCall | undefined {
+  if (tc.id) return acc.find(t => t.id === tc.id)
+  if (tc.index !== undefined) return acc.find(t => t.index === tc.index)
+  return undefined
 }
 
 function deepCloneToolCall(tc: ToolCall): ToolCall {
-  return { id: tc.id, type: 'function', function: { name: tc.function.name, arguments: tc.function.arguments } }
+  return { id: tc.id, index: tc.index, type: 'function', function: { name: tc.function.name, arguments: tc.function.arguments } }
 }
 
 function checkPermission(characterId: string, toolName: string): 'allow' | 'ask' | 'deny' {
@@ -35,7 +48,7 @@ function checkPermission(characterId: string, toolName: string): 'allow' | 'ask'
   return character.permissions[category]
 }
 
-export async function runAgent(io: Server, socket: Socket, sessionId: string, signal?: AbortSignal) {
+export async function runAgent(io: Server, socket: Socket, sessionId: string, signal?: AbortSignal, opts: { thinking?: boolean; reasoning_effort?: string } = {}) {
   const session = sessionStore.getById(sessionId)
   if (!session) { socket.emit('run.failed', { session_id: sessionId, error: 'Session not found' }); return }
 
@@ -78,24 +91,31 @@ export async function runAgent(io: Server, socket: Socket, sessionId: string, si
     turn++
 
     let fullText = ''
+    let reasoningText = ''
     let toolCallsAcc: ToolCall[] = []
     let errorText = ''
 
     const gen = streamChatCompletion({
       baseUrl: provider.base_url, apiKey: provider.api_key, model, messages, tools, signal,
+      thinking: opts.thinking,
+      reasoning_effort: opts.reasoning_effort,
     })
 
     for await (const chunk of gen) {
       if (signal?.aborted) break
 
       if (chunk.type === 'delta') {
+        if (chunk.reasoning) {
+          reasoningText += chunk.reasoning
+          socket.emit('message.delta', { session_id: sessionId, reasoning: chunk.reasoning })
+        }
         if (chunk.text) {
           fullText += chunk.text
           socket.emit('message.delta', { session_id: sessionId, delta: chunk.text })
         }
         if (chunk.tool_calls) {
           for (const tc of chunk.tool_calls) {
-            const existing = toolCallsAcc.find(t => t.id === tc.id)
+            const existing = matchToolCall(toolCallsAcc, tc)
             if (existing) {
               if (tc.function.name) existing.function.name += tc.function.name
               if (tc.function.arguments) existing.function.arguments += tc.function.arguments
@@ -121,15 +141,20 @@ export async function runAgent(io: Server, socket: Socket, sessionId: string, si
     if (signal?.aborted) break
     if (errorText) break
 
-    if (fullText || toolCallsAcc.length > 0) {
+    toolCallsAcc = toolCallsAcc.filter(tc => tc.function.name)
+
+    if (fullText || toolCallsAcc.length > 0 || reasoningText) {
       messageStore.addMessage(sessionId, {
         role: 'assistant', content: fullText,
+        reasoning_content: reasoningText || null,
         tool_input: toolCallsAcc.length > 0 ? JSON.stringify(toolCallsAcc) : null,
       })
-      messages.push({
+      const msg: LLMMessage = {
         role: 'assistant', content: fullText || null,
         tool_calls: toolCallsAcc.length > 0 ? toolCallsAcc : undefined,
-      })
+      }
+      if (reasoningText) msg.reasoning_content = reasoningText
+      messages.push(msg)
     }
 
     if (toolCallsAcc.length === 0) { done = true; break }

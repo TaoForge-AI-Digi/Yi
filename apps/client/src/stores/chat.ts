@@ -18,6 +18,8 @@ export interface Message {
 export interface Session {
   id: string; character_id: string; title: string; messages: Message[]
   model?: string; provider_id?: string; workspace?: string; pinned?: boolean
+  thinking?: boolean
+  reasoning_effort?: string
   created_at: number; updated_at: number
 }
 
@@ -53,6 +55,25 @@ export const useChatStore = defineStore('chat', () => {
     }))
   })
 
+  async function renameSession(id: string, title: string) {
+    const session = sessions.value.find(s => s.id === id)
+    if (session) session.title = title
+    await sessionsApi.renameSession(id, title)
+  }
+
+  async function deleteSingleSession(id: string) {
+    sessions.value = sessions.value.filter(s => s.id !== id)
+    if (activeSessionId.value === id) activeSessionId.value = null
+    sessionsApi.deleteSession(id).catch(() => {})
+  }
+
+  function toggleSessionStar(id: string) {
+    const session = sessions.value.find(s => s.id === id)
+    if (session) {
+      session.pinned = !session.pinned
+    }
+  }
+
   function toggleWorkspaceCollapse(workspace: string) {
     if (collapsedWorkspaces.value.has(workspace)) {
       collapsedWorkspaces.value.delete(workspace)
@@ -63,27 +84,29 @@ export const useChatStore = defineStore('chat', () => {
 
   async function loadSessions() {
     const list = await sessionsApi.fetchSessions()
-    sessions.value = list.map(s => ({ ...s, messages: [] }))
+    sessions.value = list.map(s => ({ ...s, model: s.model ?? undefined, provider_id: s.provider_id ?? undefined, workspace: s.workspace ?? undefined, messages: [] }))
   }
 
-  function createSession(opts: { character_id?: string; model?: string; provider_id?: string; workspace?: string } = {}): Session {
+  async function createSession(opts: { character_id?: string; model?: string; provider_id?: string; workspace?: string } = {}): Promise<Session> {
     const session: Session = {
       id: uid(), character_id: opts.character_id || 'general', title: '',
       model: opts.model, provider_id: opts.provider_id, workspace: opts.workspace,
       messages: [], created_at: Date.now(), updated_at: Date.now(),
     }
     sessions.value.unshift(session)
+    try { await sessionsApi.createSession({ id: session.id, character_id: session.character_id, model: session.model, provider_id: session.provider_id, workspace: session.workspace }) } catch { /* will be created on first message if needed */ }
     return session
   }
 
   async function switchSession(id: string) {
     activeSessionId.value = id
     const s = sessions.value.find(s => s.id === id)
-    if (!s || s.messages.length > 0 || s.title) return
+    if (!s || s.messages.length > 0) return
     try {
       const data = await sessionsApi.fetchSessionMessages(id)
       s.messages = data.messages.map(m => ({
         id: String(m.id), role: m.role as any, content: m.content,
+        reasoning: m.reasoning_content || undefined,
         tool_name: m.tool_name || undefined, tool_input: m.tool_input || undefined,
         tool_output: m.tool_output || undefined, tool_status: m.tool_status as any || undefined,
         timestamp: m.created_at,
@@ -91,16 +114,22 @@ export const useChatStore = defineStore('chat', () => {
     } catch { /* new session */ }
   }
 
-  function sendMessage(input: string) {
+  async function sendMessage(input: string) {
     let session = activeSession.value
     if (!session) {
-      session = createSession()
+      session = await createSession()
       activeSessionId.value = session.id
     }
 
     const userMsg: Message = { id: uid(), role: 'user', content: input, timestamp: Date.now() }
     session.messages.push(userMsg)
     isStreaming.value = true
+
+    if (!session.provider_id) {
+      const { useProvidersStore } = await import('@/stores/providers')
+      const providers = useProvidersStore().providers
+      if (providers.length > 0) session.provider_id = providers[0].id
+    }
 
     const socket = connectSocket()
     socket.emit('chat-run', {
@@ -110,16 +139,20 @@ export const useChatStore = defineStore('chat', () => {
       model: session.model || undefined,
       provider_id: session.provider_id || undefined,
       workspace: session.workspace || undefined,
+      thinking: session.thinking || undefined,
+      reasoning_effort: session.reasoning_effort || undefined,
     })
 
     const onDelta = (data: RunEvent) => {
       if (data.session_id !== session!.id) return
       const last = session!.messages[session!.messages.length - 1]
       if (last?.role === 'assistant' && last.is_streaming) {
-        last.content += data.delta || ''
+        if (data.reasoning) last.reasoning = (last.reasoning || '') + data.reasoning
+        if (data.delta) last.content += data.delta
       } else {
         session!.messages.push({
           id: uid(), role: 'assistant', content: data.delta || '',
+          reasoning: data.reasoning || '',
           is_streaming: true, timestamp: Date.now(),
         })
       }
@@ -195,6 +228,18 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  function updateMessage(sessionId: string, messageId: string, content: string) {
+    const s = sessions.value.find(x => x.id === sessionId)
+    if (!s) return
+    const msg = s.messages.find(m => m.id === messageId)
+    if (msg) msg.content = content
+  }
+
+  function deleteMessage(sessionId: string, messageId: string) {
+    const s = sessions.value.find(x => x.id === sessionId)
+    if (s) s.messages = s.messages.filter(m => m.id !== messageId)
+  }
+
   function toggleBatchMode() {
     isBatchMode.value = !isBatchMode.value
     if (!isBatchMode.value) {
@@ -244,6 +289,8 @@ export const useChatStore = defineStore('chat', () => {
     sessions, activeSessionId, activeSession, isStreaming, pendingApproval,
     collapsedWorkspaces, workspaceGroups, isBatchMode, selectedSessionIds,
     loadSessions, createSession, switchSession, sendMessage, respondApproval, abortRun,
+    renameSession, deleteSingleSession, updateMessage, deleteMessage,
+    toggleSessionStar,
     toggleWorkspaceCollapse, toggleBatchMode, toggleSessionSelection, selectAllSessions, batchDeleteSessions,
   }
 })

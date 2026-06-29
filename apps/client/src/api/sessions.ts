@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiDelete } from './client'
+import { apiGet, apiPost, apiPut, apiDelete } from './client'
 
 export interface SessionSummary {
   id: string; character_id: string; title: string
@@ -21,5 +21,6 @@ export interface MessageDetail {
 
 export const fetchSessions = () => apiGet<SessionSummary[]>('/api/sessions')
 export const createSession = (data: Partial<SessionSummary> & { id: string }) => apiPost<SessionSummary>('/api/sessions', data)
+export const renameSession = (id: string, title: string) => apiPut<SessionSummary>(`/api/sessions/${id}`, { title })
 export const deleteSession = (id: string) => apiDelete(`/api/sessions/${id}`)
 export const fetchSessionMessages = (id: string) => apiGet<{ session: SessionSummary; messages: any[]; total: number }>(`/api/sessions/${id}/messages`)

@@ -3,6 +3,7 @@ import { apiGet, apiPost, apiPut, apiDelete } from './client'
 export interface Provider {
   id: string; name: string; base_url: string; api_key: string
   models: Array<{ id: string; name: string }>
+  builtIn?: boolean
 }
 
 export const fetchProviders = () => apiGet<Provider[]>('/api/providers')
