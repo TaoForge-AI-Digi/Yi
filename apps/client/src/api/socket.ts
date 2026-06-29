@@ -1,0 +1,24 @@
+import { io, Socket } from 'socket.io-client'
+
+let socket: Socket | null = null
+
+export function getSocket(): Socket {
+  if (!socket) {
+    socket = io({ transports: ['websocket', 'polling'], autoConnect: false })
+  }
+  return socket
+}
+
+export function connectSocket() { const s = getSocket(); if (!s.connected) s.connect(); return s }
+export function disconnectSocket() { socket?.disconnect(); socket = null }
+
+export interface RunEvent {
+  session_id: string
+  delta?: string
+  tool_call_id?: string
+  tool_name?: string
+  tool_input?: string
+  tool_output?: string
+  error?: string
+  usage?: { input_tokens: number; output_tokens: number }
+}
