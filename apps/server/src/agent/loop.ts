@@ -146,7 +146,7 @@ export async function runAgent(io: Server, socket: Socket, sessionId: string, si
 
       if (permission === 'ask') {
         const approved = await new Promise<boolean>((resolve) => {
-          socket.emit('approval.requested', { session_id: sessionId, tool_call_id: tc.id, tool_name: name, description: JSON.stringify(args) })
+          socket.emit('approval.requested', { session_id: sessionId, tool_call_id: tc.id, tool_name: name, tool_input: JSON.stringify(args) })
           const handler = (data: { tool_call_id: string; choice: 'allow' | 'deny' }) => {
             if (data.tool_call_id === tc.id) { socket.off('approval.respond', handler); resolve(data.choice === 'allow') }
           }
