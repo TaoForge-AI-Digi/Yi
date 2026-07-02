@@ -1,7 +1,7 @@
 import { Server, Socket } from 'socket.io'
 import { sessionStore } from '../db/sessionStore.js'
 import { messageStore } from '../db/messageStore.js'
-import { runAgent } from '../agent/loop.js'
+import { sessionLoop } from '../agent/loop.js'
 import { setSessionStrategy, removeSessionState, getSessionState } from '../agent/session.js'
 import type { Strategy } from '../agent/session.js'
 
@@ -31,6 +31,7 @@ export function registerChatSocket(io: Server, socket: Socket) {
           model: (data.model as string) || undefined,
           provider_id: (data.provider_id as string) || undefined,
           workspace: (data.workspace as string) || undefined,
+          active_group: (data.active_group as string) || undefined,
         })
       } else {
         const patch: Record<string, unknown> = {}
@@ -38,6 +39,7 @@ export function registerChatSocket(io: Server, socket: Socket) {
         if (data.model) patch.model = data.model
         if (data.workspace) patch.workspace = data.workspace
         if (data.character_id) patch.character_id = data.character_id
+        if (data.active_group) patch.active_group = data.active_group
         if (Object.keys(patch).length > 0) sessionStore.update(sessionId, patch)
       }
 
@@ -50,7 +52,7 @@ export function registerChatSocket(io: Server, socket: Socket) {
       activeRuns.set(sessionId, { abort: () => abortController.abort() })
       ack?.({ run_id: `run_${sessionId}_${Date.now()}`, status: 'started' })
 
-      await runAgent(io, socket, sessionId, abortController.signal, {
+      await sessionLoop(io, socket, sessionId, abortController.signal, {
         thinking: !!data.thinking,
         reasoning_effort: data.reasoning_effort as string | undefined,
       })

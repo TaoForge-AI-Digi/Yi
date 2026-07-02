@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import ContextMenu from './ContextMenu.vue'
 import { useChatStore } from '@/stores/chat'
 
@@ -8,8 +8,10 @@ const props = defineProps<{
     id: string
     title: string
     pinned?: boolean
+    parent_id?: string
   }
   active: boolean
+  depth?: number
 }>()
 
 const emit = defineEmits<{
@@ -20,6 +22,7 @@ const emit = defineEmits<{
 const chatStore = useChatStore()
 const showContextMenu = ref(false)
 const contextMenuPos = ref({ x: 0, y: 0 })
+const expanded = ref(true)
 
 function handleContextMenu(event: MouseEvent) {
   contextMenuPos.value = { x: event.clientX, y: event.clientY }
@@ -68,26 +71,57 @@ function toggleStar(event: MouseEvent) {
   event.stopPropagation()
   chatStore.toggleSessionStar(props.session.id)
 }
+
+function toggleExpand(event: MouseEvent) {
+  event.stopPropagation()
+  expanded.value = !expanded.value
+}
+
+const children = computed(() => {
+  if (!props.session.parent_id) return chatStore.getChildSessions(props.session.id)
+  return []
+})
+
 </script>
 
 <template>
-  <div
-    class="session-item"
-    :class="{ active, selected: chatStore.selectedSessionIds.has(session.id), 'batch-mode': chatStore.isBatchMode }"
-    @click="chatStore.isBatchMode ? chatStore.toggleSessionSelection(session.id) : emit('click')"
-    @contextmenu.prevent="handleContextMenu"
-  >
-    <input
-      v-if="chatStore.isBatchMode"
-      type="checkbox"
-      class="session-checkbox"
-      :checked="chatStore.selectedSessionIds.has(session.id)"
-      @click.stop="chatStore.toggleSessionSelection(session.id)"
-    />
-    <span class="star-btn" :class="{ starred: session.pinned }" @click="toggleStar">
-      {{ session.pinned ? '⭐' : '☆' }}
-    </span>
-    <span class="session-title">{{ session.title || '新建对话' }}</span>
+  <div class="session-wrapper">
+    <div
+      class="session-item"
+      :class="{ active, selected: chatStore.selectedSessionIds.has(session.id), 'batch-mode': chatStore.isBatchMode, child: depth && depth > 0 }"
+      :style="{ paddingLeft: (depth || 0) * 16 + 8 + 'px' }"
+      @click="chatStore.isBatchMode ? chatStore.toggleSessionSelection(session.id) : emit('click')"
+      @contextmenu.prevent="handleContextMenu"
+    >
+      <span
+        v-if="!session.parent_id && children.length > 0"
+        class="expand-btn"
+        @click="toggleExpand"
+      >{{ expanded ? '▾' : '▸' }}</span>
+      <span v-else-if="session.parent_id" class="indent-marker">└</span>
+      <input
+        v-if="chatStore.isBatchMode"
+        type="checkbox"
+        class="session-checkbox"
+        :checked="chatStore.selectedSessionIds.has(session.id)"
+        @click.stop="chatStore.toggleSessionSelection(session.id)"
+      />
+      <span class="star-btn" :class="{ starred: session.pinned }" @click="toggleStar">
+        {{ session.pinned ? '⭐' : '☆' }}
+      </span>
+      <span class="session-title">{{ session.title || (session.parent_id ? '子任务' : '新建对话') }}</span>
+    </div>
+
+    <div v-if="!session.parent_id && children.length > 0 && expanded" class="child-list">
+      <SessionItem
+        v-for="child in children"
+        :key="child.id"
+        :session="child"
+        :active="child.id === chatStore.activeSessionId"
+        :depth="(depth || 0) + 1"
+        @click="chatStore.switchSession(child.id)"
+      />
+    </div>
   </div>
 
   <ContextMenu
@@ -102,14 +136,17 @@ function toggleStar(event: MouseEvent) {
 </template>
 
 <style scoped>
+.session-wrapper {
+  position: relative;
+}
 .session-item {
   display: flex;
   align-items: center;
-  padding: 8px;
+  padding: 6px 8px;
   border-radius: 6px;
   cursor: pointer;
   font-size: 13px;
-  margin-bottom: 2px;
+  margin-bottom: 1px;
 }
 .session-item:hover {
   background: #e9ecef;
@@ -123,6 +160,23 @@ function toggleStar(event: MouseEvent) {
 }
 .session-item.batch-mode {
   user-select: none;
+}
+.session-item.child {
+  font-size: 12px;
+  opacity: 0.85;
+}
+.expand-btn {
+  width: 14px;
+  font-size: 10px;
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+}
+.indent-marker {
+  width: 14px;
+  font-size: 10px;
+  color: #999;
+  flex-shrink: 0;
 }
 .session-checkbox {
   margin-right: 6px;
@@ -140,5 +194,13 @@ function toggleStar(event: MouseEvent) {
 }
 .session-title {
   flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.child-list {
+  border-left: 1px solid #ddd;
+  margin-left: 12px;
+  padding-left: 4px;
 }
 </style>

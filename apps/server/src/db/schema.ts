@@ -12,6 +12,8 @@ export function getDb(): Database.Database {
   db = new Database(resolve(DATA_DIR, 'sessions.db'))
   db.pragma('journal_mode = WAL')
   try { db.exec('ALTER TABLE messages ADD COLUMN reasoning_content TEXT') } catch { /* column may already exist */ }
+  try { db.exec('ALTER TABLE sessions ADD COLUMN parent_id TEXT') } catch { }
+  try { db.exec('ALTER TABLE sessions ADD COLUMN active_group TEXT') } catch { }
   db.exec(`
     CREATE TABLE IF NOT EXISTS sessions (
       id TEXT PRIMARY KEY,
@@ -20,6 +22,8 @@ export function getDb(): Database.Database {
       model TEXT,
       provider_id TEXT,
       workspace TEXT,
+      parent_id TEXT,
+      active_group TEXT,
       input_tokens INTEGER DEFAULT 0,
       output_tokens INTEGER DEFAULT 0,
       created_at INTEGER NOT NULL,

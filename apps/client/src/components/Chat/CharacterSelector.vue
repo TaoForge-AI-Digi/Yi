@@ -14,6 +14,17 @@ const groupView = ref(false)
 
 const session = computed(() => chatStore.activeSession)
 
+const currentChar = computed(() => {
+  const s = session.value
+  if (!s) return null
+  return charactersStore.characters.find(c => c.id === s.character_id) || null
+})
+
+const currentCharGroups = computed(() => {
+  const c = currentChar.value
+  return c?.groups?.filter(g => g.trim()) || []
+})
+
 const filtered = computed(() => {
   const q = search.value.toLowerCase()
   return charactersStore.characters.filter(c =>
@@ -44,13 +55,18 @@ const currentLabel = computed(() => {
   const s = session.value
   if (!s) return t('chat.selectCharacter')
   const c = charactersStore.characters.find(x => x.id === s.character_id)
-  return c?.name || s.character_id || t('chat.default')
+  const name = c?.name || s.character_id || t('chat.default')
+  if (s.active_group) return `${name} [${s.active_group}]`
+  return name
 })
 
 function select(id: string) {
   const s = session.value
   if (!s) return
+  const c = charactersStore.characters.find(x => x.id === id)
+  if (!c) return
   s.character_id = id
+  s.active_group = undefined
   charactersStore.setActive(id)
   open.value = false
   search.value = ''
@@ -67,6 +83,13 @@ function isDisabled(role?: string) {
       <span class="trigger-label">{{ currentLabel }}</span>
       <span class="trigger-arrow">▾</span>
     </button>
+
+    <span v-if="currentCharGroups.length > 0" class="group-selector">
+      <select v-model="session!.active_group">
+        <option :value="undefined">none</option>
+        <option v-for="g in currentCharGroups" :key="g" :value="g">{{ g }}</option>
+      </select>
+    </span>
 
     <Teleport to="body">
       <div v-if="open" class="modal-overlay" @click.self="open = false">
@@ -105,6 +128,7 @@ function isDisabled(role?: string) {
                   </span>
                   <span v-if="c.role === 'main' || c.role === 'both'" class="modal-item-badge main">main</span>
                   <span v-if="c.role === 'sub'" class="modal-item-badge sub">sub</span>
+                  <span v-if="c.groups && c.groups.length > 1" class="modal-item-badge multi-group">multi</span>
                 </button>
               </div>
             </template>
@@ -127,6 +151,7 @@ function isDisabled(role?: string) {
                 </span>
                 <span v-if="c.role === 'main' || c.role === 'both'" class="modal-item-badge main">main</span>
                 <span v-if="c.role === 'sub'" class="modal-item-badge sub">sub</span>
+                <span v-if="c.groups && c.groups.length > 1" class="modal-item-badge multi-group">multi</span>
               </button>
             </template>
             <div v-if="filtered.length === 0" class="modal-empty">{{ t('chat.noCharacters') }}</div>
@@ -138,7 +163,7 @@ function isDisabled(role?: string) {
 </template>
 
 <style scoped>
-.selector { position: relative; display: inline-block; }
+.selector { position: relative; display: inline-flex; align-items: center; gap: 6px; }
 
 .selector-trigger {
   display: flex;
@@ -151,12 +176,23 @@ function isDisabled(role?: string) {
   cursor: pointer;
   font-size: 12px;
   color: #333;
-  max-width: 140px;
+  max-width: 160px;
   white-space: nowrap;
 }
 .selector-trigger:hover { border-color: #007aff; }
 .trigger-label { overflow: hidden; text-overflow: ellipsis; }
 .trigger-arrow { font-size: 10px; color: #999; }
+
+.group-selector select {
+  padding: 3px 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: white;
+  font-size: 12px;
+  color: #333;
+  cursor: pointer;
+}
+.group-selector select:hover { border-color: #007aff; }
 </style>
 
 <style>
@@ -293,5 +329,6 @@ function isDisabled(role?: string) {
 }
 .modal-item-badge.main { background: #e3f2fd; color: #1976d2; }
 .modal-item-badge.sub { background: #f5f5f5; color: #999; }
+.modal-item-badge.multi-group { background: #fff3e0; color: #e65100; }
 .modal-empty { padding: 32px; text-align: center; font-size: 13px; color: #999; }
 </style>

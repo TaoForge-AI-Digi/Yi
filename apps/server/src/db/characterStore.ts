@@ -5,17 +5,27 @@ const CHAR_DIR = resolve(import.meta.dirname, '../../data/characters')
 
 mkdirSync(CHAR_DIR, { recursive: true })
 
-export interface CharacterPermission {
-  edit: 'ask' | 'allow' | 'deny'
-  bash: 'ask' | 'allow' | 'deny'
-  webfetch: 'allow' | 'deny'
-}
-
 export interface CharacterMemory {
   enabled: boolean
   selfEvolution?: boolean
   charLimit?: number
   maxEntries?: number
+}
+
+export interface ToolConstraint {
+  allowed_paths?: string[]
+  denied_paths?: string[]
+  max_file_size?: string
+  allowed_commands?: string[]
+  denied_patterns?: string[]
+  readonly?: boolean
+  max_rows?: number
+  require_confirm_even_in_bypass?: boolean
+}
+
+export interface ToolBinding {
+  name: string
+  constraints?: ToolConstraint
 }
 
 export interface CharacterRecord {
@@ -27,8 +37,7 @@ export interface CharacterRecord {
   memory?: CharacterMemory
   model?: string
   provider?: string
-  tools?: string[]                   // 工具白名单
-  permissions?: CharacterPermission  // 遗留
+  tools?: ToolBinding[]
   maxSteps?: number
   role?: 'main' | 'sub' | 'both'
   groups?: string[]
@@ -79,13 +88,17 @@ function nextId(items: CharacterRecord[]): string {
 
 const NOW = Date.now()
 
-const ALL_TOOLS = ['read', 'write', 'edit', 'grep', 'glob', 'bash', 'webfetch', 'websearch']
+const DEFAULT_ALL_TOOLS: ToolBinding[] = [
+  { name: 'read' }, { name: 'write' }, { name: 'edit' },
+  { name: 'grep' }, { name: 'glob' }, { name: 'bash' },
+  { name: 'webfetch' }, { name: 'websearch' },
+]
 
 const BUILTIN: CharacterRecord[] = [
-  { id: 'general', name: 'General', description: '通用助手', color: '#6366f1', tools: ['read', 'write', 'edit', 'grep', 'glob', 'webfetch', 'websearch'], role: 'both', maxSteps: 10, enabled: true, builtIn: true, createdAt: NOW, updatedAt: NOW },
-  { id: 'coder', name: 'Coder', description: '编程专家', color: '#10b981', tools: ALL_TOOLS, role: 'main', maxSteps: 20, enabled: true, builtIn: true, createdAt: NOW, updatedAt: NOW },
-  { id: 'reviewer', name: 'Reviewer', description: '代码审查', color: '#f59e0b', tools: ['read', 'grep', 'glob'], role: 'sub', maxSteps: 15, enabled: true, builtIn: true, createdAt: NOW, updatedAt: NOW },
-  { id: 'explorer', name: 'Explorer', description: '代码探索', color: '#8b5cf6', tools: ['read', 'write', 'edit', 'grep', 'glob', 'webfetch', 'websearch'], role: 'both', maxSteps: 10, enabled: true, builtIn: true, createdAt: NOW, updatedAt: NOW },
+  { id: 'general', name: 'General', description: '通用助手', color: '#6366f1', tools: [{ name: 'read' }, { name: 'write' }, { name: 'edit' }, { name: 'grep' }, { name: 'glob' }, { name: 'webfetch' }, { name: 'websearch' }], role: 'both', maxSteps: 10, enabled: true, builtIn: true, createdAt: NOW, updatedAt: NOW },
+  { id: 'coder', name: 'Coder', description: '编程专家', color: '#10b981', tools: DEFAULT_ALL_TOOLS, role: 'main', maxSteps: 20, enabled: true, builtIn: true, createdAt: NOW, updatedAt: NOW },
+  { id: 'reviewer', name: 'Reviewer', description: '代码审查', color: '#f59e0b', tools: [{ name: 'read' }, { name: 'grep' }, { name: 'glob' }], role: 'sub', maxSteps: 15, enabled: true, builtIn: true, createdAt: NOW, updatedAt: NOW },
+  { id: 'explorer', name: 'Explorer', description: '代码探索', color: '#8b5cf6', tools: [{ name: 'read' }, { name: 'write' }, { name: 'edit' }, { name: 'grep' }, { name: 'glob' }, { name: 'webfetch' }, { name: 'websearch' }], role: 'both', maxSteps: 10, enabled: true, builtIn: true, createdAt: NOW, updatedAt: NOW },
 ]
 
 export function seedBuiltinCharacters() {
@@ -95,7 +108,6 @@ export function seedBuiltinCharacters() {
   for (const c of BUILTIN) {
     if (!existing.has(c.id)) { writeSingle(c); changed = true }
   }
-  // patch existing builtins that may be missing new fields
   for (const c of BUILTIN) {
     const existingRecord = all.find(a => a.id === c.id)
     if (existingRecord) {
@@ -105,7 +117,7 @@ export function seedBuiltinCharacters() {
       if (!existingRecord.default_strategy && c.default_strategy) { existingRecord.default_strategy = c.default_strategy; dirty = true }
       if (!existingRecord.groups) { existingRecord.groups = c.groups; dirty = true }
       if (!existingRecord.skills) { existingRecord.skills = c.skills; dirty = true }
-      if (dirty) { writeSingle(existingRecord as CharacterRecord); changed = true }
+      if (dirty) { writeSingle(existingRecord); changed = true }
     }
   }
   if (changed) console.log('[seed] Builtin characters updated')
@@ -117,7 +129,7 @@ export const characterMetaStore = {
   getById: (id: string) => {
     const f = pathFor(id)
     if (!existsSync(f)) return null
-    try { return JSON.parse(readFileSync(f, 'utf-8')) as CharacterRecord } catch { return null }
+    try { return JSON.parse(readFileSync(f, 'utf-8')) } catch { return null }
   },
 
   create: (data: Omit<CharacterRecord, 'id' | 'createdAt' | 'updatedAt'>) => {

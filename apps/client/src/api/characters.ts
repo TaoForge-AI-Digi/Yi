@@ -1,9 +1,19 @@
 import { apiGet, apiPost, apiPut, apiDelete } from './client'
 
-export interface CharacterPermission {
-  edit?: 'ask' | 'allow' | 'deny'
-  bash?: 'ask' | 'allow' | 'deny'
-  webfetch?: 'allow' | 'deny'
+export interface ToolConstraint {
+  allowed_paths?: string[]
+  denied_paths?: string[]
+  max_file_size?: string
+  allowed_commands?: string[]
+  denied_patterns?: string[]
+  readonly?: boolean
+  max_rows?: number
+  require_confirm_even_in_bypass?: boolean
+}
+
+export interface ToolBinding {
+  name: string
+  constraints?: ToolConstraint
 }
 
 export interface CharacterMemory {
@@ -25,8 +35,7 @@ export interface Character {
   memoryContent?: string
   model?: string
   provider?: string
-  tools?: string[]
-  permissions?: CharacterPermission
+  tools?: ToolBinding[]
   maxSteps?: number
   role?: 'main' | 'sub' | 'both'
   groups?: string[]

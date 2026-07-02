@@ -28,6 +28,10 @@ router.delete('/:id/messages', (c) => {
   messageStore.keepFirst(c.req.param('id'), count)
   return c.json({ ok: true })
 })
+router.get('/:id/children', (c) => {
+  const id = c.req.param('id')
+  return c.json(sessionStore.getChildren(id))
+})
 router.get('/:id/messages', (c) => {
   const id = c.req.param('id')
   const session = sessionStore.getById(id)

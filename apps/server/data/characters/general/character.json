@@ -24,14 +24,31 @@
   "skills": [],
   "enabled": true,
   "builtIn": true,
-  "updatedAt": 1782805332499,
+  "updatedAt": 1782948276800,
   "tools": [
-    "read",
-    "write",
-    "edit",
-    "grep",
-    "glob",
-    "webfetch",
-    "websearch"
+    {
+      "name": "read"
+    },
+    {
+      "name": "write"
+    },
+    {
+      "name": "edit"
+    },
+    {
+      "name": "grep"
+    },
+    {
+      "name": "glob"
+    },
+    {
+      "name": "webfetch"
+    },
+    {
+      "name": "websearch"
+    },
+    {
+      "name": "bash"
+    }
   ]
 }

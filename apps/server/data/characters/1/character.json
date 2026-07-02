@@ -20,11 +20,37 @@
     "test",
     "default"
   ],
-  "default_strategy": "Ask",
+  "default_strategy": "Bypass",
   "skills": [
     "plan"
   ],
   "enabled": true,
   "createdAt": 1782738601774,
-  "updatedAt": 1782805867137
+  "updatedAt": 1782949902822,
+  "tools": [
+    {
+      "name": "read"
+    },
+    {
+      "name": "write"
+    },
+    {
+      "name": "edit"
+    },
+    {
+      "name": "bash"
+    },
+    {
+      "name": "grep"
+    },
+    {
+      "name": "glob"
+    },
+    {
+      "name": "webfetch"
+    },
+    {
+      "name": "websearch"
+    }
+  ]
 }

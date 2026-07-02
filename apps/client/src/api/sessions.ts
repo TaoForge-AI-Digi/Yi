@@ -3,12 +3,14 @@ import { apiGet, apiPost, apiPut, apiDelete } from './client'
 export interface SessionSummary {
   id: string; character_id: string; title: string
   model: string | null; provider_id: string | null; workspace: string | null
+  parent_id: string | null; active_group: string | null
   created_at: number; updated_at: number
 }
 
 export interface SessionDetail {
   id: string; character_id: string; title: string
   model: string | null; provider_id: string | null; workspace: string | null
+  parent_id: string | null; active_group: string | null
   input_tokens: number; output_tokens: number
   created_at: number; updated_at: number
 }
@@ -25,3 +27,4 @@ export const renameSession = (id: string, title: string) => apiPut<SessionSummar
 export const deleteSession = (id: string) => apiDelete(`/api/sessions/${id}`)
 export const fetchSessionMessages = (id: string) => apiGet<{ session: SessionSummary; messages: any[]; total: number }>(`/api/sessions/${id}/messages`)
 export const keepMessages = (sessionId: string, count: number) => apiDelete(`/api/sessions/${sessionId}/messages?keep=${count}`)
+export const fetchChildSessions = (id: string) => apiGet<SessionSummary[]>(`/api/sessions/${id}/children`)

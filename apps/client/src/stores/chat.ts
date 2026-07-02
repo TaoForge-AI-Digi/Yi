@@ -37,6 +37,8 @@ export interface Session {
   thinking?: boolean
   reasoning_effort?: string
   current_strategy?: Strategy
+  parent_id?: string
+  active_group?: string
   created_at: number; updated_at: number
 }
 
@@ -76,9 +78,14 @@ export const useChatStore = defineStore('chat', () => {
     ).join('\n\n')
   }
 
+  function getChildSessions(parentId: string): Session[] {
+    return sessions.value.filter(s => s.parent_id === parentId)
+  }
+
   const workspaceGroups = computed<WorkspaceGroup[]>(() => {
     const groups = new Map<string, Session[]>()
-    sessions.value.forEach(session => {
+    const parentSessions = sessions.value.filter(s => !s.parent_id)
+    parentSessions.forEach(session => {
       const workspace = session.workspace || 'default'
       if (!groups.has(workspace)) {
         groups.set(workspace, [])
@@ -99,6 +106,11 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   async function deleteSingleSession(id: string) {
+    const children = getChildSessions(id)
+    for (const child of children) {
+      sessions.value = sessions.value.filter(s => s.id !== child.id)
+      sessionsApi.deleteSession(child.id).catch(() => {})
+    }
     sessions.value = sessions.value.filter(s => s.id !== id)
     if (activeSessionId.value === id) activeSessionId.value = null
     sessionsApi.deleteSession(id).catch(() => {})
@@ -127,11 +139,54 @@ export const useChatStore = defineStore('chat', () => {
       const s = sessions.value.find(x => x.id === data.session_id)
       if (s && data.strategy) s.current_strategy = data.strategy
     })
+    socket.off('sub_agent.started')
+    socket.on('sub_agent.started', (data: { session_id: string; sub_session_id: string; target_character_id: string; task: string }) => {
+      if (sessions.value.find(s => s.id === data.sub_session_id)) return
+      const parent = sessions.value.find(s => s.id === data.session_id)
+      const child: Session = {
+        id: data.sub_session_id,
+        character_id: data.target_character_id,
+        title: `Sub: ${data.task.slice(0, 60)}`,
+        messages: [],
+        parent_id: data.session_id,
+        workspace: parent?.workspace,
+        created_at: Date.now(),
+        updated_at: Date.now(),
+      }
+      sessions.value.push(child)
+    })
   }
 
   async function loadSessions() {
     const list = await sessionsApi.fetchSessions()
-    sessions.value = list.map(s => ({ ...s, model: s.model ?? undefined, provider_id: s.provider_id ?? undefined, workspace: s.workspace ?? undefined, messages: [] }))
+    sessions.value = list.map(s => ({
+      ...s,
+      model: s.model ?? undefined,
+      provider_id: s.provider_id ?? undefined,
+      workspace: s.workspace ?? undefined,
+      parent_id: s.parent_id ?? undefined,
+      active_group: s.active_group ?? undefined,
+      messages: [],
+    }))
+    for (const s of sessions.value) {
+      if (s.parent_id) continue
+      try {
+        const children = await sessionsApi.fetchChildSessions(s.id)
+        for (const c of children) {
+          if (!sessions.value.find(x => x.id === c.id)) {
+            sessions.value.push({
+              ...c,
+              model: c.model ?? undefined,
+              provider_id: c.provider_id ?? undefined,
+              workspace: c.workspace ?? undefined,
+              parent_id: c.parent_id ?? undefined,
+              active_group: c.active_group ?? undefined,
+              messages: [],
+            })
+          }
+        }
+      } catch { /* ignore */ }
+    }
   }
 
   watch(activeSession, (s) => {
@@ -148,16 +203,20 @@ export const useChatStore = defineStore('chat', () => {
     if (id) savePersistedDefaults({ activeSessionId: id })
   })
 
-  async function createSession(opts: { character_id?: string; model?: string; provider_id?: string; workspace?: string } = {}): Promise<Session> {
+  async function createSession(opts: { character_id?: string; model?: string; provider_id?: string; workspace?: string; parent_id?: string; active_group?: string } = {}): Promise<Session> {
     const defs = loadPersistedDefaults()
     const session: Session = {
       id: uid(), character_id: opts.character_id || defs.character_id || 'general', title: '',
       model: opts.model || defs.model, provider_id: opts.provider_id || defs.provider_id,
       workspace: opts.workspace || defs.workspace,
+      parent_id: opts.parent_id,
+      active_group: opts.active_group,
       messages: [], created_at: Date.now(), updated_at: Date.now(),
     }
     sessions.value.unshift(session)
-    try { await sessionsApi.createSession({ id: session.id, character_id: session.character_id, model: session.model, provider_id: session.provider_id, workspace: session.workspace }) } catch { /* will be created on first message if needed */ }
+    try {
+      await sessionsApi.createSession({ id: session.id, character_id: session.character_id, model: session.model, provider_id: session.provider_id, workspace: session.workspace, parent_id: session.parent_id, active_group: session.active_group })
+    } catch { /* will be created on first message if needed */ }
     return session
   }
 
@@ -218,22 +277,30 @@ export const useChatStore = defineStore('chat', () => {
       model: session.model || undefined,
       provider_id: session.provider_id || undefined,
       workspace: session.workspace || undefined,
+      active_group: session.active_group || undefined,
       thinking: session.thinking || undefined,
       reasoning_effort: session.reasoning_effort || undefined,
     })
 
+    function findSession(sid: string): Session | null {
+      if (sid === session!.id) return session!
+      return sessions.value.find(s => s.parent_id === session!.id && s.id === sid) || null
+    }
+
     const onStrategyUpdated = (data: RunEvent) => {
-      if (data.session_id !== session!.id) return
-      if (data.strategy) session!.current_strategy = data.strategy
+      const s = findSession(data.session_id)
+      if (!s) return
+      if (data.strategy) s.current_strategy = data.strategy
     }
     const onDelta = (data: RunEvent) => {
-      if (data.session_id !== session!.id) return
-      const last = session!.messages[session!.messages.length - 1]
+      const s = findSession(data.session_id)
+      if (!s) return
+      const last = s.messages[s.messages.length - 1]
       if (last?.role === 'assistant' && last.is_streaming) {
         if (data.reasoning) last.reasoning = (last.reasoning || '') + data.reasoning
         if (data.delta) last.content += data.delta
       } else {
-        session!.messages.push({
+        s.messages.push({
           id: uid(), role: 'assistant', content: data.delta || '',
           reasoning: data.reasoning || '',
           is_streaming: true, timestamp: Date.now(),
@@ -241,8 +308,9 @@ export const useChatStore = defineStore('chat', () => {
       }
     }
     const onToolStarted = (data: RunEvent) => {
-      if (data.session_id !== session!.id) return
-      session!.messages.push({
+      const s = findSession(data.session_id)
+      if (!s) return
+      s.messages.push({
         id: uid(), role: 'tool', content: '',
         tool_name: data.tool_name, tool_input: data.tool_input,
         tool_status: 'running', timestamp: Date.now(),
@@ -250,9 +318,10 @@ export const useChatStore = defineStore('chat', () => {
       })
     }
     const onToolCompleted = (data: RunEvent) => {
-      if (data.session_id !== session!.id) return
-      const tool = session!.messages.find(m => m.role === 'tool' && m.tool_call_id === data.tool_call_id)
-      if (tool) { tool.tool_status = 'success'; tool.tool_output = data.tool_output }
+      const s = findSession(data.session_id)
+      if (!s) return
+      const tool = s.messages.find(m => m.role === 'tool' && m.tool_call_id === data.tool_call_id)
+      if (tool) { tool.tool_status = (data.tool_status as any) || 'success'; tool.tool_output = data.tool_output }
     }
     const onApprovalRequested = (data: RunEvent) => {
       if (data.session_id !== session!.id) return
@@ -261,17 +330,22 @@ export const useChatStore = defineStore('chat', () => {
       }
     }
     const onCompleted = (data: RunEvent) => {
-      if (data.session_id !== session!.id) return
-      const last = session!.messages[session!.messages.length - 1]
+      const s = findSession(data.session_id)
+      if (!s) return
+      const last = s.messages[s.messages.length - 1]
       if (last?.is_streaming) last.is_streaming = false
-      isStreaming.value = false
-      cleanup()
+      if (data.session_id === session!.id) isStreaming.value = false
+      // Don't cleanup on child completion — parent may still be running
+      if (data.session_id === session!.id) cleanup()
     }
     const onFailed = (data: RunEvent) => {
-      if (data.session_id !== session!.id) return
-      session!.messages.push({ id: uid(), role: 'assistant', content: `Error: ${data.error || 'Unknown'}`, timestamp: Date.now() })
-      isStreaming.value = false
-      cleanup()
+      const s = findSession(data.session_id)
+      if (!s) return
+      s.messages.push({ id: uid(), role: 'assistant', content: `Error: ${data.error || 'Unknown'}`, timestamp: Date.now() })
+      if (data.session_id === session!.id) {
+        isStreaming.value = false
+        cleanup()
+      }
     }
 
     function cleanup() {
@@ -349,14 +423,17 @@ export const useChatStore = defineStore('chat', () => {
 
   async function batchDeleteSessions() {
     const ids = Array.from(selectedSessionIds.value)
+    const allIds = new Set<string>()
+    for (const id of ids) {
+      allIds.add(id)
+      const children = getChildSessions(id)
+      for (const c of children) allIds.add(c.id)
+    }
     const failedIds: string[] = []
-    await Promise.all(ids.map(id =>
+    await Promise.all(Array.from(allIds).map(id =>
       sessionsApi.deleteSession(id).catch(() => { failedIds.push(id) })
     ))
-    if (failedIds.length > 0) {
-      console.warn(`Failed to delete ${failedIds.length} session(s):`, failedIds)
-    }
-    const deletedIds = ids.filter(id => !failedIds.includes(id))
+    const deletedIds = Array.from(allIds).filter(id => !failedIds.includes(id))
     sessions.value = sessions.value.filter(s => !deletedIds.includes(s.id))
     if (activeSessionId.value && deletedIds.includes(activeSessionId.value)) {
       activeSessionId.value = null
@@ -373,7 +450,7 @@ export const useChatStore = defineStore('chat', () => {
     attachments, addAttachment, removeAttachment, clearAttachments,
     loadSessions, createSession, switchSession, sendMessage, setStrategy, respondApproval, abortRun,
     renameSession, deleteSingleSession, resetToMessage,
-    toggleSessionStar,
+    toggleSessionStar, getChildSessions,
     toggleWorkspaceCollapse, toggleBatchMode, toggleSessionSelection, selectAllSessions, batchDeleteSessions,
   }
 })

@@ -3,7 +3,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useCharactersStore } from '@/stores/characters'
 import { fetchSkills } from '@/api/skills'
-import type { CharacterConfig, Character } from '@/api/characters'
+import type { CharacterConfig, Character, ToolBinding } from '@/api/characters'
+import ToolBindingEditor from '@/components/settings/ToolBindingEditor.vue'
 
 const { t } = useI18n()
 const store = useCharactersStore()
@@ -22,8 +23,6 @@ const allSkills = ref<{ name: string; description: string }[]>([])
 const newGroupName = ref('')
 const showNewGroupInput = ref(false)
 
-const ALL_TOOLS = ['read', 'write', 'edit', 'bash', 'grep', 'glob', 'webfetch', 'websearch']
-
 const form = ref<CharacterConfig>({
   name: '',
   description: '',
@@ -41,13 +40,6 @@ const form = ref<CharacterConfig>({
   skills: [],
   enabled: true,
 })
-
-function toggleTool(name: string) {
-  const list = form.value.tools || []
-  const idx = list.indexOf(name)
-  if (idx >= 0) list.splice(idx, 1)
-  else list.push(name)
-}
 
 const displayGroups = computed(() => {
   const g = new Set<string>()
@@ -130,7 +122,7 @@ function select(id: string) {
       userProfile: c.userProfile || '',
       memory: c.memory ? { ...c.memory, charLimit: c.memory.charLimit ?? 2200, selfEvolution: c.memory.selfEvolution ?? false } : { enabled: false, selfEvolution: false, charLimit: 2200 },
       memoryContent: c.memoryContent || '',
-      tools: c.tools ? [...c.tools] : [],
+      tools: c.tools ? c.tools.map(t => typeof t === 'string' ? { name: t } : { ...t }).filter(t => typeof t.name === 'string') as ToolBinding[] : [],
       maxSteps: c.maxSteps ?? 10,
       role: c.role || 'both',
       groups: c.groups ? [...c.groups] : [],
@@ -470,21 +462,7 @@ function saveEdit() {
 
           <!-- Tools Tab -->
           <div v-if="activeTab === 'tools'" class="tab-content">
-            <div class="tools-section">
-              <div class="section-header">
-                <div class="section-title-row">
-                  <span class="section-title">工具白名单</span>
-                </div>
-              </div>
-              <div class="tools-grid">
-                <label v-for="tool in ALL_TOOLS" :key="tool" class="tool-toggle-row">
-                  <span class="tool-name">{{ tool }}</span>
-                  <input type="checkbox" :checked="(form.tools || []).includes(tool)" @change="toggleTool(tool)" class="toggle-input" />
-                  <span class="toggle-switch"></span>
-                </label>
-              </div>
-              <p class="tools-hint">开启的工具角色才能调用。空 = 任何工具都不能用。</p>
-            </div>
+            <ToolBindingEditor v-model="form.tools" />
           </div>
 
           <!-- Memory Tab -->

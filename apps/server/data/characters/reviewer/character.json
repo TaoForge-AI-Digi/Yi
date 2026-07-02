@@ -7,7 +7,7 @@
     "files": "deny",
     "bash": "deny"
   },
-  "role": "sub",
+  "role": "both",
   "groups": [],
   "default_strategy": "Ask",
   "skills": [],
@@ -20,10 +20,16 @@
   },
   "maxSteps": 10,
   "enabled": true,
-  "updatedAt": 1782805339679,
+  "updatedAt": 1782953097276,
   "tools": [
-    "read",
-    "grep",
-    "glob"
+    {
+      "name": "read"
+    },
+    {
+      "name": "grep"
+    },
+    {
+      "name": "glob"
+    }
   ]
 }
