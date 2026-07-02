@@ -1,11 +1,14 @@
 import { messageStore } from '../db/messageStore.js'
 import { characterMetaStore, type ToolBinding } from '../db/characterStore.js'
 import { streamChatCompletion, type LLMMessage, type ToolCall } from '../llm/client.js'
-import { DANGEROUS_TOOLS, validateConstraints } from '../tools/definitions.js'
+import { getDangerousTools, validateConstraints } from '../tools/definitions.js'
 import { executeTool } from '../tools/executor.js'
 import { getSessionState, isToolApprovedForSession, approveToolForSession } from './session.js'
+import { logLLMCall } from '../debug/llm-logger.js'
 import type { Strategy } from './session.js'
 import type { Server, Socket } from 'socket.io'
+
+const READ_ONLY_TOOLS = new Set(['read', 'grep', 'glob', 'webfetch', 'websearch'])
 
 export interface ToolCallRecord {
   toolName: string
@@ -37,6 +40,25 @@ function deepCloneToolCall(tc: ToolCall): ToolCall {
   return { id: tc.id, index: tc.index, type: 'function', function: { name: tc.function.name, arguments: tc.function.arguments } }
 }
 
+function isTransientError(errorText: string): boolean {
+  const msg = errorText.toLowerCase()
+  return msg.includes('rate limit') ||
+    msg.includes('429') ||
+    msg.includes('503') ||
+    msg.includes('timeout') ||
+    msg.includes('overloaded') ||
+    msg.includes('internal server error') ||
+    msg.includes('500') ||
+    msg.includes('502') ||
+    msg.includes('service unavailable') ||
+    msg.includes('temporarily') ||
+    msg.includes('try again')
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(r => setTimeout(r, ms))
+}
+
 function checkToolBinding(characterId: string, toolName: string, args: Record<string, string>): string | null {
   const character = characterMetaStore.getById(characterId)
   if (!character) return null
@@ -52,7 +74,7 @@ function checkToolBinding(characterId: string, toolName: string, args: Record<st
 }
 
 function checkStrategy(toolName: string, strategy: Strategy): 'allow' | 'ask' | 'deny' {
-  const dangerous = DANGEROUS_TOOLS.includes(toolName)
+  const dangerous = getDangerousTools().includes(toolName)
   if (strategy === 'Plan' && dangerous) return 'deny'
   if (strategy === 'Ask' && dangerous) return 'ask'
   return 'allow'
@@ -78,6 +100,83 @@ export interface InnerResult {
   subAgentRequest?: SubAgentRequestData
 }
 
+async function streamWithRetry(
+  messages: LLMMessage[],
+  tools: any[] | undefined,
+  provider: { base_url: string; api_key: string },
+  model: string,
+  signal?: AbortSignal,
+  opts: { thinking?: boolean; reasoning_effort?: string } = {},
+  onDelta?: (chunk: any) => void,
+): Promise<{ text: string; reasoning: string; toolCalls: ToolCall[]; usage: { input: number; output: number } | null }> {
+  let fullText = ''
+  let reasoningText = ''
+  let toolCallsAcc: ToolCall[] = []
+  let usage: { input: number; output: number } | null = null
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (signal?.aborted) break
+    let errorText = ''
+
+    const gen = streamChatCompletion({
+      baseUrl: provider.base_url,
+      apiKey: provider.api_key,
+      model, messages, tools, signal,
+      thinking: opts.thinking,
+      reasoning_effort: opts.reasoning_effort,
+    })
+
+    for await (const chunk of gen) {
+      if (signal?.aborted) break
+
+      if (chunk.type === 'delta') {
+        if (chunk.reasoning) {
+          reasoningText += chunk.reasoning
+        }
+        if (chunk.text) {
+          fullText += chunk.text
+        }
+        if (chunk.tool_calls) {
+          for (const tc of chunk.tool_calls) {
+            const existing = matchToolCall(toolCallsAcc, tc)
+            if (existing) {
+              if (tc.function.name) existing.function.name += tc.function.name
+              if (tc.function.arguments) existing.function.arguments += tc.function.arguments
+            } else {
+              toolCallsAcc.push(deepCloneToolCall(tc))
+            }
+          }
+        }
+        onDelta?.(chunk)
+      }
+
+      if (chunk.type === 'error') {
+        errorText = chunk.text || 'LLM error'
+        break
+      }
+
+      if (chunk.type === 'done' && chunk.usage) {
+        usage = {
+          input: chunk.usage.input_tokens,
+          output: chunk.usage.output_tokens,
+        }
+      }
+    }
+
+    if (signal?.aborted) break
+    if (!errorText) break
+
+    if (!isTransientError(errorText) || attempt >= 2) {
+      throw new Error(errorText)
+    }
+
+    const delay = Math.min(1000 * Math.pow(2, attempt), 8000)
+    await sleep(delay)
+  }
+
+  return { text: fullText, reasoning: reasoningText, toolCalls: toolCallsAcc.filter(tc => tc.function.name), usage }
+}
+
 export async function innerLoop(
   messages: LLMMessage[],
   tools: any[] | undefined,
@@ -89,71 +188,45 @@ export async function innerLoop(
   socket?: Socket,
   sessionId?: string,
   signal?: AbortSignal,
-  opts: { thinking?: boolean; reasoning_effort?: string } = {}
+  opts: { thinking?: boolean; reasoning_effort?: string } = {},
+  turn: number = 0
 ): Promise<InnerResult> {
-  let fullText = ''
-  let reasoningText = ''
-  let toolCallsAcc: ToolCall[] = []
-  let errorText = ''
   let totalInputTokens = 0
   let totalOutputTokens = 0
 
-  const gen = streamChatCompletion({
-    baseUrl: provider.base_url,
-    apiKey: provider.api_key,
-    model,
-    messages,
-    tools,
-    signal,
-    thinking: opts.thinking,
-    reasoning_effort: opts.reasoning_effort,
-  })
-
-  for await (const chunk of gen) {
-    if (signal?.aborted) break
-
-    if (chunk.type === 'delta') {
-      if (chunk.reasoning) {
-        reasoningText += chunk.reasoning
-        socket?.emit('message.delta', { session_id: sessionId, reasoning: chunk.reasoning })
-      }
-      if (chunk.text) {
-        fullText += chunk.text
-        socket?.emit('message.delta', { session_id: sessionId, delta: chunk.text })
-      }
-      if (chunk.tool_calls) {
-        for (const tc of chunk.tool_calls) {
-          const existing = matchToolCall(toolCallsAcc, tc)
-          if (existing) {
-            if (tc.function.name) existing.function.name += tc.function.name
-            if (tc.function.arguments) existing.function.arguments += tc.function.arguments
-          } else {
-            toolCallsAcc.push(deepCloneToolCall(tc))
-          }
+  let result
+  try {
+    result = await streamWithRetry(
+      messages, tools, provider, model, signal, opts,
+      (chunk) => {
+        if (chunk.reasoning && socket) {
+          socket.emit('message.delta', { session_id: sessionId, reasoning: chunk.reasoning })
         }
-      }
-    }
-
-    if (chunk.type === 'error') {
-      errorText = chunk.text || 'LLM error'
-      socket?.emit('run.failed', { session_id: sessionId, error: errorText })
-      break
-    }
-
-    if (chunk.type === 'done' && chunk.usage) {
-      totalInputTokens += chunk.usage.input_tokens
-      totalOutputTokens += chunk.usage.output_tokens
-    }
+        if (chunk.text && socket) {
+          socket.emit('message.delta', { session_id: sessionId, delta: chunk.text })
+        }
+      },
+    )
+  } catch (err: any) {
+    const errorText = err.message || 'LLM error'
+    logLLMCall(sessionId, turn, { model, messages: messages.map(m => ({ role: m.role, content: m.content, tool_calls: m.tool_calls, tool_call_id: m.tool_call_id })), tools }, { text: '', reasoning: '', toolCalls: [], usage: null }, errorText)
+    socket?.emit('run.failed', { session_id: sessionId, error: errorText })
+    return { type: 'error', messages: [], fullText: '', reasoningText: '', toolCalls: [], totalInputTokens, totalOutputTokens, error: errorText }
   }
 
   if (signal?.aborted) {
-    return { type: 'aborted', messages: [], fullText, reasoningText, toolCalls: [], totalInputTokens, totalOutputTokens }
-  }
-  if (errorText) {
-    return { type: 'error', messages: [], fullText, reasoningText, toolCalls: [], totalInputTokens, totalOutputTokens, error: errorText }
+    logLLMCall(sessionId, turn, { model, messages: messages.map(m => ({ role: m.role, content: m.content, tool_calls: m.tool_calls, tool_call_id: m.tool_call_id })), tools }, { text: result.text, reasoning: result.reasoning, toolCalls: result.toolCalls, usage: result.usage }, 'aborted')
+    return { type: 'aborted', messages: [], fullText: result.text, reasoningText: result.reasoning, toolCalls: [], totalInputTokens, totalOutputTokens }
   }
 
-  toolCallsAcc = toolCallsAcc.filter(tc => tc.function.name)
+  if (result.usage) {
+    totalInputTokens += result.usage.input
+    totalOutputTokens += result.usage.output
+  }
+
+  logLLMCall(sessionId, turn, { model, messages: messages.map(m => ({ role: m.role, content: m.content, tool_calls: m.tool_calls, tool_call_id: m.tool_call_id })), tools }, { text: result.text, reasoning: result.reasoning, toolCalls: result.toolCalls, usage: result.usage })
+
+  const { text: fullText, reasoning: reasoningText, toolCalls: toolCallsAcc } = result
 
   const newMessages: LLMMessage[] = []
   if (fullText || toolCallsAcc.length > 0 || reasoningText) {
@@ -178,54 +251,46 @@ export async function innerLoop(
   if (delegateCall) {
     let args: Record<string, string> = {}
     try { args = JSON.parse(delegateCall.function.arguments) } catch { args = {} }
-    const delegateArgs: SubAgentRequestData = {
-      task: args.task || '',
-      target_character_id: args.target_character_id || '',
-      sub_strategy: args.sub_strategy as any,
-      instances: parseInt(args.instances as string) || 1,
-    }
     return {
       type: 'sub_agent_request',
-      messages: newMessages,
-      fullText, reasoningText,
-      toolCalls: toolCallsAcc,
-      totalInputTokens, totalOutputTokens,
-      subAgentRequest: delegateArgs,
+      messages: newMessages, fullText, reasoningText,
+      toolCalls: toolCallsAcc, totalInputTokens, totalOutputTokens,
+      subAgentRequest: {
+        task: args.task || '',
+        target_character_id: args.target_character_id || '',
+        sub_strategy: args.sub_strategy as any,
+        instances: parseInt(args.instances as string) || 1,
+      },
     }
   }
 
   const toolCallRecords: ToolCallRecord[] = []
 
+  // Phase 1: pre-check all tools, separate deny/ask from allow
+  const prechecked: { tc: ToolCall; name: string; args: Record<string, string>; argsStr: string; skip: boolean; skipReason?: string }[] = []
+
   for (const tc of toolCallsAcc) {
-    socket?.emit('tool.started', { session_id: sessionId, tool_call_id: tc.id, tool_name: tc.function.name, tool_input: tc.function.arguments })
-    if (signal?.aborted) break
     const { name, arguments: argsStr } = tc.function
     let args: Record<string, string> = {}
     try { args = JSON.parse(argsStr) } catch { args = {} }
 
     const bindingError = checkToolBinding(characterId, name, args)
     if (bindingError) {
-      toolCallRecords.push({ toolName: name, hasError: true, error: bindingError, args: argsStr })
-      if (sessionId) messageStore.addMessage(sessionId, { role: 'tool', content: JSON.stringify({ error: bindingError }), tool_name: name, tool_input: JSON.stringify({ call_id: tc.id, args: argsStr }), tool_output: bindingError, tool_status: 'error' })
-      newMessages.push({ role: 'tool', content: JSON.stringify({ error: bindingError }), tool_call_id: tc.id })
-      socket?.emit('tool.completed', { session_id: sessionId, tool_call_id: tc.id, tool_name: name, tool_output: bindingError, tool_status: 'error', duration_ms: 0 })
+      prechecked.push({ tc, name, args, argsStr, skip: true, skipReason: bindingError })
       continue
     }
 
     const strategyState = sessionId ? getSessionState(sessionId) : { current_strategy: 'Bypass' as Strategy }
-    const strategyResult = checkStrategy(name, strategyState.current_strategy)
+    let strategyResult = checkStrategy(name, strategyState.current_strategy)
 
     if (strategyResult === 'deny') {
-      const msg = `[Plan] ${name} is not allowed in Plan mode`
-      toolCallRecords.push({ toolName: name, hasError: true, error: msg, args: argsStr })
-      if (sessionId) messageStore.addMessage(sessionId, { role: 'tool', content: JSON.stringify({ error: msg }), tool_name: name, tool_input: JSON.stringify({ call_id: tc.id, args: argsStr }), tool_output: msg, tool_status: 'error' })
-      newMessages.push({ role: 'tool', content: JSON.stringify({ error: msg }), tool_call_id: tc.id })
-      socket?.emit('tool.completed', { session_id: sessionId, tool_call_id: tc.id, tool_name: name, tool_output: msg, tool_status: 'error', duration_ms: 0 })
+      prechecked.push({ tc, name, args, argsStr, skip: true, skipReason: `[Plan] ${name} is not allowed in Plan mode` })
       continue
     }
 
     if (strategyResult === 'ask') {
       if (!sessionId || !isToolApprovedForSession(sessionId, name)) {
+        // Ask sequentially — user approval is interactive, can't batch
         const choice = await new Promise<'once' | 'always' | 'reject'>((resolve) => {
           if (!socket || !sessionId) { resolve('reject'); return }
           socket.emit('approval.requested', { session_id: sessionId, tool_call_id: tc.id, tool_name: `[Ask] ${name}`, tool_input: JSON.stringify(args) })
@@ -236,10 +301,7 @@ export async function innerLoop(
           setTimeout(() => { socket.off('approval.respond', handler); resolve('reject') }, 60000)
         })
         if (choice === 'reject') {
-          toolCallRecords.push({ toolName: name, hasError: true, error: `${name} denied`, args: argsStr })
-          if (sessionId) messageStore.addMessage(sessionId, { role: 'tool', content: JSON.stringify({ error: `${name} denied` }), tool_name: name, tool_input: JSON.stringify({ call_id: tc.id, args: argsStr }), tool_output: 'Denied by user', tool_status: 'denied' })
-          newMessages.push({ role: 'tool', content: JSON.stringify({ error: `${name} denied` }), tool_call_id: tc.id })
-          socket?.emit('tool.completed', { session_id: sessionId, tool_call_id: tc.id, tool_name: name, tool_output: 'Denied by user', tool_status: 'denied', duration_ms: 0 })
+          prechecked.push({ tc, name, args, argsStr, skip: true, skipReason: `${name} denied` })
           continue
         }
         if (choice === 'always' && sessionId) {
@@ -248,23 +310,67 @@ export async function innerLoop(
       }
     }
 
+    prechecked.push({ tc, name, args, argsStr, skip: false })
+  }
+
+  // Phase 2: emit started events for allowed tools
+  const allowed = prechecked.filter(p => !p.skip)
+  for (const p of allowed) {
+    socket?.emit('tool.started', { session_id: sessionId, tool_call_id: p.tc.id, tool_name: p.name, tool_input: p.argsStr })
+  }
+
+  // Phase 3: emit skip results immediately
+  for (const p of prechecked) {
+    if (!p.skip) continue
+    const rec: ToolCallRecord = { toolName: p.name, hasError: true, error: p.skipReason!, args: p.argsStr }
+    toolCallRecords.push(rec)
+    if (sessionId) {
+      messageStore.addMessage(sessionId, { role: 'tool', content: JSON.stringify({ error: p.skipReason }), tool_name: p.name, tool_input: JSON.stringify({ call_id: p.tc.id, args: p.argsStr }), tool_output: p.skipReason!, tool_status: 'error' })
+    }
+    newMessages.push({ role: 'tool', content: JSON.stringify({ error: p.skipReason }), tool_call_id: p.tc.id })
+    socket?.emit('tool.completed', { session_id: sessionId, tool_call_id: p.tc.id, tool_name: p.name, tool_output: p.skipReason!, tool_status: 'error', duration_ms: 0 })
+  }
+
+  // Phase 4: execute allowed tools — parallel for read-only, serial for writes
+  const readGroup: typeof allowed = []
+  const writeGroup: typeof allowed = []
+
+  for (const p of allowed) {
+    if (READ_ONLY_TOOLS.has(p.name)) {
+      readGroup.push(p)
+    } else {
+      writeGroup.push(p)
+    }
+  }
+
+  async function runOne(p: typeof allowed[0]): Promise<void> {
     const startTime = Date.now()
-    const result = await executeTool(name, args, workspace || process.cwd(), signal)
+    let result
+    try {
+      result = await executeTool(p.name, p.args, workspace || process.cwd(), signal)
+    } catch (err: any) {
+      result = { output: '', error: `${p.name}: ${err.message || String(err)}` }
+    }
     const duration = Date.now() - startTime
 
-    toolCallRecords.push({ toolName: name, hasError: !!result.error, error: result.error, args: argsStr })
+    const rec: ToolCallRecord = { toolName: p.name, hasError: !!result.error, error: result.error, args: p.argsStr }
+    toolCallRecords.push(rec)
 
     const toolStatus = result.error ? 'error' : result.escaped ? 'denied' : 'success'
-    if (sessionId) messageStore.addMessage(sessionId, {
-      role: 'tool', content: JSON.stringify({ output: result.output, error: result.error }),
-      tool_name: name, tool_input: JSON.stringify({ call_id: tc.id, args: argsStr }), tool_output: result.error || result.output,
-      tool_status: toolStatus,
-    })
-    newMessages.push({
-      role: 'tool', content: JSON.stringify({ output: result.output, error: result.error }),
-      tool_call_id: tc.id,
-    })
-    socket?.emit('tool.completed', { session_id: sessionId, tool_call_id: tc.id, tool_name: name, tool_output: result.error || result.output, tool_status: toolStatus, duration_ms: duration })
+    if (sessionId) {
+      messageStore.addMessage(sessionId, { role: 'tool', content: JSON.stringify({ output: result.output, error: result.error }), tool_name: p.name, tool_input: JSON.stringify({ call_id: p.tc.id, args: p.argsStr }), tool_output: result.error || result.output, tool_status: toolStatus })
+    }
+    newMessages.push({ role: 'tool', content: JSON.stringify({ output: result.output, error: result.error }), tool_call_id: p.tc.id })
+    socket?.emit('tool.completed', { session_id: sessionId, tool_call_id: p.tc.id, tool_name: p.name, tool_output: result.error || result.output, tool_status: toolStatus, duration_ms: duration })
+  }
+
+  // Run all read-only tools in parallel, then writes sequentially
+  if (readGroup.length > 0) {
+    await Promise.all(readGroup.map(runOne))
+  }
+  for (const p of writeGroup) {
+    if (signal?.aborted) break
+    await runOne(p)
   }
 
   if (signal?.aborted) {

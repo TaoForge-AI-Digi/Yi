@@ -12,21 +12,9 @@ export interface CharacterMemory {
   maxEntries?: number
 }
 
-export interface ToolConstraint {
-  allowed_paths?: string[]
-  denied_paths?: string[]
-  max_file_size?: string
-  allowed_commands?: string[]
-  denied_patterns?: string[]
-  readonly?: boolean
-  max_rows?: number
-  require_confirm_even_in_bypass?: boolean
-}
+import type { ToolBinding, ToolConstraint } from '../tools/types.js'
 
-export interface ToolBinding {
-  name: string
-  constraints?: ToolConstraint
-}
+export type { ToolBinding, ToolConstraint }
 
 export interface CharacterRecord {
   id: string
@@ -44,7 +32,6 @@ export interface CharacterRecord {
   default_strategy?: 'Plan' | 'Ask' | 'Bypass'
   skills?: string[]
   enabled?: boolean
-  builtIn?: boolean
   createdAt?: number
   updatedAt?: number
 }
@@ -88,39 +75,41 @@ function nextId(items: CharacterRecord[]): string {
 
 const NOW = Date.now()
 
-const DEFAULT_ALL_TOOLS: ToolBinding[] = [
-  { name: 'read' }, { name: 'write' }, { name: 'edit' },
-  { name: 'grep' }, { name: 'glob' }, { name: 'bash' },
-  { name: 'webfetch' }, { name: 'websearch' },
+const DEFAULT_CHARACTERS: CharacterRecord[] = [
+  { id: 'general', name: 'General', description: '通用助手', color: '#6366f1', role: 'both', maxSteps: 10, enabled: true, createdAt: NOW, updatedAt: NOW, skills: ['echo-test'] },
+  { id: 'coder', name: 'Coder', description: '编程专家', color: '#10b981', role: 'main', maxSteps: 20, enabled: true, createdAt: NOW, updatedAt: NOW, skills: ['echo-test', 'systematic-debugging', 'plan', 'test-driven-development'] },
+  { id: 'reviewer', name: 'Reviewer', description: '代码审查', color: '#f59e0b', tools: [{ name: 'read' }, { name: 'grep' }, { name: 'glob' }], role: 'sub', maxSteps: 15, enabled: true, createdAt: NOW, updatedAt: NOW },
+  { id: 'explorer', name: 'Explorer', description: '代码探索', color: '#8b5cf6', tools: [{ name: 'read' }, { name: 'grep' }, { name: 'glob' }, { name: 'webfetch' }, { name: 'websearch' }], role: 'both', maxSteps: 10, enabled: true, createdAt: NOW, updatedAt: NOW },
 ]
 
-const BUILTIN: CharacterRecord[] = [
-  { id: 'general', name: 'General', description: '通用助手', color: '#6366f1', tools: [{ name: 'read' }, { name: 'write' }, { name: 'edit' }, { name: 'grep' }, { name: 'glob' }, { name: 'webfetch' }, { name: 'websearch' }], role: 'both', maxSteps: 10, enabled: true, builtIn: true, createdAt: NOW, updatedAt: NOW },
-  { id: 'coder', name: 'Coder', description: '编程专家', color: '#10b981', tools: DEFAULT_ALL_TOOLS, role: 'main', maxSteps: 20, enabled: true, builtIn: true, createdAt: NOW, updatedAt: NOW },
-  { id: 'reviewer', name: 'Reviewer', description: '代码审查', color: '#f59e0b', tools: [{ name: 'read' }, { name: 'grep' }, { name: 'glob' }], role: 'sub', maxSteps: 15, enabled: true, builtIn: true, createdAt: NOW, updatedAt: NOW },
-  { id: 'explorer', name: 'Explorer', description: '代码探索', color: '#8b5cf6', tools: [{ name: 'read' }, { name: 'write' }, { name: 'edit' }, { name: 'grep' }, { name: 'glob' }, { name: 'webfetch' }, { name: 'websearch' }], role: 'both', maxSteps: 10, enabled: true, builtIn: true, createdAt: NOW, updatedAt: NOW },
-]
-
-export function seedBuiltinCharacters() {
+export function seedDefaultCharacters() {
   const all = readAll()
-  const existing = new Set(all.map(a => a.id))
+  if (all.length === 0) {
+    for (const c of DEFAULT_CHARACTERS) writeSingle(c)
+    console.log('[seed] Default characters created')
+    return
+  }
   let changed = false
-  for (const c of BUILTIN) {
-    if (!existing.has(c.id)) { writeSingle(c); changed = true }
-  }
-  for (const c of BUILTIN) {
-    const existingRecord = all.find(a => a.id === c.id)
-    if (existingRecord) {
-      let dirty = false
-      if (!existingRecord.tools) { existingRecord.tools = c.tools; dirty = true }
-      if (!existingRecord.role) { existingRecord.role = c.role; dirty = true }
-      if (!existingRecord.default_strategy && c.default_strategy) { existingRecord.default_strategy = c.default_strategy; dirty = true }
-      if (!existingRecord.groups) { existingRecord.groups = c.groups; dirty = true }
-      if (!existingRecord.skills) { existingRecord.skills = c.skills; dirty = true }
-      if (dirty) { writeSingle(existingRecord); changed = true }
+  for (const c of DEFAULT_CHARACTERS) {
+    const existing = all.find(a => a.id === c.id)
+    if (!existing) continue
+
+    if ((existing as any).builtIn) { delete (existing as any).builtIn; changed = true }
+    if (existing.color !== c.color) { existing.color = c.color; changed = true }
+    if (existing.description !== c.description) { existing.description = c.description; changed = true }
+    if (existing.role !== c.role) { existing.role = c.role; changed = true }
+    if (existing.maxSteps !== c.maxSteps) { existing.maxSteps = c.maxSteps; changed = true }
+
+    if (c.tools === undefined && existing.tools !== undefined) {
+      delete existing.tools
+      changed = true
     }
+    if (c.skills !== undefined && JSON.stringify(existing.skills) !== JSON.stringify(c.skills)) {
+      existing.skills = c.skills; changed = true
+    }
+
+    if (changed) { writeSingle(existing); console.log(`[seed] Updated character: ${existing.id}`) }
   }
-  if (changed) console.log('[seed] Builtin characters updated')
 }
 
 export const characterMetaStore = {
@@ -149,9 +138,7 @@ export const characterMetaStore = {
   },
 
   delete: (id: string) => {
-    const record = characterMetaStore.getById(id)
-    if (!record) return false
-    if (record.builtIn) return false
+    if (!characterMetaStore.getById(id)) return false
     removeDir(id)
     return true
   },

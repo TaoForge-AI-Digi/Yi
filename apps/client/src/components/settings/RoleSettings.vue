@@ -3,7 +3,9 @@ import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useCharactersStore } from '@/stores/characters'
 import { fetchSkills } from '@/api/skills'
+import { fetchTools } from '@/api/tools'
 import type { CharacterConfig, Character, ToolBinding } from '@/api/characters'
+import type { ToolMeta } from '@/api/tools'
 import ToolBindingEditor from '@/components/settings/ToolBindingEditor.vue'
 
 const { t } = useI18n()
@@ -20,6 +22,7 @@ const editContent = ref('')
 const isNew = ref(false)
 
 const allSkills = ref<{ name: string; description: string }[]>([])
+const allTools = ref<ToolMeta[]>([])
 const newGroupName = ref('')
 const showNewGroupInput = ref(false)
 
@@ -159,9 +162,10 @@ function startCreate() {
 
 onMounted(async () => {
   try {
-    const res = await fetchSkills()
-    allSkills.value = res.skills.map(s => ({ name: s.name, description: s.description }))
-  } catch { /* skills unavailable */ }
+    const [skillsRes, toolsRes] = await Promise.all([fetchSkills(), fetchTools()])
+    allSkills.value = skillsRes.skills.map(s => ({ name: s.name, description: s.description }))
+    allTools.value = toolsRes.tools
+  } catch { /* skills or tools unavailable */ }
 })
 
 async function handleDelete(id: string) {
@@ -462,7 +466,7 @@ function saveEdit() {
 
           <!-- Tools Tab -->
           <div v-if="activeTab === 'tools'" class="tab-content">
-            <ToolBindingEditor v-model="form.tools" />
+            <ToolBindingEditor v-model="form.tools" :allTools="allTools" />
           </div>
 
           <!-- Memory Tab -->

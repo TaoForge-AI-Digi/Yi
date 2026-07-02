@@ -1,7 +1,9 @@
 import { readdirSync, readFileSync, statSync } from 'fs'
 import { resolve } from 'path'
+import type { ToolModule } from '../types.js'
+import { assertPathSafe } from '../utils.js'
 
-export function grepSync(pattern: string, dir: string): string {
+function grepSync(pattern: string, dir: string): string {
   const re = new RegExp(pattern)
   const results: string[] = []
   function walk(d: string) {
@@ -23,4 +25,21 @@ export function grepSync(pattern: string, dir: string): string {
   }
   walk(dir)
   return results.length ? results.join('\n') : 'No matches found'
+}
+
+export const tool: ToolModule = {
+  name: 'grep',
+  description: 'Search file contents using a regex pattern',
+  parameters: {
+    type: 'object',
+    properties: {
+      pattern: { type: 'string', description: 'Regex pattern' },
+      path: { type: 'string', description: 'Directory to search, relative to workspace (optional)' },
+    },
+    required: ['pattern'],
+  },
+  execute: async (args, { workspace }) => {
+    const dir = args.path ? (assertPathSafe(args.path, workspace), args.path) : '.'
+    return { output: grepSync(args.pattern || '', resolve(workspace, dir)) }
+  },
 }

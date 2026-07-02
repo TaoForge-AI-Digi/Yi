@@ -5,7 +5,7 @@
   "avatar": "",
   "color": "#6366f1",
   "memory": {
-    "enabled": false,
+    "enabled": true,
     "selfEvolution": false,
     "charLimit": 2200
   },
@@ -22,11 +22,13 @@
   ],
   "default_strategy": "Bypass",
   "skills": [
-    "plan"
+    "echo-test",
+    "plan",
+    "project-bootstrap"
   ],
   "enabled": true,
   "createdAt": 1782738601774,
-  "updatedAt": 1782949902822,
+  "updatedAt": 1782988691245,
   "tools": [
     {
       "name": "read"
@@ -51,6 +53,9 @@
     },
     {
       "name": "websearch"
+    },
+    {
+      "name": "skill_manager"
     }
   ]
 }

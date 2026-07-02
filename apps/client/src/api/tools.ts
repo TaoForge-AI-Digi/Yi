@@ -1,8 +1,17 @@
 import { apiGet, apiPost, apiPut, apiDelete } from './client'
 
-export interface BuiltinTool {
+export interface ConstraintField {
+  key: string
+  label: string
+  type: 'string-list' | 'string' | 'boolean' | 'number'
+  placeholder?: string
+}
+
+export interface ToolMeta {
   name: string
   description: string
+  source: 'builtin' | 'mcp' | 'external'
+  constraintFields?: ConstraintField[]
 }
 
 export interface MCPServer {
@@ -14,7 +23,7 @@ export interface MCPServer {
 }
 
 export interface ToolsData {
-  builtin: BuiltinTool[]
+  tools: ToolMeta[]
   mcpServers: MCPServer[]
 }
 

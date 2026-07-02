@@ -68,6 +68,7 @@ function select(id: string) {
   s.character_id = id
   s.active_group = undefined
   charactersStore.setActive(id)
+  import('@/api/sessions').then(m => m.updateSession(s.id, { character_id: id, active_group: undefined })).catch(() => {})
   open.value = false
   search.value = ''
 }

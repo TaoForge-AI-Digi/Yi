@@ -13,7 +13,6 @@
   ],
   "default_strategy": "Ask",
   "skills": [],
-  "builtIn": true,
   "avatar": "",
   "memory": {
     "enabled": false,

@@ -1,10 +1,19 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { ToolBinding, ToolConstraint } from '@/api/characters'
+import type { ConstraintField } from '@/api/tools'
 
-const ALL_TOOLS = ['read', 'write', 'edit', 'bash', 'grep', 'glob', 'webfetch', 'websearch']
+export interface ToolItem {
+  name: string
+  description: string
+  source: 'builtin' | 'mcp' | 'external'
+  constraintFields?: ConstraintField[]
+}
 
-const props = defineProps<{ modelValue?: ToolBinding[] | null }>()
+const props = defineProps<{
+  modelValue?: ToolBinding[] | null
+  allTools?: ToolItem[] | null
+}>()
 const emit = defineEmits<{ (e: 'update:modelValue', v: ToolBinding[]): void }>()
 
 const localList = computed<ToolBinding[]>(() => props.modelValue || [])
@@ -35,14 +44,14 @@ function getConstraint(name: string): ToolConstraint {
   return b?.constraints || {}
 }
 
-function setConstraint(name: string, key: keyof ToolConstraint, value: any) {
+function setConstraint(name: string, key: string, value: any) {
   const list = [...localList.value]
   const idx = list.findIndex(t => t.name === name)
   if (idx < 0) return
   const b = { ...list[idx] }
   const c = { ...(b.constraints || {}) }
   if (value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0)) {
-    delete c[key]
+    delete (c as any)[key]
   } else {
     (c as any)[key] = value
   }
@@ -50,52 +59,73 @@ function setConstraint(name: string, key: keyof ToolConstraint, value: any) {
   list[idx] = b
   emit('update:modelValue', list)
 }
+
+function inputVal(field: ConstraintField, toolName: string): any {
+  const c = getConstraint(toolName) as any
+  const raw = c[field.key]
+  if (field.type === 'string-list') return (raw || []).join(', ')
+  return raw ?? ''
+}
+
+function onInput(field: ConstraintField, toolName: string, raw: string) {
+  if (field.type === 'string-list') {
+    const arr = raw.split(',').map(s => s.trim()).filter(Boolean)
+    setConstraint(toolName, field.key, arr.length > 0 ? arr : undefined)
+  } else {
+    setConstraint(toolName, field.key, raw || undefined)
+  }
+}
+
+function boolVal(field: ConstraintField, toolName: string): boolean {
+  return !!((getConstraint(toolName) as any)[field.key])
+}
+
+function onBool(field: ConstraintField, toolName: string, checked: boolean) {
+  setConstraint(toolName, field.key, checked || undefined)
+}
 </script>
 
 <template>
   <div class="tool-binding-editor">
     <div class="tools-grid">
-      <div v-for="tool in ALL_TOOLS" :key="tool" class="tool-card" :class="{ enabled: isEnabled(tool) }">
+      <div v-for="tool in allTools || []" :key="tool.name" class="tool-card" :class="{ enabled: isEnabled(tool.name) }">
         <div class="tool-row">
-          <span class="tool-name">{{ tool }}</span>
+          <span class="tool-name">{{ tool.name }}</span>
+          <span :class="['tool-source', `tool-source--${tool.source}`]">
+            {{ tool.source === 'builtin' ? '内置' : tool.source === 'mcp' ? 'MCP' : '外部导入' }}
+          </span>
           <label class="toggle-label-wrap">
-            <input type="checkbox" :checked="isEnabled(tool)" @change="toggleTool(tool)" class="toggle-input" />
+            <input type="checkbox" :checked="isEnabled(tool.name)" @change="toggleTool(tool.name)" class="toggle-input" />
             <span class="toggle-switch"></span>
           </label>
-          <button v-if="isEnabled(tool)" class="expand-btn" @click="expanded[tool] = !expanded[tool]">
+          <button v-if="isEnabled(tool.name) && tool.constraintFields?.length" class="expand-btn" @click="expanded[tool.name] = !expanded[tool.name]">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline v-if="!expanded[tool]" points="6 9 12 15 18 9" />
+              <polyline v-if="!expanded[tool.name]" points="6 9 12 15 18 9" />
               <polyline v-else points="18 15 12 9 6 15" />
             </svg>
-            {{ expanded[tool] ? '收起' : '约束' }}
+            {{ expanded[tool.name] ? '收起' : '约束' }}
           </button>
         </div>
-        <div v-if="isEnabled(tool) && expanded[tool]" class="constraints-panel">
-            <div v-if="['write', 'edit', 'read'].includes(tool)" class="constraint-field">
-              <label class="constraint-label">allowed_paths</label>
-              <input class="constraint-input" placeholder="例: /src/**, /docs/*" :value="(getConstraint(tool).allowed_paths || []).join(', ')" @input="setConstraint(tool, 'allowed_paths', ($event.target as HTMLInputElement).value.split(',').map(s => s.trim()).filter(Boolean))" />
+        <div v-if="isEnabled(tool.name) && expanded[tool.name]" class="constraints-panel">
+          <div v-for="field in tool.constraintFields || []" :key="field.key" class="constraint-field">
+            <div v-if="field.type === 'boolean'" class="boolean-field">
+              <label class="toggle-row">
+                <span class="toggle-label">{{ field.label }}</span>
+                <input type="checkbox" :checked="boolVal(field, tool.name)" @change="onBool(field, tool.name, ($event.target as HTMLInputElement).checked)" class="toggle-input" />
+                <span class="toggle-switch"></span>
+              </label>
             </div>
-            <div v-if="['write', 'edit', 'read'].includes(tool)" class="constraint-field">
-              <label class="constraint-label">denied_paths</label>
-              <input class="constraint-input" placeholder="例: node_modules/**, .env" :value="(getConstraint(tool).denied_paths || []).join(', ')" @input="setConstraint(tool, 'denied_paths', ($event.target as HTMLInputElement).value.split(',').map(s => s.trim()).filter(Boolean))" />
-            </div>
-            <div v-if="tool === 'write'" class="constraint-field">
-              <label class="constraint-label">max_file_size</label>
-              <input class="constraint-input" placeholder="例: 1MB, 512KB" :value="getConstraint(tool).max_file_size || ''" @input="setConstraint(tool, 'max_file_size', ($event.target as HTMLInputElement).value || undefined)" />
-            </div>
-            <div v-if="tool === 'bash'" class="constraint-field">
-              <label class="constraint-label">allowed_commands</label>
-              <input class="constraint-input" placeholder="例: npm, node, git, npx" :value="(getConstraint(tool).allowed_commands || []).join(', ')" @input="setConstraint(tool, 'allowed_commands', ($event.target as HTMLInputElement).value.split(',').map(s => s.trim()).filter(Boolean))" />
-            </div>
-            <div v-if="tool === 'bash'" class="constraint-field">
-              <label class="constraint-label">denied_patterns</label>
-              <input class="constraint-input" placeholder="例: rm -rf, sudo, del" :value="(getConstraint(tool).denied_patterns || []).join(', ')" @input="setConstraint(tool, 'denied_patterns', ($event.target as HTMLInputElement).value.split(',').map(s => s.trim()).filter(Boolean))" />
-            </div>
-          <label v-if="tool === 'bash'" class="toggle-row">
-            <span class="toggle-label">require_confirm_even_in_bypass</span>
-            <input type="checkbox" :checked="!!getConstraint(tool).require_confirm_even_in_bypass" @change="setConstraint(tool, 'require_confirm_even_in_bypass', ($event.target as HTMLInputElement).checked || undefined)" class="toggle-input" />
-            <span class="toggle-switch"></span>
-          </label>
+            <template v-else>
+              <label class="constraint-label">{{ field.label }}</label>
+              <input
+                class="constraint-input"
+                :type="field.type === 'number' ? 'number' : 'text'"
+                :placeholder="field.placeholder || ''"
+                :value="inputVal(field, tool.name)"
+                @input="onInput(field, tool.name, ($event.target as HTMLInputElement).value)"
+              />
+            </template>
+          </div>
         </div>
       </div>
     </div>
@@ -122,6 +152,13 @@ function setConstraint(name: string, key: keyof ToolConstraint, value: any) {
   background: #fff; cursor: pointer; font-size: 11px; color: #888;
 }
 .expand-btn:hover { border-color: #1976d2; color: #1976d2; }
+.tool-source {
+  font-size: 10px; padding: 1px 6px; border-radius: 3px;
+  font-weight: 500; white-space: nowrap; flex-shrink: 0;
+}
+.tool-source--builtin { background: #e8f5e9; color: #388e3c; }
+.tool-source--mcp { background: #e3f2fd; color: #1976d2; }
+.tool-source--external { background: #fff3e0; color: #e65100; }
 .constraints-panel {
   padding: 0 12px 10px 24px; display: flex; flex-direction: column; gap: 6px;
 }

@@ -7,30 +7,24 @@
     "files": "allow",
     "bash": "ask"
   },
-  "role": "both",
+  "role": "main",
   "groups": [
     "default"
   ],
   "default_strategy": "Ask",
-  "skills": [],
-  "builtIn": true,
+  "skills": [
+    "echo-test",
+    "systematic-debugging",
+    "plan",
+    "test-driven-development"
+  ],
   "avatar": "",
   "memory": {
     "enabled": false,
     "selfEvolution": false,
     "charLimit": 2200
   },
-  "maxSteps": 10,
+  "maxSteps": 20,
   "enabled": true,
-  "updatedAt": 1782805324522,
-  "tools": [
-    "read",
-    "write",
-    "edit",
-    "grep",
-    "glob",
-    "bash",
-    "webfetch",
-    "websearch"
-  ]
+  "updatedAt": 1782805324522
 }

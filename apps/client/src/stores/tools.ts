@@ -1,14 +1,16 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import * as api from '@/api/tools'
 
 export const useToolsStore = defineStore('tools', () => {
-  const builtinTools = ref<api.BuiltinTool[]>([])
+  const allTools = ref<api.ToolMeta[]>([])
   const mcpServers = ref<api.MCPServer[]>([])
+
+  const builtinTools = computed(() => allTools.value.filter(t => t.source === 'builtin'))
 
   async function load() {
     const data = await api.fetchTools()
-    builtinTools.value = data.builtin
+    allTools.value = data.tools
     mcpServers.value = data.mcpServers
   }
 
@@ -28,5 +30,5 @@ export const useToolsStore = defineStore('tools', () => {
     mcpServers.value = mcpServers.value.filter(x => x.id !== id)
   }
 
-  return { builtinTools, mcpServers, load, createMCP, updateMCP, removeMCP }
+  return { allTools, builtinTools, mcpServers, load, createMCP, updateMCP, removeMCP }
 })

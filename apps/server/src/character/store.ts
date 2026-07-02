@@ -23,13 +23,13 @@ export const characterContentStore = {
   save(characterId: string, data: { soul?: string; user?: string; memory?: string }) {
     const dir = resolve(CHAR_DIR, characterId)
     mkdirSync(dir, { recursive: true })
-    if (data.soul !== undefined) writeFileSync(resolve(dir, 'soul.md'), data.soul, 'utf-8')
-    if (data.user !== undefined) writeFileSync(resolve(dir, 'user.md'), data.user, 'utf-8')
-    if (data.memory !== undefined) writeFileSync(resolve(dir, 'memory.md'), data.memory, 'utf-8')
+    writeFileSync(resolve(dir, 'soul.md'), data.soul ?? '', 'utf-8')
+    writeFileSync(resolve(dir, 'user.md'), data.user ?? '', 'utf-8')
+    writeFileSync(resolve(dir, 'memory.md'), data.memory ?? '', 'utf-8')
   },
 }
 
-const BUILTIN_DEFAULTS: Record<string, { soul: string; user: string; memory: string }> = {
+const DEFAULT_CONTENT: Record<string, { soul: string; user: string; memory: string }> = {
   general: {
     soul: 'You are a helpful general-purpose assistant. Be concise, accurate, and friendly.',
     user: '',
@@ -52,8 +52,8 @@ const BUILTIN_DEFAULTS: Record<string, { soul: string; user: string; memory: str
   },
 }
 
-export function seedBuiltinCharacterContent() {
-  for (const [id, content] of Object.entries(BUILTIN_DEFAULTS)) {
+export function seedDefaultCharacterContent() {
+  for (const [id, content] of Object.entries(DEFAULT_CONTENT)) {
     const dir = resolve(CHAR_DIR, id)
     mkdirSync(dir, { recursive: true })
     for (const section of ['soul', 'user', 'memory'] as const) {

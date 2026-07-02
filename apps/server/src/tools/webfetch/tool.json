@@ -1,0 +1,23 @@
+﻿{
+    "parameters":  {
+                       "properties":  {
+                                          "url":  {
+                                                      "type":  "string",
+                                                      "description":  "The fully-formed URL to fetch"
+                                                  }
+                                      },
+                       "type":  "object",
+                       "required":  [
+                                        "url"
+                                    ]
+                   },
+    "source":  "builtin",
+    "description":  "Fetch and return the text content of a URL",
+    "dangerous":  false,
+    "version":  "1.0.0",
+    "tags":  [
+                 "web"
+             ],
+    "author":  "Yi-Lin",
+    "name":  "webfetch"
+}

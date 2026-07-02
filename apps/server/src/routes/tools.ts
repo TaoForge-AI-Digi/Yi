@@ -1,22 +1,45 @@
 import { Hono } from 'hono'
+import { readdirSync, existsSync, readFileSync } from 'fs'
+import { resolve } from 'path'
 import { mcpServerStore } from '../db/toolStore.js'
+
+const TOOLS_DIR = resolve(import.meta.dirname, '../tools')
+
+function readToolMetas(): Array<{ name: string; description: string; source: string; constraintFields: any[] }> {
+  const results: Array<{ name: string; description: string; source: string; constraintFields: any[] }> = []
+  const entries = readdirSync(TOOLS_DIR, { withFileTypes: true })
+  for (const e of entries) {
+    if (!e.isDirectory() || e.name === '_template') continue
+    const jsonPath = resolve(TOOLS_DIR, e.name, 'tool.json')
+    if (!existsSync(jsonPath)) continue
+    try {
+      let text = readFileSync(jsonPath, 'utf-8')
+      if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1)
+      const meta = JSON.parse(text)
+      results.push({
+        name: meta.name || e.name,
+        description: meta.description || '',
+        source: meta.source || 'builtin',
+        constraintFields: meta.constraintFields || [],
+      })
+    } catch { /* skip invalid tool.json */ }
+  }
+  return results
+}
 
 const router = new Hono()
 
-const builtinTools = [
-  { name: 'read', description: 'Read file contents from the workspace' },
-  { name: 'write', description: 'Write content to a file in the workspace' },
-  { name: 'edit', description: 'Apply an exact-string replacement to a file' },
-  { name: 'bash', description: 'Execute a shell command in the workspace directory' },
-  { name: 'grep', description: 'Search file contents using a regex pattern' },
-  { name: 'glob', description: 'Find files matching a glob pattern' },
-  { name: 'webfetch', description: 'Fetch and return the text content of a URL' },
-  { name: 'websearch', description: 'Search the web for recent information' },
-]
-
 router.get('/', (c) => {
   const mcpServers = mcpServerStore.getAll()
-  return c.json({ builtin: builtinTools, mcpServers })
+  const tools = [
+    ...readToolMetas(),
+    ...mcpServers.map(s => ({
+      name: s.name,
+      description: `MCP server: ${s.name}`,
+      source: 'mcp' as const,
+    })),
+  ]
+  return c.json({ tools, mcpServers })
 })
 
 router.post('/mcp', async (c) => {

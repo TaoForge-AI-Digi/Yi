@@ -95,9 +95,12 @@ onMounted(() => { store.load() })
           <h4 class="ts-panel-title">{{ t('toolSetting.builtinSection') }}</h4>
         </div>
         <div class="tool-grid">
-          <div v-for="tool in store.builtinTools" :key="tool.name" class="tool-card">
+          <div v-for="tool in store.allTools" :key="tool.name" class="tool-card">
             <div class="tool-card-header">
               <span class="tool-name">{{ tool.name }}</span>
+              <span :class="['tool-source-tag', `tool-source-tag--${tool.source}`]">
+                {{ tool.source === 'builtin' ? '内置' : tool.source === 'mcp' ? 'MCP' : '外部导入' }}
+              </span>
             </div>
             <p class="tool-desc">{{ tool.description }}</p>
           </div>
@@ -230,8 +233,12 @@ onMounted(() => { store.load() })
 
 .tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
 .tool-card { border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px 14px; background: #fafafa; }
-.tool-card-header { margin-bottom: 6px; }
+.tool-card-header { margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
 .tool-name { font-size: 13px; font-weight: 600; color: #333; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.tool-source-tag { font-size: 10px; padding: 1px 6px; border-radius: 3px; font-weight: 500; white-space: nowrap; flex-shrink: 0; }
+.tool-source-tag--builtin { background: #e8f5e9; color: #388e3c; }
+.tool-source-tag--mcp { background: #e3f2fd; color: #1976d2; }
+.tool-source-tag--external { background: #fff3e0; color: #e65100; }
 .tool-desc { font-size: 12px; color: #888; margin: 0; line-height: 1.4; }
 
 .mcp-empty { text-align: center; padding: 24px; font-size: 13px; color: #999; border: 1px dashed #ddd; border-radius: 8px; }

@@ -1,0 +1,31 @@
+﻿{
+    "parameters":  {
+                       "properties":  {
+                                          "name":  {
+                                                       "type":  "string",
+                                                       "description":  "技能名称（view 必填）"
+                                                   },
+                                          "action":  {
+                                                         "enum":  [
+                                                                      "list",
+                                                                      "view"
+                                                                  ],
+                                                         "description":  "list: 列出所有技能; view: 查看技能内容",
+                                                         "type":  "string"
+                                                     }
+                                      },
+                       "type":  "object",
+                       "required":  [
+                                        "action"
+                                    ]
+                   },
+    "source":  "builtin",
+    "description":  "技能管理。action: list 列出所有可用技能; view 查看指定技能的完整 SKILL.md 内容",
+    "dangerous":  false,
+    "version":  "1.0.0",
+    "tags":  [
+                 "system"
+             ],
+    "author":  "Yi-Lin",
+    "name":  "skill_manager"
+}

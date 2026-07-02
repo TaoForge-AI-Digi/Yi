@@ -21,34 +21,9 @@
     "default"
   ],
   "default_strategy": "Ask",
-  "skills": [],
+  "skills": [
+    "echo-test"
+  ],
   "enabled": true,
-  "builtIn": true,
-  "updatedAt": 1782948276800,
-  "tools": [
-    {
-      "name": "read"
-    },
-    {
-      "name": "write"
-    },
-    {
-      "name": "edit"
-    },
-    {
-      "name": "grep"
-    },
-    {
-      "name": "glob"
-    },
-    {
-      "name": "webfetch"
-    },
-    {
-      "name": "websearch"
-    },
-    {
-      "name": "bash"
-    }
-  ]
+  "updatedAt": 1782948276800
 }

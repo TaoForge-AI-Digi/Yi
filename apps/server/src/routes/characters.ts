@@ -2,14 +2,15 @@ import { Hono } from 'hono'
 import { characterMetaStore } from '../db/characterStore.js'
 import type { CharacterRecord } from '../db/characterStore.js'
 import { characterContentStore } from '../character/store.js'
+import { resolveCharacterTools } from '../tools/definitions.js'
 
 function mergeContent(meta: CharacterRecord, id: string) {
   const content = characterContentStore.get(id)
-  return { ...meta, soul: content.soul, userProfile: content.user, memoryContent: content.memory }
+  return { ...meta, tools: resolveCharacterTools(meta.tools), soul: content.soul, userProfile: content.user, memoryContent: content.memory }
 }
 
 const router = new Hono()
-router.get('/', (c) => c.json(characterMetaStore.getAll()))
+router.get('/', (c) => c.json(characterMetaStore.getAll().map(r => mergeContent(r, r.id))))
 router.get('/:id', (c) => {
   const record = characterMetaStore.getById(c.req.param('id'))
   if (!record) return c.json({ error: 'Not found' }, 404)
@@ -40,6 +41,6 @@ router.put('/:id', async (c) => {
 })
 router.delete('/:id', (c) => {
   const ok = characterMetaStore.delete(c.req.param('id'))
-  return ok ? c.json({ success: true }) : c.json({ error: 'Not found or built-in' }, 400)
+  return ok ? c.json({ success: true }) : c.json({ error: 'Not found' }, 404)
 })
 export default router

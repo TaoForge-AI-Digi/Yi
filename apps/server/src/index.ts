@@ -3,8 +3,8 @@ import { serve } from '@hono/node-server'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { Server } from 'socket.io'
-import { seedBuiltinCharacters } from './db/characterStore.js'
-import { seedBuiltinCharacterContent } from './character/store.js'
+import { seedDefaultCharacters } from './db/characterStore.js'
+import { seedDefaultCharacterContent } from './character/store.js'
 import { registerChatSocket } from './ws/chat.js'
 import providersRouter from './routes/providers.js'
 import sessionsRouter from './routes/sessions.js'
@@ -12,13 +12,17 @@ import charactersRouter from './routes/characters.js'
 import skillsRouter from './routes/skills.js'
 import toolsRouter from './routes/tools.js'
 import { getDb } from './db/schema.js'
+import { init as initTools } from './tools/registry.js'
 
 process.on('uncaughtException', (err) => { console.error('[FATAL]', err) })
 process.on('unhandledRejection', (err) => { console.error('[FATAL]', err) })
 
-seedBuiltinCharacters()
-seedBuiltinCharacterContent()
+seedDefaultCharacters()
+seedDefaultCharacterContent()
 getDb()
+
+// Tool registry auto-discovers all tool directories with tool.json
+initTools().catch(err => console.error('[registry] Tool init failed:', err))
 
 const app = new Hono()
 app.use('*', cors())

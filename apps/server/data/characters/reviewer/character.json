@@ -7,18 +7,17 @@
     "files": "deny",
     "bash": "deny"
   },
-  "role": "both",
+  "role": "sub",
   "groups": [],
   "default_strategy": "Ask",
   "skills": [],
-  "builtIn": true,
   "avatar": "",
   "memory": {
     "enabled": false,
     "selfEvolution": false,
     "charLimit": 2200
   },
-  "maxSteps": 10,
+  "maxSteps": 15,
   "enabled": true,
   "updatedAt": 1782953097276,
   "tools": [

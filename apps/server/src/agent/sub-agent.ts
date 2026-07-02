@@ -2,7 +2,8 @@ import { characterMetaStore, type CharacterRecord } from '../db/characterStore.j
 import { characterContentStore } from '../character/store.js'
 import { sessionStore } from '../db/sessionStore.js'
 import { innerLoop, type InnerResult } from './inner.js'
-import { getToolDefinitions } from '../tools/definitions.js'
+import { getCharacterToolDefinitions } from '../tools/definitions.js'
+import { buildSkillIndex } from './skill-loader.js'
 import type { LLMMessage } from '../llm/client.js'
 import type { Server, Socket } from 'socket.io'
 
@@ -105,13 +106,31 @@ export async function spawnAndRunSubAgent(
     })
   }
 
+  const toolDefs = getCharacterToolDefinitions(targetChar.tools)
+  const hasTools = toolDefs.length > 0 && !(depth >= 1 && toolDefs.every(t => t.function.name === 'delegate_task'))
+
   const systemParts: string[] = []
   if (charContent.soul) systemParts.push(`## Character\n${charContent.soul}`)
   if (charContent.user) systemParts.push(`## User Info\n${charContent.user}`)
   if (charContent.memory) systemParts.push(`## Memory\n${charContent.memory}`)
   systemParts.push(`## Delegated Task\nYou are being delegated a sub-task by a parent agent. Complete the following task and report your findings.\n\nTask: ${task}`)
-  if (targetChar.skills && targetChar.skills.length > 0) {
-    systemParts.push(`## Available Skills\n${targetChar.skills.join(', ')}`)
+  const subSkillIndex = buildSkillIndex(targetChar)
+  if (subSkillIndex.length > 0) {
+    systemParts.push(`## Available Skills\n${subSkillIndex.map(s => s.listing).join('\n')}`)
+  }
+  if (hasTools) {
+    systemParts.push(
+      "# Tool-use enforcement\n" +
+      "You MUST use your tools to take action \u2014 do not describe what you would do " +
+      "without actually doing it. Execute tool calls immediately.\n" +
+      "# Finishing the job\n" +
+      "Keep working until you have produced the requested result. Report honestly " +
+      "if a tool fails. Never fabricate output.\n" +
+      "# Parallel tool calls\n" +
+      "Batch independent read-only calls together instead of one per turn.\n" +
+      "# Verification\n" +
+      "Before finalizing: verify correctness and back claims with tool output."
+    )
   }
   if (depth < MAX_DEPTH - 1) {
     const allChars = characterMetaStore.getAll()
@@ -136,14 +155,14 @@ export async function spawnAndRunSubAgent(
     { role: 'user', content: task },
   ]
 
-  let toolDefs = getToolDefinitions()
+  let effectiveTools = toolDefs
   if (depth >= 1) {
-    toolDefs = toolDefs.filter(t => t.function.name !== 'delegate_task')
+    effectiveTools = toolDefs.filter(t => t.function.name !== 'delegate_task')
   }
 
   const innerResult: InnerResult = await innerLoop(
     messages,
-    toolDefs.length > 0 ? toolDefs : undefined,
+    effectiveTools.length > 0 ? effectiveTools : undefined,
     provider,
     model,
     targetCharacterId,

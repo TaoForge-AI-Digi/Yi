@@ -8,7 +8,6 @@ export interface ToolConstraint {
   denied_patterns?: string[]
   readonly?: boolean
   max_rows?: number
-  require_confirm_even_in_bypass?: boolean
 }
 
 export interface ToolBinding {

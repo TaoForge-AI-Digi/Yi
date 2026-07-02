@@ -5,7 +5,8 @@ import { providerStore } from '../db/providerStore.js'
 import { characterContentStore } from '../character/store.js'
 import { innerLoop, detectDoomLoop, type ToolCallRecord } from './inner.js'
 import { spawnAndRunSubAgent, summarizeAndMerge } from './sub-agent.js'
-import { getToolDefinitions } from '../tools/definitions.js'
+import { buildSkillIndex } from './skill-loader.js'
+import { getCharacterToolDefinitions } from '../tools/definitions.js'
 import type { LLMMessage } from '../llm/client.js'
 import type { Server, Socket } from 'socket.io'
 import type { MessageRow } from '../db/messageStore.js'
@@ -14,6 +15,62 @@ const MAX_TURNS = 20
 const DEFAULT_CONTEXT_WINDOW = 128000
 const COMPACT_THRESHOLD = 0.75
 const KEEP_TURNS = 3
+
+// ── Guidance blocks (ported from opencode) ──
+
+const TOOL_USE_ENFORCEMENT_GUIDANCE =
+  "# Tool-use enforcement\n" +
+  "You MUST use your tools to take action \u2014 do not describe what you would do " +
+  "or plan to do without actually doing it. When you say you will perform an " +
+  "action, you MUST immediately make the corresponding tool call in the same " +
+  "response. Never end your turn with a promise of future action \u2014 execute it now.\n" +
+  "Keep working until the task is actually complete. If you have tools available " +
+  "that can accomplish the task, use them instead of telling the user what you would do.\n" +
+  "Every response should either (a) contain tool calls that make progress, or " +
+  "(b) deliver a final result to the user. Responses that only describe intentions " +
+  "without acting are not acceptable."
+
+const TASK_COMPLETION_GUIDANCE =
+  "# Finishing the job\n" +
+  "When the user asks you to build, run, or verify something, the deliverable is " +
+  "a working artifact backed by real tool output \u2014 not a description of one. " +
+  "Do not stop after writing a stub, a plan, or a single command. Keep working " +
+  "until you have actually exercised the code or produced the requested result.\n" +
+  "If a tool fails and blocks the real path, say so directly and try an alternative. " +
+  "NEVER substitute fabricated output for results you couldn\u2019t actually produce."
+
+const PARALLEL_TOOL_CALL_GUIDANCE =
+  "# Parallel tool calls\n" +
+  "When you need several pieces of information that don\u2019t depend on each " +
+  "other, request them together in a single response instead of one tool " +
+  "call per turn. Independent reads, searches, and read-only commands should " +
+  "be batched into the same assistant turn.\n" +
+  "Only serialize calls when a later call genuinely depends on an earlier " +
+  "call\u2019s result (e.g. you must read a file before you can patch it)."
+
+const ACT_DONT_ASK_GUIDANCE =
+  "# Act, don\u2019t ask\n" +
+  "When a question has an obvious default interpretation, act on it immediately " +
+  "instead of asking for clarification. Examples:\n" +
+  "- \u2018What time is it?\u2019 \u2192 run `date` (don\u2019t guess)\n" +
+  "- \u2018Is this port open?\u2019 \u2192 check the machine directly\n" +
+  "Only ask for clarification when the ambiguity genuinely changes what tool " +
+  "you would call."
+
+const VERIFICATION_GUIDANCE =
+  "# Verification\n" +
+  "Before finalizing your response:\n" +
+  "- Correctness: does the output satisfy every stated requirement?\n" +
+  "- Grounding: are factual claims backed by tool outputs or provided context?\n" +
+  "- If required context is missing, use a tool to look it up rather than guessing.\n" +
+  "- If you must proceed with incomplete information, label assumptions explicitly."
+
+const NO_FABRICATION_GUIDANCE =
+  "# No fabrication\n" +
+  "Never invent file contents, command output, API responses, or search results. " +
+  "If a tool returns an error or partial data, report it honestly \u2014 do NOT " +
+  "make up plausible-looking output. A blocker reported honestly is always better " +
+  "than a fabricated result."
 
 function estimateTokens(messages: LLMMessage[]): number {
   let total = 0
@@ -126,26 +183,60 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
   const model = session.model || provider.models[0]?.id
   if (!model) { socket.emit('run.failed', { session_id: sessionId, error: 'No model configured' }); return { status: 'stop', sessionId, totalInputTokens: 0, totalOutputTokens: 0 } }
 
+  const toolDefs = getCharacterToolDefinitions(charMeta.tools)
+  const tools = toolDefs.length > 0 ? toolDefs : undefined
+
   const systemParts: string[] = []
   if (charContent.soul) systemParts.push(`## Character\n${charContent.soul}`)
   if (charContent.user) systemParts.push(`## User Info\n${charContent.user}`)
   if (charContent.memory) systemParts.push(`## Memory\n${charContent.memory}`)
   if (session.workspace) systemParts.push(`## Workspace\nYour working directory is: ${session.workspace}\nAll file operations (read/write/edit/glob/bash) use this directory as root. Use paths relative to this directory, or use absolute paths within it.`)
-  const activeGroup = session.active_group
-  const allChars = characterMetaStore.getAll()
-  const delegateTargets = allChars.filter(c => {
-    if (c.role !== 'sub' && c.role !== 'both') return false
-    if (c.id === session.character_id) return true
-    if (!activeGroup) return false
-    if (!c.groups || c.groups.length === 0) return false
-    return c.groups.includes(activeGroup)
-  })
-  if (delegateTargets.length > 0) {
-    const groupLabel = activeGroup ? `group "${activeGroup}"` : 'no group (self only)'
-    systemParts.push(`## Available Delegates\nYou can delegate sub-tasks to other characters using the \`delegate_task\` tool. Available targets (${groupLabel}):\n${
-      delegateTargets.map(c => `- id: "${c.id}" (${c.name})${c.id === session.character_id ? ' [self]' : ''} — ${c.description || ''}`).join('\n')
-    }\nOnly use \`target_character_id\` from the list above.`)
+
+  // Guidance blocks — only when tools are available
+  if (toolDefs.length > 0) {
+    systemParts.push(TOOL_USE_ENFORCEMENT_GUIDANCE)
+    systemParts.push(TASK_COMPLETION_GUIDANCE)
+    systemParts.push(PARALLEL_TOOL_CALL_GUIDANCE)
+    systemParts.push(ACT_DONT_ASK_GUIDANCE)
+    systemParts.push(VERIFICATION_GUIDANCE)
+    systemParts.push(NO_FABRICATION_GUIDANCE)
   }
+
+  // List available tools — only whitelisted ones, same pattern as skills
+  if (tools) {
+    const allChars = characterMetaStore.getAll()
+    const activeGroup = session.active_group
+    const delegateTargets = allChars.filter(c => {
+      if (c.role !== 'sub' && c.role !== 'both') return false
+      if (c.id === session.character_id) return true
+      if (!activeGroup) return false
+      if (!c.groups || c.groups.length === 0) return false
+      return c.groups.includes(activeGroup)
+    })
+    const toolListings = tools.map(t => {
+      let desc = t.function.description
+      if (t.function.name === 'delegate_task' && delegateTargets.length > 0) {
+        desc += ` | targets: ${delegateTargets.map(c => `${c.id}(${c.name})`).join(', ')}`
+      }
+      return `- ${t.function.name}: ${desc}`
+    })
+    systemParts.push(`## Available Tools\n${toolListings.join('\n')}`)
+  }
+
+  // Skills: index in system prompt only (no pre-injection of full content)
+  const skillIndex = buildSkillIndex(charMeta)
+  if (skillIndex.length > 0) {
+    const hasSkillManager = tools?.some((t: { function: { name: string } }) => t.function.name === 'skill_manager')
+    const skillList = skillIndex.map(s => s.listing).join('\n')
+    const viewHint = hasSkillManager ? `\nUse \`skill_manager(action: 'view', name: '...')\` to read a skill's full content.` : ''
+    systemParts.push(`## Available Skills\n${skillList}${viewHint}`)
+    const hints = skillIndex.filter(s => s.attachments.length > 0)
+      .map(s => `  ${s.name}: ${s.attachments.join(', ')}`)
+    if (hints.length) {
+      systemParts.push(`## Skill Attachments\n${hints.join('\n')}`)
+    }
+  }
+
   const systemPrompt = systemParts.join('\n\n')
 
   const rows = messageStore.getMessages(sessionId)
@@ -153,12 +244,10 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
   if (systemPrompt) messages.push({ role: 'system', content: systemPrompt })
   for (const row of rows) { const m = rowToLLMMessage(row); if (m) messages.push(m) }
 
-  const toolDefs = getToolDefinitions()
-  const tools = toolDefs.length > 0 ? toolDefs : undefined
-
   let turn = 0
   let totalInputTokens = 0
   let totalOutputTokens = 0
+  let consecutiveErrors = 0
   const toolCallHistory: ToolCallRecord[] = []
 
   socket.emit('run.started', { session_id: sessionId })
@@ -168,11 +257,25 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
 
     const result = await innerLoop(
       messages, tools, provider, model, session.character_id,
-      session.workspace || undefined, io, socket, sessionId, signal, opts,
+      session.workspace || undefined, io, socket, sessionId, signal, opts, turn,
     )
 
     totalInputTokens += result.totalInputTokens
     totalOutputTokens += result.totalOutputTokens
+
+    if (result.type === 'error') {
+      consecutiveErrors++
+      if (consecutiveErrors >= 2) {
+        // Two consecutive errors — give up
+        socket.emit('run.failed', { session_id: sessionId, error: result.error })
+        break
+      }
+      // First error — report and let the model try again
+      const guidance = `[System: An API error occurred (${result.error}). This may be transient. Please retry your last action with a simpler approach or different strategy.]`
+      messages.push({ role: 'system', content: guidance })
+      continue
+    }
+    consecutiveErrors = 0
 
     if (result.toolCallRecords) {
       toolCallHistory.push(...result.toolCallRecords)
@@ -227,9 +330,11 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
     }
 
     if (result.toolCallRecords?.length && detectDoomLoop(toolCallHistory)) {
+      const recent = toolCallHistory.slice(-6)
+      const lastTool = recent[recent.length - 1]?.toolName || 'unknown'
       messages.push({
         role: 'system',
-        content: '[System Alert] You have been encountering repeated failures in your tool calls. This is a Doom Loop. Please stop your current approach immediately and try a completely different strategy.'
+        content: `[System Alert] You have encountered repeated failures (last: ${lastTool}). This is a Doom Loop. Stop your current approach and try a completely different strategy. Consider: (a) read the file structure first, (b) use a different tool, (c) break the task into smaller steps.`
       })
     }
 
@@ -243,7 +348,6 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
     }
 
     if (result.type === 'aborted') break
-    if (result.type === 'error') break
     if (result.type === 'final_answer') break
   }
 

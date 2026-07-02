@@ -1,6 +1,6 @@
 {
-  "name": "chatter",
-  "description": "只能聊天的废物角色",
+  "name": "呆子",
+  "description": "",
   "avatar": "",
   "color": "#6366f1",
   "memory": {
@@ -8,21 +8,42 @@
     "selfEvolution": false,
     "charLimit": 2200
   },
-  "permissions": {
-    "edit": "ask",
-    "bash": "ask",
-    "webfetch": "allow"
-  },
+  "tools": [
+    {
+      "name": "bash"
+    },
+    {
+      "name": "edit"
+    },
+    {
+      "name": "glob"
+    },
+    {
+      "name": "grep"
+    },
+    {
+      "name": "read"
+    },
+    {
+      "name": "skill_manager"
+    },
+    {
+      "name": "webfetch"
+    },
+    {
+      "name": "websearch"
+    },
+    {
+      "name": "write"
+    }
+  ],
   "maxSteps": 10,
   "role": "both",
-  "groups": [
-    "test"
-  ],
+  "groups": [],
   "default_strategy": "Ask",
   "skills": [],
   "enabled": true,
   "id": "2",
-  "createdAt": 1782810790654,
-  "updatedAt": 1782811287733,
-  "tools": []
+  "createdAt": 1782988722809,
+  "updatedAt": 1782989041252
 }
