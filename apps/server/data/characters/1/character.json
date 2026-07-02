@@ -28,7 +28,7 @@
   ],
   "enabled": true,
   "createdAt": 1782738601774,
-  "updatedAt": 1782988691245,
+  "updatedAt": 1782990346357,
   "tools": [
     {
       "name": "read"
@@ -56,6 +56,12 @@
     },
     {
       "name": "skill_manager"
+    },
+    {
+      "name": "task_complete"
+    },
+    {
+      "name": "delegate_task"
     }
   ]
 }

@@ -159,7 +159,7 @@ function rowToLLMMessage(row: MessageRow): LLMMessage | null {
 }
 
 export interface RunResult {
-  status: 'stop' | 'max_turns' | 'cancelled'
+  status: 'stop' | 'max_turns' | 'cancelled' | 'task_complete'
   sessionId: string
   totalInputTokens: number
   totalOutputTokens: number
@@ -327,6 +327,37 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
         })
       }
       continue
+    }
+
+    if (result.type === 'task_complete') {
+      const toolCallId = result.toolCalls?.[0]?.id || `complete_${Date.now()}`
+      const summaryOutput = result.taskCompleteSummary || 'Task marked complete'
+      messages.push({
+        role: 'tool',
+        content: JSON.stringify({ output: summaryOutput }),
+        tool_call_id: toolCallId,
+      })
+      messageStore.addMessage(sessionId, {
+        role: 'tool',
+        content: JSON.stringify({ output: summaryOutput }),
+        tool_name: 'task_complete',
+        tool_input: JSON.stringify({ call_id: toolCallId }),
+        tool_output: summaryOutput,
+        tool_status: 'success',
+      })
+      socket.emit('tool.completed', {
+        session_id: sessionId, tool_call_id: toolCallId,
+        tool_name: 'task_complete', tool_output: summaryOutput,
+        tool_status: 'success', duration_ms: 0,
+      })
+      socket.emit('run.completed', { session_id: sessionId, status: 'task_complete' })
+      if (totalInputTokens > 0 || totalOutputTokens > 0) {
+        sessionStore.update(sessionId, {
+          input_tokens: (session.input_tokens || 0) + totalInputTokens,
+          output_tokens: (session.output_tokens || 0) + totalOutputTokens,
+        })
+      }
+      return { status: 'task_complete', sessionId, totalInputTokens, totalOutputTokens }
     }
 
     if (result.toolCallRecords?.length && detectDoomLoop(toolCallHistory)) {

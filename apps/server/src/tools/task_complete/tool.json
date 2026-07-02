@@ -1,0 +1,19 @@
+{
+    "version": "1.0.0",
+    "tags": ["system"],
+    "name": "task_complete",
+    "source": "builtin",
+    "description": "标记当前任务已完成，结束本轮会话循环。调用时附带最终结果的摘要说明。",
+    "dangerous": false,
+    "author": "Yi-Lin",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "summary": {
+                "type": "string",
+                "description": "任务完成摘要"
+            }
+        },
+        "required": ["summary"]
+    }
+}

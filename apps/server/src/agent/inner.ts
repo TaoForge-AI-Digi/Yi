@@ -88,7 +88,7 @@ export interface SubAgentRequestData {
 }
 
 export interface InnerResult {
-  type: 'final_answer' | 'tool_calls_executed' | 'error' | 'aborted' | 'sub_agent_request'
+  type: 'final_answer' | 'tool_calls_executed' | 'error' | 'aborted' | 'sub_agent_request' | 'task_complete'
   messages: LLMMessage[]
   fullText: string
   reasoningText: string
@@ -98,6 +98,7 @@ export interface InnerResult {
   error?: string
   toolCallRecords?: ToolCallRecord[]
   subAgentRequest?: SubAgentRequestData
+  taskCompleteSummary?: string
 }
 
 async function streamWithRetry(
@@ -261,6 +262,20 @@ export async function innerLoop(
         sub_strategy: args.sub_strategy as any,
         instances: parseInt(args.instances as string) || 1,
       },
+    }
+  }
+
+  const completeCall = toolCallsAcc.find(tc => tc.function.name === 'task_complete')
+  if (completeCall) {
+    let args: Record<string, string> = {}
+    try { args = JSON.parse(completeCall.function.arguments) } catch { args = {} }
+    const summary = args.summary || ''
+    return {
+      type: 'task_complete',
+      messages: newMessages, fullText, reasoningText,
+      toolCalls: toolCallsAcc, totalInputTokens, totalOutputTokens,
+      toolCallRecords: [],
+      taskCompleteSummary: summary,
     }
   }
 
