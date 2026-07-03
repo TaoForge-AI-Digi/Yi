@@ -8,6 +8,10 @@ const props = defineProps<{
   workspace: WorkspaceGroupType
 }>()
 
+const emit = defineEmits<{
+  select: [id: string]
+}>()
+
 const chatStore = useChatStore()
 
 function createSessionInWorkspace() {
@@ -29,7 +33,7 @@ function createSessionInWorkspace() {
         :key="session.id"
         :session="session"
         :active="session.id === chatStore.activeSessionId"
-        @click="chatStore.switchSession(session.id)"
+        @click="emit('select', session.id)"
       />
     </div>
   </div>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import ProviderSettings from './ProviderSettings.vue'
 import DisplaySettings from './DisplaySettings.vue'
@@ -8,20 +9,35 @@ import SessionSettings from './SessionSettings.vue'
 import ToolSettings from './ToolSettings.vue'
 import SkillSettings from './SkillSettings.vue'
 
-defineEmits<{ close: [] }>()
+const route = useRoute()
+const router = useRouter()
 const { t } = useI18n()
 
 const tabs = [
-  { key: 'provider', labelKey: 'settingsNav.provider' },
-  { key: 'display', labelKey: 'settingsNav.display' },
   { key: 'role', labelKey: 'settingsNav.role' },
-  { key: 'session', labelKey: 'settingsNav.session' },
-  { key: 'tool', labelKey: 'settingsNav.tool' },
   { key: 'skill', labelKey: 'settingsNav.skill' },
+  { key: 'tool', labelKey: 'settingsNav.tool' },
+  { key: 'display', labelKey: 'settingsNav.display' },
+  { key: 'session', labelKey: 'settingsNav.session' },
+  { key: 'provider', labelKey: 'settingsNav.provider' },
   { key: 'about', labelKey: 'settingsNav.about' },
 ]
 
-const activeTab = ref('tool')
+const activeTab = computed(() => {
+  const tab = route.params.tab
+  if (tab && typeof tab === 'string' && tabs.some(t => t.key === tab)) {
+    return tab
+  }
+  return 'role'
+})
+
+function switchTab(key: string) {
+  router.push(`/settings/${key}`)
+}
+
+function goBack() {
+  router.push('/')
+}
 </script>
 
 <template>
@@ -35,13 +51,13 @@ const activeTab = ref('tool')
           v-for="tab in tabs"
           :key="tab.key"
           :class="['settings-nav-item', { active: activeTab === tab.key }]"
-          @click="activeTab = tab.key"
+          @click="switchTab(tab.key)"
         >
           <span class="nav-label">{{ t(tab.labelKey) }}</span>
         </button>
       </nav>
       <div class="settings-sidebar-footer">
-        <button class="close-btn" @click="$emit('close')">← Back</button>
+        <button class="close-btn" @click="goBack">← Back</button>
       </div>
     </aside>
     <div class="settings-content">
@@ -65,9 +81,7 @@ const activeTab = ref('tool')
 
 <style scoped>
 .settings-view {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
+  flex: 1;
   display: flex;
   background: #fff;
 }

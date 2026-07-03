@@ -1,14 +1,11 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import SettingsView from './settings/SettingsView.vue'
-
-const showSettings = ref(false)
+import { useRouter } from 'vue-router'
+const router = useRouter()
 </script>
 
 <template>
   <div class="settings-btn-area">
-    <button class="settings-btn" @click="showSettings = true">⚙️ Settings</button>
-    <SettingsView v-if="showSettings" @close="showSettings = false" />
+    <button class="settings-btn" @click="router.push('/settings')">⚙️ Settings</button>
   </div>
 </template>
 

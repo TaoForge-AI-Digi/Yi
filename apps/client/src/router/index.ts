@@ -1,0 +1,82 @@
+import { createRouter, createWebHistory } from 'vue-router'
+import { useChatStore } from '@/stores/chat'
+import ChatView from '@/views/ChatView.vue'
+import SettingsView from '@/components/settings/SettingsView.vue'
+import NotFound from '@/views/NotFound.vue'
+
+const PERSIST_KEY = 'yi-lin-chat-defaults'
+
+function loadPersistedDefaults() {
+  try {
+    const raw = localStorage.getItem(PERSIST_KEY)
+    if (!raw) return {}
+    return JSON.parse(raw) as Record<string, string>
+  } catch { return {} }
+}
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes: [
+    {
+      path: '/',
+      redirect: '/c',
+    },
+    {
+      path: '/c',
+      name: 'chat',
+      component: ChatView,
+    },
+    {
+      path: '/c/:id',
+      name: 'chat-session',
+      component: ChatView,
+    },
+    {
+      path: '/c/:id/files',
+      name: 'chat-files',
+      component: ChatView,
+    },
+    {
+      path: '/c/:id/outline',
+      name: 'chat-outline',
+      component: ChatView,
+    },
+    {
+      path: '/settings',
+      name: 'settings',
+      component: SettingsView,
+    },
+    {
+      path: '/settings/:tab',
+      name: 'settings-tab',
+      component: SettingsView,
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: NotFound,
+    },
+  ],
+})
+
+router.beforeEach(async (to) => {
+  if (to.path === '/' || to.path.startsWith('/c')) {
+    const chatStore = useChatStore()
+    if (chatStore.sessions.length === 0) {
+      await chatStore.loadSessions()
+    }
+    if (to.path === '/' || to.path === '/c') {
+      const saved = loadPersistedDefaults()
+      if (saved.activeSessionId && chatStore.sessions.find(s => s.id === saved.activeSessionId)) {
+        return { path: `/c/${saved.activeSessionId}`, replace: true }
+      }
+      if (chatStore.sessions.length > 0) {
+        return { path: `/c/${chatStore.sessions[0].id}`, replace: true }
+      }
+      const s = await chatStore.createSession()
+      return { path: `/c/${s.id}`, replace: true }
+    }
+  }
+})
+
+export default router

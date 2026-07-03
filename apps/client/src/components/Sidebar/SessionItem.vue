@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import ContextMenu from './ContextMenu.vue'
 import { useChatStore } from '@/stores/chat'
 
@@ -19,6 +20,7 @@ const emit = defineEmits<{
   contextmenu: [event: MouseEvent]
 }>()
 
+const router = useRouter()
 const chatStore = useChatStore()
 const showContextMenu = ref(false)
 const contextMenuPos = ref({ x: 0, y: 0 })
@@ -119,7 +121,7 @@ const children = computed(() => {
         :session="child"
         :active="child.id === chatStore.activeSessionId"
         :depth="(depth || 0) + 1"
-        @click="chatStore.switchSession(child.id)"
+        @click="router.push('/c/' + child.id)"
       />
     </div>
   </div>

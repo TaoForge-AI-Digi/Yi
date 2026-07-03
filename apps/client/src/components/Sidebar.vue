@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import SearchBar from './Sidebar/SearchBar.vue'
 import FilterBar from './Sidebar/FilterBar.vue'
 import WorkspaceGroup from './Sidebar/WorkspaceGroup.vue'
@@ -7,6 +8,7 @@ import SettingsBtn from './SettingsBtn.vue'
 import BatchActions from './Sidebar/BatchActions.vue'
 import { useChatStore } from '@/stores/chat'
 
+const router = useRouter()
 const chatStore = useChatStore()
 
 const searchQuery = ref('')
@@ -37,6 +39,14 @@ function handleSearch(value: string) {
 function handleFilter(type: 'all' | 'starred') {
   filterType.value = type
 }
+
+function openSession(id: string) {
+  router.push(`/c/${id}`)
+}
+
+function newSession() {
+  chatStore.createSession().then(s => router.push(`/c/${s.id}`))
+}
 </script>
 
 <template>
@@ -46,13 +56,14 @@ function handleFilter(type: 'all' | 'starred') {
     <div class="session-list">
       <div class="session-list-header">
         <span class="title">Sessions</span>
-        <button class="new-btn" @click="chatStore.createSession(); chatStore.switchSession(chatStore.sessions[0].id)">+</button>
+        <button class="new-btn" @click="newSession">+</button>
         <button class="batch-btn" @click="chatStore.toggleBatchMode()">批量</button>
       </div>
       <WorkspaceGroup
         v-for="group in filteredWorkspaces"
         :key="group.name"
         :workspace="group"
+        @select="openSession"
       />
     </div>
     <SettingsBtn />
