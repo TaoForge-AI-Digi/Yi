@@ -9,11 +9,6 @@
     "selfEvolution": false,
     "charLimit": 2200
   },
-  "permissions": {
-    "edit": "allow",
-    "bash": "allow",
-    "webfetch": "allow"
-  },
   "maxSteps": 10,
   "role": "both",
   "groups": [
@@ -62,6 +57,9 @@
     },
     {
       "name": "mcp:codegraph"
+    },
+    {
+      "name": "mcp:playwright"
     }
   ]
 }

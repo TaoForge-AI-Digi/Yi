@@ -3,10 +3,6 @@
   "name": "Coder",
   "description": "编程专家",
   "color": "#10b981",
-  "permissions": {
-    "files": "allow",
-    "bash": "ask"
-  },
   "role": "main",
   "groups": [
     "default"

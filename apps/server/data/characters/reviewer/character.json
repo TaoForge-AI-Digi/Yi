@@ -3,10 +3,6 @@
   "name": "Reviewer",
   "description": "代码审查",
   "color": "#f59e0b",
-  "permissions": {
-    "files": "deny",
-    "bash": "deny"
-  },
   "role": "sub",
   "groups": [],
   "default_strategy": "Ask",

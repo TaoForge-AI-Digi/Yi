@@ -3,10 +3,6 @@
   "name": "Explorer",
   "description": "代码探索",
   "color": "#8b5cf6",
-  "permissions": {
-    "files": "allow",
-    "bash": "deny"
-  },
   "role": "both",
   "groups": [
     "default"
@@ -23,12 +19,12 @@
   "enabled": true,
   "updatedAt": 1782805328796,
   "tools": [
-    "read",
-    "write",
-    "edit",
-    "grep",
-    "glob",
-    "webfetch",
-    "websearch"
+    { "name": "read" },
+    { "name": "write" },
+    { "name": "edit" },
+    { "name": "grep" },
+    { "name": "glob" },
+    { "name": "webfetch" },
+    { "name": "websearch" }
   ]
 }

@@ -9,12 +9,6 @@
     "selfEvolution": false,
     "charLimit": 2200
   },
-  "permissions": {
-    "files": "allow",
-    "bash": "allow",
-    "edit": "allow",
-    "webfetch": "deny"
-  },
   "maxSteps": 10,
   "role": "both",
   "groups": [
