@@ -22,13 +22,13 @@
   ],
   "default_strategy": "Bypass",
   "skills": [
-    "echo-test",
-    "plan",
-    "project-bootstrap"
+    "lowcode-flow",
+    "lowcode-analyze",
+    "lowcode-designer"
   ],
   "enabled": true,
   "createdAt": 1782738601774,
-  "updatedAt": 1782990346357,
+  "updatedAt": 1783062892923,
   "tools": [
     {
       "name": "read"
@@ -61,7 +61,7 @@
       "name": "task_complete"
     },
     {
-      "name": "delegate_task"
+      "name": "mcp:codegraph"
     }
   ]
 }

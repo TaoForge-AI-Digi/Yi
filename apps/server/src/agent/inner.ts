@@ -7,6 +7,7 @@ import { getSessionState, isToolApprovedForSession, approveToolForSession } from
 import { logLLMCall } from '../debug/llm-logger.js'
 import type { Strategy } from './session.js'
 import type { Server, Socket } from 'socket.io'
+import type { MCPClient } from '../tools/mcp-client.js'
 
 const READ_ONLY_TOOLS = new Set(['read', 'grep', 'glob', 'webfetch', 'websearch'])
 
@@ -64,7 +65,10 @@ function checkToolBinding(characterId: string, toolName: string, args: Record<st
   if (!character) return null
   const bindings = character.tools
   if (!bindings || bindings.length === 0) return `No tools are enabled for this character`
-  const binding = bindings.find((t: ToolBinding) => t.name === toolName)
+  const binding = bindings.find((t: ToolBinding) =>
+    t.name === toolName ||
+    (t.name.startsWith('mcp:') && toolName.startsWith('mcp__' + t.name.slice(4) + '__'))
+  )
   if (!binding) return `Tool "${toolName}" is not enabled for this character`
   if (binding.constraints) {
     const constraintError = validateConstraints(toolName, args, binding)
@@ -190,7 +194,8 @@ export async function innerLoop(
   sessionId?: string,
   signal?: AbortSignal,
   opts: { thinking?: boolean; reasoning_effort?: string } = {},
-  turn: number = 0
+  turn: number = 0,
+  mcpClients?: Map<string, MCPClient>,
 ): Promise<InnerResult> {
   let totalInputTokens = 0
   let totalOutputTokens = 0
@@ -362,7 +367,7 @@ export async function innerLoop(
     const startTime = Date.now()
     let result
     try {
-      result = await executeTool(p.name, p.args, workspace || process.cwd(), signal)
+      result = await executeTool(p.name, p.args, workspace || process.cwd(), signal, mcpClients)
     } catch (err: any) {
       result = { output: '', error: `${p.name}: ${err.message || String(err)}` }
     }

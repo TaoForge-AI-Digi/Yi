@@ -20,17 +20,22 @@ const localList = computed<ToolBinding[]>(() => props.modelValue || [])
 
 const expanded = ref<Record<string, boolean>>({})
 
+function toolBindingName(tool: ToolItem): string {
+  return tool.source === 'mcp' ? `mcp:${tool.name}` : tool.name
+}
+
 function isEnabled(name: string): boolean {
   return localList.value.some(t => t.name === name)
 }
 
-function toggleTool(name: string) {
+function toggleTool(tool: ToolItem) {
+  const toolName = tool.source === 'mcp' ? `mcp:${tool.name}` : tool.name
   const list = [...localList.value]
-  const idx = list.findIndex(t => t.name === name)
+  const idx = list.findIndex(t => t.name === toolName)
   if (idx >= 0) {
     list.splice(idx, 1)
   } else {
-    list.push({ name })
+    list.push({ name: toolName })
   }
   emit('update:modelValue', list)
 }
@@ -88,30 +93,30 @@ function onBool(field: ConstraintField, toolName: string, checked: boolean) {
 <template>
   <div class="tool-binding-editor">
     <div class="tools-grid">
-      <div v-for="tool in allTools || []" :key="tool.name" class="tool-card" :class="{ enabled: isEnabled(tool.name) }">
+      <div v-for="tool in allTools || []" :key="tool.name" class="tool-card" :class="{ enabled: isEnabled(toolBindingName(tool)) }">
         <div class="tool-row">
           <span class="tool-name">{{ tool.name }}</span>
           <span :class="['tool-source', `tool-source--${tool.source}`]">
             {{ tool.source === 'builtin' ? '内置' : tool.source === 'mcp' ? 'MCP' : '外部导入' }}
           </span>
           <label class="toggle-label-wrap">
-            <input type="checkbox" :checked="isEnabled(tool.name)" @change="toggleTool(tool.name)" class="toggle-input" />
+            <input type="checkbox" :checked="isEnabled(toolBindingName(tool))" @change="toggleTool(tool)" class="toggle-input" />
             <span class="toggle-switch"></span>
           </label>
-          <button v-if="isEnabled(tool.name) && tool.constraintFields?.length" class="expand-btn" @click="expanded[tool.name] = !expanded[tool.name]">
+          <button v-if="isEnabled(toolBindingName(tool)) && tool.constraintFields?.length" class="expand-btn" @click="expanded[toolBindingName(tool)] = !expanded[toolBindingName(tool)]">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline v-if="!expanded[tool.name]" points="6 9 12 15 18 9" />
+              <polyline v-if="!expanded[toolBindingName(tool)]" points="6 9 12 15 18 9" />
               <polyline v-else points="18 15 12 9 6 15" />
             </svg>
-            {{ expanded[tool.name] ? '收起' : '约束' }}
+            {{ expanded[toolBindingName(tool)] ? '收起' : '约束' }}
           </button>
         </div>
-        <div v-if="isEnabled(tool.name) && expanded[tool.name]" class="constraints-panel">
+        <div v-if="isEnabled(toolBindingName(tool)) && expanded[toolBindingName(tool)]" class="constraints-panel">
           <div v-for="field in tool.constraintFields || []" :key="field.key" class="constraint-field">
             <div v-if="field.type === 'boolean'" class="boolean-field">
               <label class="toggle-row">
                 <span class="toggle-label">{{ field.label }}</span>
-                <input type="checkbox" :checked="boolVal(field, tool.name)" @change="onBool(field, tool.name, ($event.target as HTMLInputElement).checked)" class="toggle-input" />
+                <input type="checkbox" :checked="boolVal(field, toolBindingName(tool))" @change="onBool(field, toolBindingName(tool), ($event.target as HTMLInputElement).checked)" class="toggle-input" />
                 <span class="toggle-switch"></span>
               </label>
             </div>
@@ -121,8 +126,8 @@ function onBool(field: ConstraintField, toolName: string, checked: boolean) {
                 class="constraint-input"
                 :type="field.type === 'number' ? 'number' : 'text'"
                 :placeholder="field.placeholder || ''"
-                :value="inputVal(field, tool.name)"
-                @input="onInput(field, tool.name, ($event.target as HTMLInputElement).value)"
+                :value="inputVal(field, toolBindingName(tool))"
+                @input="onInput(field, toolBindingName(tool), ($event.target as HTMLInputElement).value)"
               />
             </template>
           </div>

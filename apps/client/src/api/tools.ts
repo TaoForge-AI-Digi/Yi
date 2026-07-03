@@ -14,17 +14,32 @@ export interface ToolMeta {
   constraintFields?: ConstraintField[]
 }
 
+export type MCPConnectionStatus =
+  | { status: 'connected'; toolsCount: number }
+  | { status: 'disabled' }
+  | { status: 'failed'; error: string }
+  | { status: 'connecting' }
+
 export interface MCPServer {
   id: string
   name: string
   command: string
   args: string[]
   env: Record<string, string>
+  status?: MCPConnectionStatus | null
 }
 
 export interface ToolsData {
   tools: ToolMeta[]
   mcpServers: MCPServer[]
+  mcpStatuses: Record<string, MCPConnectionStatus>
+}
+
+export interface MCPTestResult {
+  ok: boolean
+  toolCount?: number
+  serverName?: string
+  error?: string
 }
 
 export async function fetchTools(): Promise<ToolsData> {
@@ -41,4 +56,8 @@ export async function updateMCPServer(id: string, data: Partial<MCPServer>): Pro
 
 export async function deleteMCPServer(id: string): Promise<void> {
   return apiDelete(`/api/tools/mcp/${id}`)
+}
+
+export async function testMCPConnection(id: string): Promise<MCPTestResult> {
+  return apiPost(`/api/tools/mcp/${id}/test`, {})
 }

@@ -7,9 +7,13 @@ import { innerLoop, detectDoomLoop, type ToolCallRecord } from './inner.js'
 import { spawnAndRunSubAgent, summarizeAndMerge } from './sub-agent.js'
 import { buildSkillIndex } from './skill-loader.js'
 import { getCharacterToolDefinitions } from '../tools/definitions.js'
+import { connectMCPServer, disconnectMCPServer } from '../tools/mcp-client.js'
+import { mcpServerStore } from '../db/toolStore.js'
+import { setMCPStatus } from '../tools/mcp-status.js'
 import type { LLMMessage } from '../llm/client.js'
 import type { Server, Socket } from 'socket.io'
 import type { MessageRow } from '../db/messageStore.js'
+import type { MCPClient } from '../tools/mcp-client.js'
 
 const MAX_TURNS = 20
 const DEFAULT_CONTEXT_WINDOW = 128000
@@ -184,6 +188,59 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
   if (!model) { socket.emit('run.failed', { session_id: sessionId, error: 'No model configured' }); return { status: 'stop', sessionId, totalInputTokens: 0, totalOutputTokens: 0 } }
 
   const toolDefs = getCharacterToolDefinitions(charMeta.tools)
+
+  const mcpClients = new Map<string, MCPClient>()
+  const mcpFailedServers: string[] = []
+  if (charMeta.tools) {
+    const mcpEntries = charMeta.tools.filter((t: { name: string }) => t.name.startsWith('mcp:'))
+    for (const entry of mcpEntries) {
+      const serverName = entry.name.slice(4)
+      const config = mcpServerStore.getAll().find((s: { name: string }) => s.name === serverName)
+      if (!config) {
+        console.warn(`[mcp] Server "${serverName}" referenced but not configured`)
+        setMCPStatus(serverName, { status: 'disabled' })
+        mcpFailedServers.push(serverName)
+        continue
+      }
+      setMCPStatus(serverName, { status: 'connecting' })
+      let lastError = ''
+      const MAX_RETRIES = 3
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          const client = await connectMCPServer(config, session.workspace ?? undefined)
+          mcpClients.set(serverName, client)
+          for (const tool of client.tools) {
+            const fullName = `mcp__${serverName}__${tool.name}`
+            toolDefs.push({
+              type: 'function' as const,
+              function: {
+                name: fullName,
+                description: tool.description,
+                parameters: tool.inputSchema as any,
+              },
+            })
+          }
+          setMCPStatus(serverName, { status: 'connected', toolsCount: client.tools.length })
+          console.log(`[mcp] Connected "${serverName}" (${client.tools.length} tools)`)
+          lastError = ''
+          break
+        } catch (err: any) {
+          lastError = err.message
+          if (attempt < MAX_RETRIES) {
+            const delay = Math.min(1000 * Math.pow(2, attempt - 1), 4000)
+            console.warn(`[mcp] Retry ${attempt}/${MAX_RETRIES} for "${serverName}" in ${delay}ms: ${err.message}`)
+            await new Promise(r => setTimeout(r, delay))
+          }
+        }
+      }
+      if (lastError) {
+        setMCPStatus(serverName, { status: 'failed', error: lastError })
+        console.error(`[mcp] Server "${serverName}" failed after ${MAX_RETRIES} retries: ${lastError}`)
+        mcpFailedServers.push(serverName)
+      }
+    }
+  }
+
   const tools = toolDefs.length > 0 ? toolDefs : undefined
 
   const systemParts: string[] = []
@@ -223,6 +280,14 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
     systemParts.push(`## Available Tools\n${toolListings.join('\n')}`)
   }
 
+  // Unavailable MCP servers — configured but failed to connect
+  if (mcpFailedServers.length > 0) {
+    const notes = mcpFailedServers.map(name =>
+      `- mcp:${name}: configured but could not connect. This MCP server is NOT available in this session.`
+    )
+    systemParts.push(`## Unavailable Tools\n${notes.join('\n')}`)
+  }
+
   // Skills: index in system prompt only (no pre-injection of full content)
   const skillIndex = buildSkillIndex(charMeta)
   if (skillIndex.length > 0) {
@@ -258,6 +323,7 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
     const result = await innerLoop(
       messages, tools, provider, model, session.character_id,
       session.workspace || undefined, io, socket, sessionId, signal, opts, turn,
+      mcpClients,
     )
 
     totalInputTokens += result.totalInputTokens
@@ -357,6 +423,9 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
           output_tokens: (session.output_tokens || 0) + totalOutputTokens,
         })
       }
+      for (const [, client] of mcpClients) {
+        await disconnectMCPServer(client).catch(() => {})
+      }
       return { status: 'task_complete', sessionId, totalInputTokens, totalOutputTokens }
     }
 
@@ -390,6 +459,10 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
       input_tokens: (session.input_tokens || 0) + totalInputTokens,
       output_tokens: (session.output_tokens || 0) + totalOutputTokens,
     })
+  }
+
+  for (const [, client] of mcpClients) {
+    await disconnectMCPServer(client).catch(() => {})
   }
 
   return { status: completedStatus, sessionId, totalInputTokens, totalOutputTokens }

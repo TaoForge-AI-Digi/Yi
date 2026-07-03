@@ -5,6 +5,7 @@ import * as api from '@/api/tools'
 export const useToolsStore = defineStore('tools', () => {
   const allTools = ref<api.ToolMeta[]>([])
   const mcpServers = ref<api.MCPServer[]>([])
+  const mcpStatuses = ref<Record<string, api.MCPConnectionStatus>>({})
 
   const builtinTools = computed(() => allTools.value.filter(t => t.source === 'builtin'))
 
@@ -12,6 +13,7 @@ export const useToolsStore = defineStore('tools', () => {
     const data = await api.fetchTools()
     allTools.value = data.tools
     mcpServers.value = data.mcpServers
+    mcpStatuses.value = data.mcpStatuses || {}
   }
 
   async function createMCP(data: Partial<api.MCPServer>) {
@@ -30,5 +32,10 @@ export const useToolsStore = defineStore('tools', () => {
     mcpServers.value = mcpServers.value.filter(x => x.id !== id)
   }
 
-  return { allTools, builtinTools, mcpServers, load, createMCP, updateMCP, removeMCP }
+  async function testMCP(id: string): Promise<api.MCPTestResult> {
+    const result = await api.testMCPConnection(id)
+    return result
+  }
+
+  return { allTools, builtinTools, mcpServers, mcpStatuses, load, createMCP, updateMCP, removeMCP, testMCP }
 })

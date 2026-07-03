@@ -176,7 +176,7 @@
     "commandLabel": "命令",
     "commandPlaceholder": "例如: npx",
     "argsLabel": "参数",
-    "argsPlaceholder": "例如: -y @modelcontextprotocol/server-filesystem /path",
+    "argsPlaceholder": "例如: -y server-package /path",
     "envLabel": "环境变量（每行 KEY=VALUE）",
     "envPlaceholder": "API_KEY=xxx\nBASE_URL=http://...",
     "edit": "编辑",
@@ -187,10 +187,18 @@
     "importBtn": "导入",
     "importTitle": "导入工具配置",
     "importDesc": "粘贴 JSON 格式的 MCP 服务器配置：",
-    "importPlaceholder": "{\n  \"name\": \"文件系统\",\n  \"command\": \"npx\",\n  \"args\": [\"-y\", \"@modelcontextprotocol/server-filesystem\", \"/tmp\"],\n  \"env\": {\"API_KEY\": \"xxx\"}\n}",
+    "importPlaceholder": "{\n  \"name\": \"文件系统\",\n  \"command\": \"npx\",\n  \"args\": [\"-y\", \"server-package\", \"/tmp\"],\n  \"env\": {\"API_KEY\": \"xxx\"}\n}",
     "importConfirm": "导入",
     "importInvalidJson": "JSON 格式无效",
     "importMissingCommand": "配置中缺少 command 字段",
-    "noMCP": "暂无 MCP 服务器，点击「新增」或「导入」添加"
+    "noMCP": "暂无 MCP 服务器，点击「新增」或「导入」添加",
+    "test": "测试连接",
+    "testing": "测试中...",
+    "testSuccess": "连接成功（{count} 个工具）",
+    "testFailed": "连接失败",
+    "statusConnected": "已连接",
+    "statusDisabled": "未配置",
+    "statusFailed": "连接失败",
+    "statusConnecting": "连接中..."
   }
 }

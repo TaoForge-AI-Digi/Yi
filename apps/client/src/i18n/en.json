@@ -176,7 +176,7 @@
     "commandLabel": "Command",
     "commandPlaceholder": "e.g. npx",
     "argsLabel": "Arguments",
-    "argsPlaceholder": "e.g. -y @modelcontextprotocol/server-filesystem /path",
+    "argsPlaceholder": "e.g. -y server-package /path",
     "envLabel": "Environment Variables (one KEY=VALUE per line)",
     "envPlaceholder": "API_KEY=xxx\nBASE_URL=http://...",
     "edit": "Edit",
@@ -187,10 +187,18 @@
     "importBtn": "Import",
     "importTitle": "Import Tool Config",
     "importDesc": "Paste MCP server JSON configuration:",
-    "importPlaceholder": "{\n  \"name\": \"Filesystem\",\n  \"command\": \"npx\",\n  \"args\": [\"-y\", \"@modelcontextprotocol/server-filesystem\", \"/tmp\"],\n  \"env\": {\"API_KEY\": \"xxx\"}\n}",
+    "importPlaceholder": "{\n  \"name\": \"Filesystem\",\n  \"command\": \"npx\",\n  \"args\": [\"-y\", \"server-package\", \"/tmp\"],\n  \"env\": {\"API_KEY\": \"xxx\"}\n}",
     "importConfirm": "Import",
     "importInvalidJson": "Invalid JSON",
     "importMissingCommand": "Missing command field",
-    "noMCP": "No MCP servers. Click 'New' or 'Import' to add one."
+    "noMCP": "No MCP servers. Click 'New' or 'Import' to add one.",
+    "test": "Test",
+    "testing": "Testing...",
+    "testSuccess": "Connected ({count} tools)",
+    "testFailed": "Failed",
+    "statusConnected": "Connected",
+    "statusDisabled": "Disabled",
+    "statusFailed": "Failed",
+    "statusConnecting": "Connecting..."
   }
 }

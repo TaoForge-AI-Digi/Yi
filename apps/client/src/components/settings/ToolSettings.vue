@@ -19,6 +19,41 @@ const editingMCP = ref<{
   env: string
 } | null>(null)
 
+const testingMap = ref<Record<string, boolean>>({})
+const testResults = ref<Record<string, { ok: boolean; error?: string; toolCount?: number }>>({})
+
+function statusLabel(s: api.MCPServer): string {
+  const st = s.status || store.mcpStatuses[s.name]
+  if (!st) return ''
+  if (st.status === 'connected') return `${t('toolSetting.statusConnected')} (${st.toolsCount})`
+  if (st.status === 'disabled') return t('toolSetting.statusDisabled')
+  if (st.status === 'failed') return `${t('toolSetting.statusFailed')}: ${st.error}`
+  if (st.status === 'connecting') return t('toolSetting.statusConnecting')
+  return ''
+}
+
+function statusClass(s: api.MCPServer): string {
+  const st = s.status || store.mcpStatuses[s.name]
+  if (!st) return ''
+  if (st.status === 'connected') return 'mcp-status--connected'
+  if (st.status === 'failed') return 'mcp-status--failed'
+  if (st.status === 'disabled') return 'mcp-status--disabled'
+  if (st.status === 'connecting') return 'mcp-status--connecting'
+  return ''
+}
+
+async function testConnection(id: string) {
+  testingMap.value = { ...testingMap.value, [id]: true }
+  delete testResults.value[id]
+  try {
+    const result = await store.testMCP(id)
+    testResults.value = { ...testResults.value, [id]: result }
+  } finally {
+    testingMap.value = { ...testingMap.value, [id]: false }
+    store.load()
+  }
+}
+
 function newMCP() {
   editingMCP.value = { name: '', command: '', args: '', env: '' }
 }
@@ -128,11 +163,18 @@ onMounted(() => { store.load() })
               <span class="mcp-name">{{ s.name }}</span>
               <span class="mcp-command">{{ s.command }} {{ s.args?.join(' ') }}</span>
             </div>
+            <span v-if="statusLabel(s)" :class="['mcp-status-badge', statusClass(s)]">{{ statusLabel(s) }}</span>
           </div>
           <div v-if="s.env && Object.keys(s.env).length > 0" class="mcp-env">
             <span v-for="(v, k) in s.env" :key="k" class="mcp-env-item">{{ k }}={{ v }}</span>
           </div>
+          <div v-if="testResults[s.id]" :class="['mcp-test-result', testResults[s.id].ok ? 'mcp-test-ok' : 'mcp-test-fail']">
+            {{ testResults[s.id].ok ? t('toolSetting.testSuccess', { count: testResults[s.id].toolCount }) : t('toolSetting.testFailed') + ': ' + testResults[s.id].error }}
+          </div>
           <div class="mcp-actions">
+            <button class="btn-sm" :disabled="testingMap[s.id]" @click="testConnection(s.id)">
+              {{ testingMap[s.id] ? t('toolSetting.testing') : t('toolSetting.test') }}
+            </button>
             <button class="btn-sm" @click="editMCP(s)">{{ t('toolSetting.edit') }}</button>
             <button class="btn-sm btn-sm-danger" @click="removeMCP(s.id)">{{ t('toolSetting.delete') }}</button>
           </div>
@@ -246,6 +288,14 @@ onMounted(() => { store.load() })
 .mcp-card-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .mcp-name { font-size: 14px; font-weight: 600; color: #333; }
 .mcp-command { font-size: 12px; color: #888; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mcp-status-badge { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 500; white-space: nowrap; flex-shrink: 0; }
+.mcp-status--connected { background: #e8f5e9; color: #2e7d32; }
+.mcp-status--failed { background: #fce4ec; color: #c62828; }
+.mcp-status--disabled { background: #f5f5f5; color: #9e9e9e; }
+.mcp-status--connecting { background: #fff8e1; color: #f57f17; }
+.mcp-test-result { font-size: 11px; padding: 4px 8px; border-radius: 4px; margin-top: 6px; }
+.mcp-test-ok { background: #e8f5e9; color: #2e7d32; }
+.mcp-test-fail { background: #fce4ec; color: #c62828; }
 .mcp-env { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
 .mcp-env-item { font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #e3f2fd; color: #1976d2; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 .mcp-actions { display: flex; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; }

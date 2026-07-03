@@ -100,7 +100,7 @@ export function validateConstraints(toolName: string, args: Record<string, any>,
     return null
   }
 
-  if (toolName.startsWith('mcp:') || toolName === 'mcp:db_query') {
+  if (toolName.startsWith('mcp__') || toolName === 'mcp__db_query') {
     if (c.readonly && args.query) {
       const trimmed = args.query.trim().toUpperCase()
       if (trimmed.startsWith('INSERT') || trimmed.startsWith('UPDATE') || trimmed.startsWith('DELETE') || trimmed.startsWith('DROP')) {
@@ -154,6 +154,7 @@ export function getCharacterToolDefinitions(characterTools?: ToolBinding[]) {
       if (t.signal) continue
       result.push({ type: 'function', function: { name: t.name, description: t.description, parameters: t.parameters } })
     } else {
+      if (ct.name.startsWith('mcp:')) continue
       result.push({ type: 'function', function: { name: ct.name, description: `External tool`, parameters: { type: 'object', properties: {} } } })
     }
   }
