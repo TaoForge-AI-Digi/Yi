@@ -51,6 +51,10 @@ function newSession() {
 
 <template>
   <aside class="sidebar">
+    <div class="sidebar-header">
+      <img src="/yi-logo.png" alt="Yi" class="logo" />
+      <span class="app-name">Yi</span>
+    </div>
     <SearchBar @search="handleSearch" />
     <FilterBar :active-filter="filterType" @filter="handleFilter" />
     <div class="session-list">
@@ -78,6 +82,13 @@ function newSession() {
   border-right: 1px solid #e0e0e0;
   background: #f8f9fa;
 }
+.sidebar-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 14px 12px 10px;
+  border-bottom: 1px solid #e0e0e0;
+}
+.logo { width: 28px; height: 28px; border-radius: 6px; }
+.app-name { font-size: 16px; font-weight: 700; }
 .session-list { flex: 1; overflow-y: auto; padding: 8px; }
 .session-list-header { display: flex; justify-content: space-between; align-items: center; padding: 4px 0 8px; }
 .title { font-weight: 600; font-size: 14px; }

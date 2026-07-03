@@ -70,7 +70,7 @@ function goBack() {
       <section v-if="activeTab === 'about'" class="settings-section">
         <h3 class="section-title">{{ t('settingsNav.about') }}</h3>
         <div class="about-info">
-          <p><strong>Yi-Lin</strong></p>
+          <p><strong>Yi</strong></p>
           <p class="version">Version 0.1.0</p>
           <p class="about-desc">A modern AI chat client built with Vue 3.</p>
         </div>

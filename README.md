@@ -29,6 +29,18 @@ apps/
 ## 快速开始
 
 ```bash
+# 第一步：安装依赖并构建前端
+setup.bat
+
+# 第二步：启动服务端和前端
+run.bat
+```
+
+`setup.bat` 依次安装 server、client 依赖并构建前端；`run.bat` 同时启动服务端（:3001）和前端开发服务器（:5173）。
+
+## 手动启动
+
+```bash
 # 终端 1 — 启动服务端
 cd apps/server
 npx tsx src/index.ts
