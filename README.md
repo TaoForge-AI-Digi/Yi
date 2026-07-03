@@ -1,4 +1,6 @@
-![弈 Logo](./assets/yi-logo.png)
+<p align="center">
+  <img src="./assets/yi-logo.png" alt="弈 Logo">
+</p>
 
 # 弈 (Yì) — AI Agent 系统
 
