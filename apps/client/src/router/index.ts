@@ -5,6 +5,7 @@ import SettingsView from '@/components/settings/SettingsView.vue'
 import RoleView from '@/views/RoleView.vue'
 import SkillView from '@/views/SkillView.vue'
 import ToolView from '@/views/ToolView.vue'
+import TaskView from '@/views/TaskView.vue'
 import MarketView from '@/views/MarketView.vue'
 import McpView from '@/views/McpView.vue'
 import NotFound from '@/views/NotFound.vue'
@@ -70,6 +71,11 @@ const router = createRouter({
       path: '/tool',
       name: 'tool',
       component: ToolView,
+    },
+    {
+      path: '/task',
+      name: 'task',
+      component: TaskView,
     },
     {
       path: '/market',

@@ -12,6 +12,7 @@ const charactersStore = useCharactersStore()
 
 const activeTab = computed(() => {
   const path = route.path
+  if (path === '/task') return 'task'
   if (path === '/role') return 'role'
   if (path === '/skill') return 'skill'
   if (path === '/tool') return 'tool'
@@ -33,6 +34,7 @@ onMounted(async () => {
 function switchTab(tab: string) {
   switch (tab) {
     case 'chat': router.push('/c'); break
+    case 'task': router.push('/task'); break
     case 'role': router.push('/role'); break
     case 'skill': router.push('/skill'); break
     case 'tool': router.push('/tool'); break
@@ -56,6 +58,14 @@ function switchTab(tab: string) {
       >
         <span class="nav-tab-icon">💬</span>
         <span class="nav-tab-label">聊天</span>
+      </button>
+      <button
+        :class="['nav-tab', { active: activeTab === 'task' }]"
+        @click="switchTab('task')"
+        title="任务"
+      >
+        <span class="nav-tab-icon">📋</span>
+        <span class="nav-tab-label">任务</span>
       </button>
       <button
         :class="['nav-tab', { active: activeTab === 'role' }]"
