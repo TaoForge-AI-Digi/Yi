@@ -4,7 +4,6 @@ import { useRouter } from 'vue-router'
 import SearchBar from './Sidebar/SearchBar.vue'
 import FilterBar from './Sidebar/FilterBar.vue'
 import WorkspaceGroup from './Sidebar/WorkspaceGroup.vue'
-import SettingsBtn from './SettingsBtn.vue'
 import BatchActions from './Sidebar/BatchActions.vue'
 import { useChatStore } from '@/stores/chat'
 
@@ -51,10 +50,6 @@ function newSession() {
 
 <template>
   <aside class="sidebar">
-    <div class="sidebar-header">
-      <img src="/yi-logo.png" alt="Yi" class="logo" />
-      <span class="app-name">Yi</span>
-    </div>
     <SearchBar @search="handleSearch" />
     <FilterBar :active-filter="filterType" @filter="handleFilter" />
     <div class="session-list">
@@ -70,7 +65,6 @@ function newSession() {
         @select="openSession"
       />
     </div>
-    <SettingsBtn />
     <BatchActions v-if="chatStore.isBatchMode" />
   </aside>
 </template>

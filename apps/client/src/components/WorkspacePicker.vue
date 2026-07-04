@@ -1,0 +1,184 @@
+<script setup lang="ts">
+import { ref, onMounted, watch } from 'vue'
+import { browseDirectory, type DirEntry } from '@/api/workspace'
+
+const emit = defineEmits<{ select: [path: string]; close: [] }>()
+
+const currentPath = ref('')
+const parentPath = ref<string | null>(null)
+const entries = ref<DirEntry[]>([])
+const loading = ref(false)
+const error = ref('')
+const selectedPath = ref('')
+
+async function load(path?: string) {
+  loading.value = true
+  error.value = ''
+  try {
+    const result = await browseDirectory(path)
+    currentPath.value = result.currentPath
+    parentPath.value = result.parentPath
+    entries.value = result.entries.filter(e => e.isDir)
+  } catch (err: any) {
+    error.value = err.message
+  } finally {
+    loading.value = false
+  }
+}
+
+function goUp() {
+  if (parentPath.value) load(parentPath.value)
+}
+
+function enterDir(entry: DirEntry) {
+  load(entry.path)
+}
+
+function confirmSelection() {
+  if (currentPath.value) emit('select', currentPath.value)
+}
+
+onMounted(() => load())
+</script>
+
+<template>
+  <div class="picker-overlay" @click.self="$emit('close')">
+    <div class="picker-dialog">
+      <div class="picker-header">
+        <h3>选择工作区</h3>
+        <button class="close-btn" @click="$emit('close')">&times;</button>
+      </div>
+
+      <div class="picker-nav">
+        <button class="nav-btn" :disabled="!parentPath" @click="goUp">.. 上级</button>
+        <span class="current-path">{{ currentPath || '快捷入口' }}</span>
+      </div>
+
+      <div v-if="loading" class="picker-loading">加载中...</div>
+      <div v-else-if="error" class="picker-error">{{ error }}</div>
+      <div v-else class="picker-list">
+        <div
+          v-for="entry in entries"
+          :key="entry.path"
+          class="picker-item"
+          :class="{ selected: selectedPath === entry.path }"
+          @click="selectedPath = entry.path"
+          @dblclick="enterDir(entry)"
+        >
+          <span class="item-icon">📁</span>
+          <span class="item-name">{{ entry.name }}</span>
+          <button class="enter-btn" @click.stop="enterDir(entry)" title="进入">▸</button>
+        </div>
+        <div v-if="entries.length === 0" class="picker-empty">空目录</div>
+      </div>
+
+      <div class="picker-footer">
+        <button class="btn btn-cancel" @click="$emit('close')">取消</button>
+        <button class="btn btn-confirm" :disabled="!currentPath" @click="confirmSelection">
+          选择此目录
+        </button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.picker-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.picker-dialog {
+  background: white;
+  border-radius: 12px;
+  width: 520px;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+.picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 8px;
+}
+.picker-header h3 { margin: 0; font-size: 16px; }
+.close-btn {
+  background: none; border: none; font-size: 22px; cursor: pointer;
+  color: #888; padding: 0 4px;
+}
+.close-btn:hover { color: #333; }
+.picker-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  border-bottom: 1px solid #eee;
+}
+.nav-btn {
+  background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px;
+  padding: 3px 8px; font-size: 12px; cursor: pointer; white-space: nowrap;
+}
+.nav-btn:disabled { opacity: 0.4; cursor: default; }
+.nav-btn:hover:not(:disabled) { background: #e0e0e0; }
+.current-path {
+  font-size: 12px; color: #666; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.picker-loading, .picker-error, .picker-empty {
+  padding: 40px 20px; text-align: center; color: #888; font-size: 13px;
+}
+.picker-error { color: #d32f2f; }
+.picker-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+.picker-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 20px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.picker-item:hover { background: #f5f5f5; }
+.picker-item.selected { background: #e3f2fd; }
+.item-icon { font-size: 16px; flex-shrink: 0; }
+.item-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.enter-btn {
+  background: none; border: 1px solid #ccc; border-radius: 3px;
+  padding: 1px 6px; font-size: 11px; cursor: pointer; color: #888;
+  flex-shrink: 0;
+}
+.enter-btn:hover { background: #e0e0e0; color: #333; }
+.picker-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid #eee;
+}
+.btn {
+  padding: 7px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.btn-cancel { background: #f0f0f0; color: #333; }
+.btn-cancel:hover { background: #e0e0e0; }
+.btn-confirm { background: #007aff; color: white; }
+.btn-confirm:disabled { opacity: 0.5; cursor: default; }
+.btn-confirm:hover:not(:disabled) { background: #0056b3; }
+</style>

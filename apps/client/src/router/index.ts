@@ -2,6 +2,11 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useChatStore } from '@/stores/chat'
 import ChatView from '@/views/ChatView.vue'
 import SettingsView from '@/components/settings/SettingsView.vue'
+import RoleView from '@/views/RoleView.vue'
+import SkillView from '@/views/SkillView.vue'
+import ToolView from '@/views/ToolView.vue'
+import MarketView from '@/views/MarketView.vue'
+import McpView from '@/views/McpView.vue'
 import NotFound from '@/views/NotFound.vue'
 
 const PERSIST_KEY = 'yi-lin-chat-defaults'
@@ -50,6 +55,31 @@ const router = createRouter({
       path: '/settings/:tab',
       name: 'settings-tab',
       component: SettingsView,
+    },
+    {
+      path: '/role',
+      name: 'role',
+      component: RoleView,
+    },
+    {
+      path: '/skill',
+      name: 'skill',
+      component: SkillView,
+    },
+    {
+      path: '/tool',
+      name: 'tool',
+      component: ToolView,
+    },
+    {
+      path: '/market',
+      name: 'market',
+      component: MarketView,
+    },
+    {
+      path: '/mcp',
+      name: 'mcp',
+      component: McpView,
     },
     {
       path: '/:pathMatch(.*)*',

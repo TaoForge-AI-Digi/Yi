@@ -163,7 +163,7 @@
     "back": "Back"
   },
   "toolSetting": {
-    "title": "Tools / MCP",
+    "title": "Tools",
     "builtinSection": "Built-in Tools",
     "builtinDesc": "Built-in tools available to the AI assistant. Disable ones you don't need.",
     "mcpSection": "MCP Servers",

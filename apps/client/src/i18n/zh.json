@@ -163,7 +163,7 @@
     "back": "返回"
   },
   "toolSetting": {
-    "title": "工具 / MCP",
+    "title": "工具",
     "builtinSection": "内置工具",
     "builtinDesc": "AI 助手可调用的内置工具，可禁用不需要的工具。",
     "mcpSection": "MCP 服务器",

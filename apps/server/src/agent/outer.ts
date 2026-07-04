@@ -10,6 +10,9 @@ import { getCharacterToolDefinitions } from '../tools/definitions.js'
 import { connectMCPServer, disconnectMCPServer } from '../tools/mcp-client.js'
 import { mcpServerStore } from '../db/toolStore.js'
 import { setMCPStatus } from '../tools/mcp-status.js'
+import { preprocessContextReferences } from './context-references.js'
+import * as fs from 'fs'
+import * as path from 'path'
 import type { LLMMessage } from '../llm/client.js'
 import type { Server, Socket } from 'socket.io'
 import type { MessageRow } from '../db/messageStore.js'
@@ -17,6 +20,14 @@ import type { MCPClient } from '../tools/mcp-client.js'
 
 const MAX_TURNS = 20
 const DEFAULT_CONTEXT_WINDOW = 128000
+
+const DEFAULT_WORKSPACE = path.resolve(process.cwd(), '..', 'default-workspace')
+if (!fs.existsSync(DEFAULT_WORKSPACE)) {
+  try { fs.mkdirSync(DEFAULT_WORKSPACE, { recursive: true }) } catch {}
+}
+function resolveWorkspace(ws: string | null | undefined): string {
+  return ws || DEFAULT_WORKSPACE
+}
 const COMPACT_THRESHOLD = 0.75
 const KEEP_TURNS = 3
 
@@ -207,7 +218,7 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
       const MAX_RETRIES = 3
       for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
-          const client = await connectMCPServer(config, session.workspace ?? undefined)
+          const client = await connectMCPServer(config, resolveWorkspace(session.workspace))
           mcpClients.set(serverName, client)
           for (const tool of client.tools) {
             const fullName = `mcp__${serverName}__${tool.name}`
@@ -247,7 +258,7 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
   if (charContent.soul) systemParts.push(`## Character\n${charContent.soul}`)
   if (charContent.user) systemParts.push(`## User Info\n${charContent.user}`)
   if (charContent.memory) systemParts.push(`## Memory\n${charContent.memory}`)
-  if (session.workspace) systemParts.push(`## Workspace\nYour working directory is: ${session.workspace}\nAll file operations (read/write/edit/glob/bash) use this directory as root. Use paths relative to this directory, or use absolute paths within it.`)
+  systemParts.push(`## Workspace\nYour working directory is: ${resolveWorkspace(session.workspace)}\nAll file operations (read/write/edit/glob/bash) use this directory as root. Use paths relative to this directory, or use absolute paths within it.`)
 
   // Guidance blocks — only when tools are available
   if (toolDefs.length > 0) {
@@ -307,7 +318,17 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
   const rows = messageStore.getMessages(sessionId)
   const messages: LLMMessage[] = []
   if (systemPrompt) messages.push({ role: 'system', content: systemPrompt })
-  for (const row of rows) { const m = rowToLLMMessage(row); if (m) messages.push(m) }
+  for (const row of rows) {
+    let m = rowToLLMMessage(row)
+    if (m && m.role === 'user' && m.content && /@(file|folder|url):/.test(m.content)) {
+      const refResult = await preprocessContextReferences(m.content, resolveWorkspace(session.workspace))
+      if (refResult.expanded) {
+        m = { ...m, content: refResult.message }
+        for (const w of refResult.warnings) console.warn(`[context-ref] ${w}`)
+      }
+    }
+    if (m) messages.push(m)
+  }
 
   let turn = 0
   let totalInputTokens = 0
@@ -322,7 +343,7 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
 
     const result = await innerLoop(
       messages, tools, provider, model, session.character_id,
-      session.workspace || undefined, io, socket, sessionId, signal, opts, turn,
+      resolveWorkspace(session.workspace), io, socket, sessionId, signal, opts, turn,
       mcpClients,
     )
 

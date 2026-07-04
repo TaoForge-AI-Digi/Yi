@@ -11,6 +11,7 @@ import sessionsRouter from './routes/sessions.js'
 import charactersRouter from './routes/characters.js'
 import skillsRouter from './routes/skills.js'
 import toolsRouter from './routes/tools.js'
+import workspaceRouter from './routes/workspace.js'
 import { getDb } from './db/schema.js'
 import { init as initTools } from './tools/registry.js'
 
@@ -32,6 +33,7 @@ app.route('/api/sessions', sessionsRouter)
 app.route('/api/characters', charactersRouter)
 app.route('/api/skills', skillsRouter)
 app.route('/api/tools', toolsRouter)
+app.route('/api/workspace', workspaceRouter)
 app.get('/health', (c) => c.json({ ok: true }))
 
 const port = Number(process.env.PORT) || 3001

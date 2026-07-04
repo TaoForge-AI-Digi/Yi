@@ -32,8 +32,7 @@ function resetHere() {
       </div>
       <div v-else class="text-content">
         <span v-if="message.is_streaming && !message.content" class="cursor-blink">▋</span>
-        <MarkdownRenderer v-if="message.role === 'assistant'" :content="message.content" />
-        <span v-else style="white-space: pre-wrap">{{ message.content }}</span>
+        <MarkdownRenderer :content="message.content" />
         <span v-if="message.is_streaming && message.content" class="cursor-blink">▋</span>
       </div>
       <div v-if="message.role !== 'tool' && !message.is_streaming" class="message-footer">

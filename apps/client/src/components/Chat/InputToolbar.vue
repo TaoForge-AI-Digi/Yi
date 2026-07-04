@@ -5,16 +5,23 @@ import { useChatStore } from '@/stores/chat'
 import ModelSelector from './ModelSelector.vue'
 import CharacterSelector from './CharacterSelector.vue'
 import StrategyToggle from './StrategyToggle.vue'
+import WorkspacePicker from '../WorkspacePicker.vue'
 
 const { t } = useI18n()
 const chatStore = useChatStore()
 
 const session = computed(() => chatStore.activeSession)
 const fileInput = ref<HTMLInputElement>()
+const showWorkspacePicker = ref(false)
 
 function onWorkspaceChange(e: Event) {
   const s = session.value
   if (s) s.workspace = (e.target as HTMLSelectElement).value
+}
+function onWorkspacePick(path: string) {
+  const s = session.value
+  if (s) s.workspace = path
+  showWorkspacePicker.value = false
 }
 function toggleThinking() {
   const s = session.value
@@ -56,7 +63,9 @@ function onFilePicked(e: Event) {
       <label class="toolbar-item workspace">
         <span class="label">{{ t('chat.workspace') }}</span>
         <input type="text" :value="session.workspace || ''" @change="onWorkspaceChange" :placeholder="`/${t('chat.workspace').toLowerCase()}/project`" />
+        <button class="browse-btn" @click="showWorkspacePicker = true" title="浏览...">📁</button>
       </label>
+      <WorkspacePicker v-if="showWorkspacePicker" @select="onWorkspacePick" @close="showWorkspacePicker = false" />
       <button class="attach-btn" @click="triggerFilePicker" title="Attach files">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
@@ -128,6 +137,12 @@ function onFilePicked(e: Event) {
 .toolbar-item.workspace input {
   min-width: 120px;
 }
+.browse-btn {
+  background: none; border: 1px solid #ccc; border-radius: 4px;
+  padding: 2px 5px; cursor: pointer; font-size: 12px; line-height: 1;
+  flex-shrink: 0;
+}
+.browse-btn:hover { border-color: #1976d2; }
 .toolbar-right {
   display: flex;
   align-items: center;

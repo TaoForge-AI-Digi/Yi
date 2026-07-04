@@ -4,40 +4,32 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import ProviderSettings from './ProviderSettings.vue'
 import DisplaySettings from './DisplaySettings.vue'
-import RoleSettings from './RoleSettings.vue'
 import SessionSettings from './SessionSettings.vue'
-import ToolSettings from './ToolSettings.vue'
-import SkillSettings from './SkillSettings.vue'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 
-const tabs = [
-  { key: 'role', labelKey: 'settingsNav.role' },
-  { key: 'skill', labelKey: 'settingsNav.skill' },
-  { key: 'tool', labelKey: 'settingsNav.tool' },
+const allKeys = ['provider', 'display', 'session', 'about']
+const navTabs = [
+  { key: 'provider', labelKey: 'settingsNav.provider' },
   { key: 'display', labelKey: 'settingsNav.display' },
   { key: 'session', labelKey: 'settingsNav.session' },
-  { key: 'provider', labelKey: 'settingsNav.provider' },
   { key: 'about', labelKey: 'settingsNav.about' },
 ]
 
 const activeTab = computed(() => {
   const tab = route.params.tab
-  if (tab && typeof tab === 'string' && tabs.some(t => t.key === tab)) {
+  if (tab && typeof tab === 'string' && allKeys.includes(tab)) {
     return tab
   }
-  return 'role'
+  return 'display'
 })
 
 function switchTab(key: string) {
   router.push(`/settings/${key}`)
 }
 
-function goBack() {
-  router.push('/')
-}
 </script>
 
 <template>
@@ -48,7 +40,7 @@ function goBack() {
       </div>
       <nav class="settings-nav">
         <button
-          v-for="tab in tabs"
+          v-for="tab in navTabs"
           :key="tab.key"
           :class="['settings-nav-item', { active: activeTab === tab.key }]"
           @click="switchTab(tab.key)"
@@ -56,17 +48,11 @@ function goBack() {
           <span class="nav-label">{{ t(tab.labelKey) }}</span>
         </button>
       </nav>
-      <div class="settings-sidebar-footer">
-        <button class="close-btn" @click="goBack">← Back</button>
-      </div>
     </aside>
     <div class="settings-content">
       <ProviderSettings v-if="activeTab === 'provider'" />
       <DisplaySettings v-if="activeTab === 'display'" />
-      <RoleSettings v-if="activeTab === 'role'" />
       <SessionSettings v-if="activeTab === 'session'" />
-      <ToolSettings v-if="activeTab === 'tool'" />
-      <SkillSettings v-if="activeTab === 'skill'" />
       <section v-if="activeTab === 'about'" class="settings-section">
         <h3 class="section-title">{{ t('settingsNav.about') }}</h3>
         <div class="about-info">
@@ -106,26 +92,6 @@ function goBack() {
 .settings-title {
   font-size: 16px;
   font-weight: 600;
-}
-
-.settings-sidebar-footer {
-  padding: 8px;
-  border-top: 1px solid #e0e0e0;
-}
-
-.close-btn {
-  width: 100%;
-  padding: 6px;
-  background: none;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-  color: #333;
-}
-
-.close-btn:hover {
-  background: #e9ecef;
 }
 
 .settings-nav {

@@ -97,7 +97,7 @@ function resetHeight() {
         <textarea
           ref="textareaRef"
           v-model="text"
-          placeholder="Type a message... (Shift+Enter for new line)"
+          placeholder="Type a message... (@file:path @url:URL @folder:path) (Shift+Enter for new line)"
           rows="1"
           @keydown="onKeydown"
           @input="autoResize"
