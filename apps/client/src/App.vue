@@ -3,7 +3,10 @@ import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useProvidersStore } from '@/stores/providers'
 import { useCharactersStore } from '@/stores/characters'
+import { useChatStore } from '@/stores/chat'
 import Sidebar from '@/components/Sidebar.vue'
+
+const chatStore = useChatStore()
 
 const route = useRoute()
 const router = useRouter()
@@ -119,6 +122,12 @@ function switchTab(tab: string) {
     </nav>
     <Sidebar v-if="showSidebar" />
     <router-view />
+    <Transition name="toast">
+      <div v-if="chatStore.evolutionNotification" class="evolution-toast">
+        <span class="toast-icon">🧬</span>
+        <span>已创建进化事件：会话 {{ chatStore.evolutionNotification.session_id.slice(-8) }}，触发原因：{{ chatStore.evolutionNotification.description }}</span>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -191,5 +200,36 @@ html, body, #app { height: 100%; }
 .nav-tab-label {
   font-size: 10px;
   line-height: 1;
+}
+.evolution-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  background: #1976d2;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 13px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  z-index: 9999;
+  max-width: 480px;
+}
+.toast-icon {
+  font-size: 18px;
+}
+.toast-enter-active,
+.toast-leave-active {
+  transition: all 0.3s ease;
+}
+.toast-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
+}
+.toast-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
 }
 </style>

@@ -1,0 +1,15 @@
+{
+  "character_id": "master_yi",
+  "group_id": "",
+  "provider_id": "df9cf6e6-0029-4d00-8226-ff68d95b57b2",
+  "model": "deepseek-v4-flash-free",
+  "workspace": "",
+  "content": "根据提供session，总结可用skill或新增专家角色。",
+  "detect_window": 8,
+  "error_rate_threshold": 0.5,
+  "repetition_count": 3,
+  "high_freq_min_calls": 2,
+  "high_freq_max_unique": 1,
+  "notify_enabled": true,
+  "notify_timeout": 2
+}

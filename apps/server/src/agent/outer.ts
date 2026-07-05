@@ -4,6 +4,7 @@ import { characterMetaStore } from '../db/characterStore.js'
 import { providerStore } from '../db/providerStore.js'
 import { characterContentStore } from '../character/store.js'
 import { innerLoop, detectDoomLoop, type ToolCallRecord } from './inner.js'
+import { detectInsight } from '../evolution/index.js'
 import { spawnAndRunSubAgent, summarizeAndMerge } from './sub-agent.js'
 import { buildSkillIndex } from './skill-loader.js'
 import { getCharacterToolDefinitions } from '../tools/definitions.js'
@@ -12,6 +13,7 @@ import { mcpServerStore } from '../db/toolStore.js'
 import { setMCPStatus } from '../tools/mcp-status.js'
 import { preprocessContextReferences } from './context-references.js'
 import { eventService } from '../event/eventService.js'
+import { evolutionConfig } from '../evolution/evolutionConfig.js'
 import * as fs from 'fs'
 import * as path from 'path'
 import type { LLMMessage } from '../llm/client.js'
@@ -334,6 +336,7 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
   let totalOutputTokens = 0
   let consecutiveErrors = 0
   const toolCallHistory: ToolCallRecord[] = []
+  let insightDispatched = false
 
   socket.emit('run.started', { session_id: sessionId })
 
@@ -446,7 +449,6 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
           output_tokens: (session.output_tokens || 0) + totalOutputTokens,
         })
       }
-      dispatchSessionCompletedEvent(session)
       for (const [, client] of mcpClients) {
         await disconnectMCPServer(client).catch(() => {})
       }
@@ -460,6 +462,43 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
         role: 'system',
         content: `[System Alert] You have encountered repeated failures (last: ${lastTool}). This is a Doom Loop. Stop your current approach and try a completely different strategy. Consider: (a) read the file structure first, (b) use a different tool, (c) break the task into smaller steps.`
       })
+    }
+
+    if (!insightDispatched && result.toolCallRecords?.length && charMeta.memory?.selfEvolution) {
+      const cfg = evolutionConfig.get()
+      if (cfg.character_id) {
+        const insight = detectInsight(toolCallHistory, sessionId, session.character_id, {
+          window: cfg.detect_window,
+          errorRateThreshold: cfg.error_rate_threshold,
+          repetitionCount: cfg.repetition_count,
+          highFreqMinCalls: cfg.high_freq_min_calls,
+          highFreqMaxUnique: cfg.high_freq_max_unique,
+        })
+        if (insight) {
+          insightDispatched = true
+          const newEvent = eventService.create({
+            source_type: 'agent',
+            source_id: session.character_id,
+            source_meta: { session_id: session.id, trigger: 'insight_detected', insight },
+            assigned_agent_id: cfg.character_id,
+            assigned_group_id: cfg.group_id || undefined,
+            model: cfg.model || undefined,
+            provider_id: cfg.provider_id || undefined,
+            workspace: cfg.workspace || undefined,
+            type: 'once',
+            payload: { instruction: `Source session: ${session.id}\nInsight type: ${insight.type}\n\n${cfg.content || 'Analyze this session and extract reusable knowledge'}` },
+            status: 'pending',
+            scheduled_at: Date.now(),
+          })
+          socket?.emit('evolution:insight_created', {
+            session_id: session.id,
+            insight_type: insight.type,
+            description: insight.description,
+            notify_enabled: cfg.notify_enabled,
+            notify_timeout: cfg.notify_timeout,
+          })
+        }
+      }
     }
 
     if (shouldCompact(messages)) {
@@ -485,8 +524,6 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
     })
   }
 
-  dispatchSessionCompletedEvent(session)
-
   for (const [, client] of mcpClients) {
     await disconnectMCPServer(client).catch(() => {})
   }
@@ -494,20 +531,4 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
   return { status: completedStatus, sessionId, totalInputTokens, totalOutputTokens }
 }
 
-function dispatchSessionCompletedEvent(session: import('../db/sessionStore.js').SessionRow) {
-  if (session.session_type === 'event') return
-  try {
-    eventService.create({
-      source_type: 'agent',
-      source_id: session.character_id,
-      source_meta: { session_id: session.id, trigger: 'session.completed' },
-      assigned_agent_id: 'master_yi',
-      type: 'once',
-      payload: { instruction: `Session ${session.id} completed, analyze trajectory for potential skill extraction` },
-      status: 'pending',
-      scheduled_at: Date.now(),
-    })
-  } catch (err) {
-    console.warn('[session.completed] Failed to dispatch event:', err)
-  }
-}
+

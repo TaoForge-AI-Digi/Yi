@@ -4,9 +4,65 @@
   "color": "#6366f1",
   "role": "sub",
   "maxSteps": 10,
-  "default_strategy": "Ask",
+  "default_strategy": "Bypass",
   "enabled": true,
   "id": "master_yi",
   "createdAt": 1783175542810,
-  "updatedAt": 1783175542810
+  "updatedAt": 1783252456807,
+  "avatar": "",
+  "memory": {
+    "enabled": false,
+    "selfEvolution": false,
+    "charLimit": 2200
+  },
+  "tools": [
+    {
+      "name": "bash"
+    },
+    {
+      "name": "character_manager"
+    },
+    {
+      "name": "edit"
+    },
+    {
+      "name": "glob"
+    },
+    {
+      "name": "grep"
+    },
+    {
+      "name": "read"
+    },
+    {
+      "name": "skill_manager"
+    },
+    {
+      "name": "webfetch"
+    },
+    {
+      "name": "websearch"
+    },
+    {
+      "name": "write"
+    },
+    {
+      "name": "task_complete"
+    },
+    {
+      "name": "delegate_task"
+    },
+    {
+      "name": "mcp:codegraph"
+    }
+  ],
+  "groups": [],
+  "skills": [
+    "character-creation",
+    "mcp-setup",
+    "model-provider-setup",
+    "session-management",
+    "skill-authoring",
+    "tool-constraint"
+  ]
 }

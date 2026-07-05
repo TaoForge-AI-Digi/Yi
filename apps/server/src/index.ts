@@ -11,6 +11,7 @@ import skillsRouter from './routes/skills.js'
 import toolsRouter from './routes/tools.js'
 import workspaceRouter from './routes/workspace.js'
 import eventsRouter from './routes/events.js'
+import evolutionRouter from './routes/evolution.js'
 import { getDb } from './db/schema.js'
 import { init as initTools } from './tools/registry.js'
 import { startEventScheduler } from './event/index.js'
@@ -34,6 +35,7 @@ app.route('/api/skills', skillsRouter)
 app.route('/api/tools', toolsRouter)
 app.route('/api/workspace', workspaceRouter)
 app.route('/api/events', eventsRouter)
+app.route('/api/evolution-config', evolutionRouter)
 app.get('/health', (c) => c.json({ ok: true }))
 
 const port = Number(process.env.PORT) || 3001

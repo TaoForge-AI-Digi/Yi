@@ -73,6 +73,8 @@ export const useChatStore = defineStore('chat', () => {
   const collapsedWorkspaces = ref<Set<string>>(new Set())
   const isBatchMode = ref(false)
   const selectedSessionIds = ref<Set<string>>(new Set())
+  const evolutionNotification = ref<{ session_id: string; insight_type: string; description: string } | null>(null)
+  let notificationTimer: ReturnType<typeof setTimeout> | null = null
 
   const attachments = ref<{ name: string; content: string; type: 'text' | 'image' }[]>([])
 
@@ -193,6 +195,14 @@ export const useChatStore = defineStore('chat', () => {
     socket.off('event:status_changed')
     socket.on('event:status_changed', (data: EventStatusChange) => {
       console.log('[event] status changed:', data.eventId, data.status)
+    })
+
+    socket.off('evolution:insight_created')
+    socket.on('evolution:insight_created', (data: { session_id: string; insight_type: string; description: string; notify_enabled: boolean; notify_timeout: number }) => {
+      if (data.notify_enabled === false) return
+      evolutionNotification.value = data
+      if (notificationTimer) clearTimeout(notificationTimer)
+      notificationTimer = setTimeout(() => { evolutionNotification.value = null }, (data.notify_timeout || 2) * 1000)
     })
 
     socket.off('message.delta', onPersistentDelta)

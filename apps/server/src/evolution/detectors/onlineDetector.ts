@@ -13,14 +13,32 @@ export interface ToolCallRecord {
   args?: string
 }
 
-export function detectInsight(toolCallHistory: ToolCallRecord[], sessionId: string, agentId: string): InsightEvent | null {
+export interface DetectOptions {
+  window: number
+  errorRateThreshold: number
+  repetitionCount: number
+  highFreqMinCalls: number
+  highFreqMaxUnique: number
+}
+
+const defaultOptions: DetectOptions = {
+  window: 8,
+  errorRateThreshold: 0.5,
+  repetitionCount: 3,
+  highFreqMinCalls: 6,
+  highFreqMaxUnique: 2,
+}
+
+export function detectInsight(toolCallHistory: ToolCallRecord[], sessionId: string, agentId: string, opts?: Partial<DetectOptions>): InsightEvent | null {
+  const { window, errorRateThreshold, repetitionCount, highFreqMinCalls, highFreqMaxUnique } = { ...defaultOptions, ...opts }
+
   if (toolCallHistory.length < 4) return null
 
-  const recent = toolCallHistory.slice(-8)
+  const recent = toolCallHistory.slice(-window)
   const names = recent.map(r => r.toolName)
 
   const errorRate = recent.filter(r => r.hasError).length / recent.length
-  if (errorRate > 0.5) {
+  if (errorRate > errorRateThreshold) {
     return {
       type: 'self_correction',
       confidence: Math.min(errorRate, 0.95),
@@ -30,7 +48,7 @@ export function detectInsight(toolCallHistory: ToolCallRecord[], sessionId: stri
     }
   }
 
-  if (detectRepeatingPattern(names, 3)) {
+  if (detectRepeatingPattern(names, repetitionCount)) {
     return {
       type: 'repeated_pattern',
       confidence: 0.7,
@@ -40,9 +58,9 @@ export function detectInsight(toolCallHistory: ToolCallRecord[], sessionId: stri
     }
   }
 
-  if (names.length >= 6) {
+  if (names.length >= highFreqMinCalls) {
     const set = new Set(names)
-    if (set.size <= 2) {
+    if (set.size <= highFreqMaxUnique) {
       return {
         type: 'high_frequency',
         confidence: 0.6,
