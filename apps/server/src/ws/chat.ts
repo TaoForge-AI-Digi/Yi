@@ -13,6 +13,7 @@ export function registerChatSocket(io: Server, socket: Socket) {
     if (!session_id) { ack?.({ error: 'No session_id' }); return }
     if (!['Plan', 'Ask', 'Bypass'].includes(strategy)) { ack?.({ error: 'Invalid strategy' }); return }
     setSessionStrategy(session_id, strategy, 'user')
+    sessionStore.update(session_id, { current_strategy: strategy })
     console.log(`[strategy.set] session=${session_id} strategy=${strategy}`)
     socket.emit('strategy.updated', { session_id, strategy })
     ack?.({ status: 'ok' })

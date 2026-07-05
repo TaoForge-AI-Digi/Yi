@@ -464,43 +464,6 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
       })
     }
 
-    if (!insightDispatched && result.toolCallRecords?.length && charMeta.memory?.selfEvolution) {
-      const cfg = evolutionConfig.get()
-      if (cfg.character_id) {
-        const insight = detectInsight(toolCallHistory, sessionId, session.character_id, {
-          window: cfg.detect_window,
-          errorRateThreshold: cfg.error_rate_threshold,
-          repetitionCount: cfg.repetition_count,
-          highFreqMinCalls: cfg.high_freq_min_calls,
-          highFreqMaxUnique: cfg.high_freq_max_unique,
-        })
-        if (insight) {
-          insightDispatched = true
-          const newEvent = eventService.create({
-            source_type: 'agent',
-            source_id: session.character_id,
-            source_meta: { session_id: session.id, trigger: 'insight_detected', insight },
-            assigned_agent_id: cfg.character_id,
-            assigned_group_id: cfg.group_id || undefined,
-            model: cfg.model || undefined,
-            provider_id: cfg.provider_id || undefined,
-            workspace: cfg.workspace || undefined,
-            type: 'once',
-            payload: { instruction: `Source session: ${session.id}\nInsight type: ${insight.type}\n\n${cfg.content || 'Analyze this session and extract reusable knowledge'}` },
-            status: 'pending',
-            scheduled_at: Date.now(),
-          })
-          socket?.emit('evolution:insight_created', {
-            session_id: session.id,
-            insight_type: insight.type,
-            description: insight.description,
-            notify_enabled: cfg.notify_enabled,
-            notify_timeout: cfg.notify_timeout,
-          })
-        }
-      }
-    }
-
     if (shouldCompact(messages)) {
       const { messages: compacted, compacted: didCompact } = compactHistory(messages)
       if (didCompact) {
@@ -522,6 +485,44 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
       input_tokens: (session.input_tokens || 0) + totalInputTokens,
       output_tokens: (session.output_tokens || 0) + totalOutputTokens,
     })
+  }
+
+  // Check evolution at session end, not during the loop
+  if (!insightDispatched && toolCallHistory.length > 0 && charMeta.memory?.selfEvolution) {
+    const cfg = evolutionConfig.get()
+    if (cfg.character_id) {
+      const insight = detectInsight(toolCallHistory, sessionId, session.character_id, {
+        window: cfg.detect_window,
+        errorRateThreshold: cfg.error_rate_threshold,
+        repetitionCount: cfg.repetition_count,
+        highFreqMinCalls: cfg.high_freq_min_calls,
+        highFreqMaxUnique: cfg.high_freq_max_unique,
+      })
+      if (insight) {
+        insightDispatched = true
+        // Include user's original intent to guide skill creation toward domain tasks
+        const firstUserMsg = messages.find(m => m.role === 'user')?.content || ''
+        const userGoal = firstUserMsg.length > 200 ? firstUserMsg.slice(0, 200) + '…' : firstUserMsg
+        const newEvent = eventService.create({
+          source_type: 'agent',
+          source_id: session.character_id,
+          source_meta: { session_id: session.id, trigger: 'insight_detected', insight },
+          assigned_agent_id: cfg.character_id,
+          assigned_group_id: cfg.group_id || undefined,
+          type: 'once',
+          payload: { instruction: `Session: ${session.id}\nDetected: ${insight.description}\n\nUser's original request:\n${userGoal}\n\n${cfg.content || 'Analyze this session and create a skill for the task the user was trying to accomplish.'}` },
+          status: 'pending',
+          scheduled_at: Date.now(),
+        })
+        socket?.emit('evolution:insight_created', {
+          session_id: session.id,
+          insight_type: insight.type,
+          description: insight.description,
+          notify_enabled: cfg.notify_enabled,
+          notify_timeout: cfg.notify_timeout,
+        })
+      }
+    }
   }
 
   for (const [, client] of mcpClients) {

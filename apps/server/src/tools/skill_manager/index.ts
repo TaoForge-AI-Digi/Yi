@@ -1,28 +1,42 @@
-import { readFileSync, existsSync, readdirSync } from 'fs'
-import { join } from 'path'
+import { readFileSync, existsSync, readdirSync, mkdirSync, writeFileSync } from 'fs'
+import { join, resolve } from 'path'
 import type { ToolModule } from '../types.js'
 import { findSkillByName, SKILLS_ROOT } from '../../agent/skill-loader.js'
 
+function parseFrontmatterField(content: string, field: string): string | null {
+  const m = content.match(new RegExp(`^${field}:\\s*(.+)$`, 'm'))
+  return m ? m[1].trim() : null
+}
+
 export const tool: ToolModule = {
   name: 'skill_manager',
-  description: 'List available skills or read a skill\'s full SKILL.md content. Skills are discovered server-side (workspace-independent).',
+  description: 'List, read, or create skills. Skills are stored server-side (workspace-independent).',
   parameters: {
     type: 'object',
     properties: {
       action: {
         type: 'string',
-        enum: ['list', 'read'],
-        description: '"list" returns all available skills with descriptions; "read" returns a skill\'s full SKILL.md content.',
+        enum: ['list', 'read', 'create'],
+        description: '"list" returns all skills; "read" returns a skill\'s SKILL.md; "create" creates a new skill.',
       },
       skill_name: {
         type: 'string',
-        description: 'Required when action="read". The name of the skill to read (e.g. "character-creation").',
+        description: 'Required when action="read". The name of the skill to read.',
+      },
+      category: {
+        type: 'string',
+        description: 'Required when action="create". The category folder to place the skill in (e.g. "web", "system").',
+      },
+      content: {
+        type: 'string',
+        description: 'Required when action="create". Full SKILL.md content including frontmatter.',
       },
     },
     required: ['action'],
   },
   execute: async (args) => {
     const action = args.action
+
     if (action === 'list') {
       const categories = readdirSync(SKILLS_ROOT, { withFileTypes: true })
       const result: { category: string; skills: { name: string; description: string }[] }[] = []
@@ -53,6 +67,28 @@ export const tool: ToolModule = {
       return { output: content }
     }
 
-    return { output: '', error: `Invalid action: ${action}` }
+    if (action === 'create') {
+      const name = args.skill_name
+      const category = args.category
+      const content = args.content
+      if (!name) return { output: '', error: 'skill_name is required when action="create"' }
+      if (!category) return { output: '', error: 'category is required when action="create"' }
+      if (!content) return { output: '', error: 'content is required when action="create"' }
+
+      // Validate frontmatter
+      const fmName = parseFrontmatterField(content, 'name')
+      if (!fmName) return { output: '', error: 'SKILL.md must have a "name:" field in frontmatter' }
+      if (fmName !== name) return { output: '', error: `Frontmatter name "${fmName}" does not match skill_name "${name}"` }
+      if (findSkillByName(name)) return { output: '', error: `Skill "${name}" already exists` }
+
+      const dir = resolve(SKILLS_ROOT, category, name)
+      mkdirSync(dir, { recursive: true })
+      writeFileSync(join(dir, 'SKILL.md'), content, 'utf-8')
+
+      const desc = parseFrontmatterField(content, 'description') || ''
+      return { output: `Skill "${name}" created in category "${category}"\n  Location: skills/${category}/${name}/SKILL.md\n  Description: ${desc}` }
+    }
+
+    return { output: '', error: `Invalid action: ${action}. Valid actions: list, read, create` }
   },
 }

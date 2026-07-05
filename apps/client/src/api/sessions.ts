@@ -5,6 +5,7 @@ export interface SessionSummary {
   model: string | null; provider_id: string | null; workspace: string | null
   parent_id: string | null; active_group: string | null
   session_type?: 'chat' | 'event'; event_id?: string | null
+  current_strategy?: 'Plan' | 'Ask' | 'Bypass'
   created_at: number; updated_at: number
 }
 

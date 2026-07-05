@@ -2,13 +2,13 @@
   "name": "易大师",
   "description": "锐意进取的易大师，专注于优化方案、工具设计和效率提升",
   "color": "#6366f1",
-  "role": "sub",
+  "role": "both",
   "maxSteps": 10,
   "default_strategy": "Bypass",
   "enabled": true,
   "id": "master_yi",
   "createdAt": 1783175542810,
-  "updatedAt": 1783252456807,
+  "updatedAt": 1783258259034,
   "avatar": "",
   "memory": {
     "enabled": false,
@@ -38,29 +38,22 @@
       "name": "skill_manager"
     },
     {
-      "name": "webfetch"
-    },
-    {
-      "name": "websearch"
-    },
-    {
       "name": "write"
     },
     {
       "name": "task_complete"
     },
     {
-      "name": "delegate_task"
+      "name": "mcp:codegraph"
     },
     {
-      "name": "mcp:codegraph"
+      "name": "debug_sessions"
     }
   ],
   "groups": [],
   "skills": [
     "character-creation",
     "mcp-setup",
-    "model-provider-setup",
     "session-management",
     "skill-authoring",
     "tool-constraint"

@@ -213,6 +213,12 @@ export const useChatStore = defineStore('chat', () => {
     socket.on('tool.completed', onPersistentToolCompleted)
     socket.off('run.completed', onPersistentCompleted)
     socket.on('run.completed', onPersistentCompleted)
+    socket.off('run.started')
+    socket.on('run.started', (data: RunEvent) => {
+      if (data.session_id === activeSessionId.value) {
+        isStreaming.value = true
+      }
+    })
     socket.off('run.failed', onPersistentFailed)
     socket.on('run.failed', onPersistentFailed)
 
@@ -252,6 +258,9 @@ export const useChatStore = defineStore('chat', () => {
     }
     function onPersistentCompleted(data: RunEvent) {
       if (isActiveSession(data.session_id)) return
+      if (data.session_id === activeSessionId.value) {
+        isStreaming.value = false
+      }
       const s = sessions.value.find(x => x.id === data.session_id)
       if (!s) return
       const last = s.messages[s.messages.length - 1]
@@ -259,6 +268,9 @@ export const useChatStore = defineStore('chat', () => {
     }
     function onPersistentFailed(data: RunEvent) {
       if (isActiveSession(data.session_id)) return
+      if (data.session_id === activeSessionId.value) {
+        isStreaming.value = false
+      }
       const s = sessions.value.find(x => x.id === data.session_id)
       if (!s) return
       s.messages.push({ id: uid(), role: 'assistant', content: `Error: ${data.error || 'Unknown'}`, timestamp: Date.now() })
@@ -274,6 +286,7 @@ export const useChatStore = defineStore('chat', () => {
       workspace: s.workspace ?? undefined,
       parent_id: s.parent_id ?? undefined,
       active_group: s.active_group ?? undefined,
+      current_strategy: s.current_strategy,
       messages: [],
     }))
     for (const s of sessions.value) {
@@ -289,6 +302,7 @@ export const useChatStore = defineStore('chat', () => {
               workspace: c.workspace ?? undefined,
               parent_id: c.parent_id ?? undefined,
               active_group: c.active_group ?? undefined,
+              current_strategy: c.current_strategy,
               messages: [],
             })
           }
@@ -313,8 +327,17 @@ export const useChatStore = defineStore('chat', () => {
 
   async function createSession(opts: { character_id?: string; model?: string; provider_id?: string; workspace?: string; parent_id?: string; active_group?: string; session_type?: 'chat' | 'event'; event_id?: string | null; title?: string } = {}): Promise<Session> {
     const defs = loadPersistedDefaults()
+    const characterId = opts.character_id || defs.character_id || 'general'
+    let current_strategy: Strategy | undefined
+    if (opts.session_type === 'event') {
+      current_strategy = 'Bypass'
+    } else {
+      const { useCharactersStore } = await import('@/stores/characters')
+      const char = useCharactersStore().characters.find(c => c.id === characterId)
+      current_strategy = char?.default_strategy as Strategy | undefined
+    }
     const session: Session = {
-      id: uid(), character_id: opts.character_id || defs.character_id || 'general',
+      id: uid(), character_id: characterId,
       title: opts.title || '',
       model: opts.model || defs.model, provider_id: opts.provider_id || defs.provider_id,
       workspace: opts.workspace || defs.workspace,
@@ -322,11 +345,12 @@ export const useChatStore = defineStore('chat', () => {
       active_group: opts.active_group,
       session_type: opts.session_type,
       event_id: opts.event_id,
+      current_strategy,
       messages: [], created_at: Date.now(), updated_at: Date.now(),
     }
     sessions.value.unshift(session)
     try {
-      await sessionsApi.createSession({ id: session.id, character_id: session.character_id, title: session.title, model: session.model, provider_id: session.provider_id, workspace: session.workspace, parent_id: session.parent_id, active_group: session.active_group, session_type: session.session_type, event_id: session.event_id })
+      await sessionsApi.createSession({ id: session.id, character_id: session.character_id, title: session.title, model: session.model, provider_id: session.provider_id, workspace: session.workspace, parent_id: session.parent_id, active_group: session.active_group, session_type: session.session_type, event_id: session.event_id, current_strategy })
     } catch { /* will be created on first message if needed */ }
     return session
   }

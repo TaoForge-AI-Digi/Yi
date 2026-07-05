@@ -1,3 +1,4 @@
+import * as path from 'path'
 import type { Server, Socket } from 'socket.io'
 import { sessionStore } from '../db/sessionStore.js'
 import { messageStore } from '../db/messageStore.js'
@@ -5,7 +6,10 @@ import { characterMetaStore } from '../db/characterStore.js'
 import { providerStore } from '../db/providerStore.js'
 import { sessionLoop } from '../agent/loop.js'
 import { eventService } from './eventService.js'
+import { evolutionConfig } from '../evolution/evolutionConfig.js'
 import type { EventRow } from './types.js'
+
+const PROJECT_ROOT = path.resolve(process.cwd(), '..')
 
 function makeFakeSocket(io: Server): Socket {
   return {
@@ -29,13 +33,33 @@ export async function executeEvent(evt: EventRow, io: Server): Promise<void> {
 
   const sessionId = `evts_${evt.id}_${Date.now()}`
 
+  let providerId: string | null | undefined = evt.provider_id
+  let modelName: string | null | undefined = evt.model
+  let ws: string | null | undefined = evt.workspace
+
+  // Re-read evolution config at runtime so insight events always use latest settings
+  if (evt.source_type === 'agent' && evt.source_meta) {
+    try {
+      const meta = JSON.parse(evt.source_meta)
+      if (meta.trigger === 'insight_detected') {
+        const cfg = evolutionConfig.get()
+        if (cfg.character_id) {
+          providerId = cfg.provider_id || providerId || undefined
+          modelName = cfg.model || modelName || undefined
+          ws = cfg.workspace || ws || PROJECT_ROOT
+        }
+      }
+    } catch {}
+  }
+
   sessionStore.create({
     id: sessionId,
     character_id: agentId,
     title: instruction.slice(0, 50),
-    provider_id: evt.provider_id || charMeta.provider || undefined,
-    model: evt.model || charMeta.model || undefined,
-    workspace: evt.workspace || undefined,
+    provider_id: providerId || charMeta.provider || undefined,
+    model: modelName || charMeta.model || undefined,
+    workspace: ws || undefined,
+    current_strategy: charMeta.default_strategy || null,
     session_type: 'event',
     event_id: evt.id,
   })

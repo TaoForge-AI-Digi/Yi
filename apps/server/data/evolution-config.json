@@ -1,10 +1,10 @@
 {
   "character_id": "master_yi",
   "group_id": "",
-  "provider_id": "df9cf6e6-0029-4d00-8226-ff68d95b57b2",
-  "model": "deepseek-v4-flash-free",
+  "provider_id": "23c085cc-d468-4248-b033-2b75c9665b71",
+  "model": "deepseek-v4-flash",
   "workspace": "",
-  "content": "根据提供session，总结可用skill或新增专家角色。",
+  "content": "分析session中用户想完成的核心任务，为该任务创建一个可复用的skill。不要创建关于agent行为模式的元技能，而是要创建能直接帮助用户完成任务的操作型skill。",
   "detect_window": 8,
   "error_rate_threshold": 0.5,
   "repetition_count": 3,

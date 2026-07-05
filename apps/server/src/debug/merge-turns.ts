@@ -4,7 +4,7 @@ import { resolve } from 'path'
 const DEBUG_DIR = resolve(import.meta.dirname, '../../data/debug')
 const DAY_MS = 86400000
 
-export function mergeOldDebugTurns() {
+export function mergeOldDebugTurns(force = false) {
   let entries: string[]
   try {
     entries = readdirSync(DEBUG_DIR, { withFileTypes: true })
@@ -28,7 +28,7 @@ export function mergeOldDebugTurns() {
     }).filter(t => t > 0)
 
     if (timestamps.length === 0) continue
-    if (Math.max(...timestamps) > cutoff) continue
+    if (!force && Math.max(...timestamps) > cutoff) continue
 
     files.sort()
     const groups: string[][] = []

@@ -1,3 +1,5 @@
+import { sessionStore } from '../db/sessionStore.js'
+
 export type Strategy = 'Plan' | 'Ask' | 'Bypass'
 
 export interface SessionState {
@@ -12,7 +14,13 @@ const states = new Map<string, SessionState>()
 export function getSessionState(sessionId: string): SessionState {
   let state = states.get(sessionId)
   if (!state) {
-    state = { current_strategy: 'Plan', strategy_modified_by: 'system', approved_tools: new Set(), allowed_paths: [] }
+    const db = sessionStore.getById(sessionId)
+    state = {
+      current_strategy: (db?.current_strategy as Strategy) || 'Plan',
+      strategy_modified_by: 'system',
+      approved_tools: new Set(),
+      allowed_paths: [],
+    }
     states.set(sessionId, state)
   }
   return state
