@@ -3,8 +3,6 @@ import { serve } from '@hono/node-server'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { Server } from 'socket.io'
-import { seedDefaultCharacters } from './db/characterStore.js'
-import { seedDefaultCharacterContent } from './character/store.js'
 import { registerChatSocket } from './ws/chat.js'
 import providersRouter from './routes/providers.js'
 import sessionsRouter from './routes/sessions.js'
@@ -12,14 +10,15 @@ import charactersRouter from './routes/characters.js'
 import skillsRouter from './routes/skills.js'
 import toolsRouter from './routes/tools.js'
 import workspaceRouter from './routes/workspace.js'
+import eventsRouter from './routes/events.js'
 import { getDb } from './db/schema.js'
 import { init as initTools } from './tools/registry.js'
+import { startEventScheduler } from './event/index.js'
+import { startCronRegistry } from './scheduler/cronRegistry.js'
 
 process.on('uncaughtException', (err) => { console.error('[FATAL]', err) })
 process.on('unhandledRejection', (err) => { console.error('[FATAL]', err) })
 
-seedDefaultCharacters()
-seedDefaultCharacterContent()
 getDb()
 
 // Tool registry auto-discovers all tool directories with tool.json
@@ -34,6 +33,7 @@ app.route('/api/characters', charactersRouter)
 app.route('/api/skills', skillsRouter)
 app.route('/api/tools', toolsRouter)
 app.route('/api/workspace', workspaceRouter)
+app.route('/api/events', eventsRouter)
 app.get('/health', (c) => c.json({ ok: true }))
 
 const port = Number(process.env.PORT) || 3001
@@ -51,3 +51,5 @@ httpServer.on('error', (err: any) => {
 
 const io = new Server(httpServer, { cors: { origin: '*', methods: ['GET', 'POST'] } })
 io.on('connection', (socket) => registerChatSocket(io, socket))
+startEventScheduler(io)
+startCronRegistry()

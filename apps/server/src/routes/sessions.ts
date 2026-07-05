@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { sessionStore } from '../db/sessionStore.js'
 import { messageStore } from '../db/messageStore.js'
+import { eventService } from '../event/eventService.js'
 
 const router = new Hono()
 
@@ -17,7 +18,14 @@ router.put('/:id', async (c) => {
   return c.json(updated)
 })
 router.delete('/:id', (c) => {
-  if (!sessionStore.delete(c.req.param('id'))) return c.json({ error: 'Not found' }, 404)
+  const id = c.req.param('id')
+  const session = sessionStore.getById(id)
+  if (!session) return c.json({ error: 'Not found' }, 404)
+  if (session.event_id) {
+    eventService.delete(session.event_id)
+    console.log('[cascade] deleted event %s with session %s', session.event_id, id)
+  }
+  sessionStore.delete(id)
   return c.json({ ok: true })
 })
 router.delete('/:id/messages', (c) => {

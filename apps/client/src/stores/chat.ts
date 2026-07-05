@@ -39,7 +39,22 @@ export interface Session {
   current_strategy?: Strategy
   parent_id?: string
   active_group?: string
+  session_type?: 'chat' | 'event'
+  event_id?: string | null
   created_at: number; updated_at: number
+}
+
+export interface EventStatusChange {
+  eventId: string
+  status: string
+  result_summary?: string
+  error?: string
+}
+
+export interface SessionNew {
+  sessionId: string
+  title: string
+  isEvent: boolean
 }
 
 export interface WorkspaceGroup {
@@ -155,6 +170,89 @@ export const useChatStore = defineStore('chat', () => {
       }
       sessions.value.push(child)
     })
+    socket.off('session:new')
+    socket.on('session:new', (data: SessionNew) => {
+      if (sessions.value.find(s => s.id === data.sessionId)) return
+      sessions.value.push({
+        id: data.sessionId,
+        character_id: '',
+        title: data.title,
+        messages: [],
+        session_type: 'event',
+        created_at: Date.now(),
+        updated_at: Date.now(),
+      })
+    })
+    // Persistent streaming handlers — skip active non-event sessions (handled by per-send listeners)
+    function isActiveSession(sid: string) {
+      if (sid !== activeSessionId.value) return false
+      const s = sessions.value.find(x => x.id === sid)
+      return s?.session_type !== 'event'
+    }
+
+    socket.off('event:status_changed')
+    socket.on('event:status_changed', (data: EventStatusChange) => {
+      console.log('[event] status changed:', data.eventId, data.status)
+    })
+
+    socket.off('message.delta', onPersistentDelta)
+    socket.on('message.delta', onPersistentDelta)
+    socket.off('tool.started', onPersistentToolStarted)
+    socket.on('tool.started', onPersistentToolStarted)
+    socket.off('tool.completed', onPersistentToolCompleted)
+    socket.on('tool.completed', onPersistentToolCompleted)
+    socket.off('run.completed', onPersistentCompleted)
+    socket.on('run.completed', onPersistentCompleted)
+    socket.off('run.failed', onPersistentFailed)
+    socket.on('run.failed', onPersistentFailed)
+
+    function onPersistentDelta(data: RunEvent) {
+      if (isActiveSession(data.session_id)) return
+      const s = sessions.value.find(x => x.id === data.session_id)
+      if (!s) return
+      const last = s.messages[s.messages.length - 1]
+      if (last?.role === 'assistant' && last.is_streaming) {
+        if (data.reasoning) last.reasoning = (last.reasoning || '') + data.reasoning
+        if (data.delta) last.content += data.delta
+      } else {
+        s.messages.push({
+          id: uid(), role: 'assistant', content: data.delta || '',
+          reasoning: data.reasoning || '',
+          is_streaming: true, timestamp: Date.now(),
+        })
+      }
+    }
+    function onPersistentToolStarted(data: RunEvent) {
+      if (isActiveSession(data.session_id)) return
+      const s = sessions.value.find(x => x.id === data.session_id)
+      if (!s) return
+      s.messages.push({
+        id: uid(), role: 'tool', content: '',
+        tool_name: data.tool_name, tool_input: data.tool_input,
+        tool_status: 'running', timestamp: Date.now(),
+        tool_call_id: data.tool_call_id,
+      })
+    }
+    function onPersistentToolCompleted(data: RunEvent) {
+      if (isActiveSession(data.session_id)) return
+      const s = sessions.value.find(x => x.id === data.session_id)
+      if (!s) return
+      const tool = s.messages.find(m => m.role === 'tool' && m.tool_call_id === data.tool_call_id)
+      if (tool) { tool.tool_status = (data.tool_status as any) || 'success'; tool.tool_output = data.tool_output }
+    }
+    function onPersistentCompleted(data: RunEvent) {
+      if (isActiveSession(data.session_id)) return
+      const s = sessions.value.find(x => x.id === data.session_id)
+      if (!s) return
+      const last = s.messages[s.messages.length - 1]
+      if (last?.is_streaming) last.is_streaming = false
+    }
+    function onPersistentFailed(data: RunEvent) {
+      if (isActiveSession(data.session_id)) return
+      const s = sessions.value.find(x => x.id === data.session_id)
+      if (!s) return
+      s.messages.push({ id: uid(), role: 'assistant', content: `Error: ${data.error || 'Unknown'}`, timestamp: Date.now() })
+    }
   }
 
   async function loadSessions() {
@@ -203,19 +301,22 @@ export const useChatStore = defineStore('chat', () => {
     if (id) savePersistedDefaults({ activeSessionId: id })
   })
 
-  async function createSession(opts: { character_id?: string; model?: string; provider_id?: string; workspace?: string; parent_id?: string; active_group?: string } = {}): Promise<Session> {
+  async function createSession(opts: { character_id?: string; model?: string; provider_id?: string; workspace?: string; parent_id?: string; active_group?: string; session_type?: 'chat' | 'event'; event_id?: string | null; title?: string } = {}): Promise<Session> {
     const defs = loadPersistedDefaults()
     const session: Session = {
-      id: uid(), character_id: opts.character_id || defs.character_id || 'general', title: '',
+      id: uid(), character_id: opts.character_id || defs.character_id || 'general',
+      title: opts.title || '',
       model: opts.model || defs.model, provider_id: opts.provider_id || defs.provider_id,
       workspace: opts.workspace || defs.workspace,
       parent_id: opts.parent_id,
       active_group: opts.active_group,
+      session_type: opts.session_type,
+      event_id: opts.event_id,
       messages: [], created_at: Date.now(), updated_at: Date.now(),
     }
     sessions.value.unshift(session)
     try {
-      await sessionsApi.createSession({ id: session.id, character_id: session.character_id, model: session.model, provider_id: session.provider_id, workspace: session.workspace, parent_id: session.parent_id, active_group: session.active_group })
+      await sessionsApi.createSession({ id: session.id, character_id: session.character_id, title: session.title, model: session.model, provider_id: session.provider_id, workspace: session.workspace, parent_id: session.parent_id, active_group: session.active_group, session_type: session.session_type, event_id: session.event_id })
     } catch { /* will be created on first message if needed */ }
     return session
   }
@@ -278,6 +379,8 @@ export const useChatStore = defineStore('chat', () => {
       provider_id: session.provider_id || undefined,
       workspace: session.workspace || undefined,
       active_group: session.active_group || undefined,
+      session_type: session.session_type || undefined,
+      event_id: session.event_id || undefined,
       thinking: session.thinking || undefined,
       reasoning_effort: session.reasoning_effort || undefined,
     })
@@ -292,7 +395,9 @@ export const useChatStore = defineStore('chat', () => {
       if (!s) return
       if (data.strategy) s.current_strategy = data.strategy
     }
+    const isEventSession = session!.session_type === 'event'
     const onDelta = (data: RunEvent) => {
+      if (isEventSession) return
       const s = findSession(data.session_id)
       if (!s) return
       const last = s.messages[s.messages.length - 1]
@@ -308,6 +413,7 @@ export const useChatStore = defineStore('chat', () => {
       }
     }
     const onToolStarted = (data: RunEvent) => {
+      if (isEventSession) return
       const s = findSession(data.session_id)
       if (!s) return
       s.messages.push({
@@ -318,6 +424,7 @@ export const useChatStore = defineStore('chat', () => {
       })
     }
     const onToolCompleted = (data: RunEvent) => {
+      if (isEventSession) return
       const s = findSession(data.session_id)
       if (!s) return
       const tool = s.messages.find(m => m.role === 'tool' && m.tool_call_id === data.tool_call_id)

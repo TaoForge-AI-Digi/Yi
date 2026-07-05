@@ -4,6 +4,7 @@ export interface SessionState {
   current_strategy: Strategy
   strategy_modified_by: 'user' | 'system'
   approved_tools: Set<string>
+  allowed_paths: string[]
 }
 
 const states = new Map<string, SessionState>()
@@ -11,10 +12,19 @@ const states = new Map<string, SessionState>()
 export function getSessionState(sessionId: string): SessionState {
   let state = states.get(sessionId)
   if (!state) {
-    state = { current_strategy: 'Plan', strategy_modified_by: 'system', approved_tools: new Set() }
+    state = { current_strategy: 'Plan', strategy_modified_by: 'system', approved_tools: new Set(), allowed_paths: [] }
     states.set(sessionId, state)
   }
   return state
+}
+
+export function addAllowedPath(sessionId: string, p: string): void {
+  const state = getSessionState(sessionId)
+  if (!state.allowed_paths.includes(p)) state.allowed_paths.push(p)
+}
+
+export function getAllowedPaths(sessionId: string): string[] {
+  return getSessionState(sessionId).allowed_paths
 }
 
 export function setSessionStrategy(sessionId: string, strategy: Strategy, modifiedBy: 'user' | 'system'): SessionState {

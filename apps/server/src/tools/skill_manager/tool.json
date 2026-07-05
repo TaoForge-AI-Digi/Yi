@@ -1,47 +1,9 @@
-﻿{
-    "parameters":  {
-                       "properties":  {
-                                          "action":  {
-                                                         "enum":  [
-                                                                      "view",
-                                                                      "create",
-                                                                      "edit",
-                                                                      "delete",
-                                                                      "write_file",
-                                                                      "remove_file"
-                                                                  ],
-                                                         "description":  "view | create | edit | delete | write_file | remove_file",
-                                                         "type":  "string"
-                                                     },
-                                          "name":  {
-                                                       "type":  "string",
-                                                       "description":  "技能名称（view/create/edit/delete/write_file/remove_file 必填）"
-                                                   },
-                                          "content":  {
-                                                          "type":  "string",
-                                                          "description":  "SKILL.md 完整内容（create/edit 必填）"
-                                                      },
-                                          "file_path":  {
-                                                            "type":  "string",
-                                                            "description":  "附属文件路径，相对于技能目录（write_file/remove_file 必填）"
-                                                        },
-                                          "file_content":  {
-                                                               "type":  "string",
-                                                               "description":  "附属文件内容（write_file 必填）"
-                                                           }
-                                      },
-                       "type":  "object",
-                       "required":  [
-                                        "action"
-                                    ]
-                   },
-    "source":  "builtin",
-    "description":  "技能管理。list: 列出所有技能 | view: 查看技能内容 | create: 创建技能 | edit: 编辑技能 | delete: 删除技能 | write_file: 写入附属文件 | remove_file: 删除附属文件",
-    "dangerous":  false,
-    "version":  "1.0.0",
-    "tags":  [
-                 "system"
-             ],
-    "author":  "Yi-Lin",
-    "name":  "skill_manager"
+{
+    "name": "skill_manager",
+    "description": "List available skills or read a skill's full SKILL.md content. Skills are discovered server-side (workspace-independent).",
+    "source": "builtin",
+    "dangerous": false,
+    "version": "1.0.0",
+    "tags": ["skills"],
+    "author": "Yi-Lin"
 }

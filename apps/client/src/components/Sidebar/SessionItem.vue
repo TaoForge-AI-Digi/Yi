@@ -108,6 +108,7 @@ const children = computed(() => {
         :checked="chatStore.selectedSessionIds.has(session.id)"
         @click.stop="chatStore.toggleSessionSelection(session.id)"
       />
+      <span v-if="(session as any).session_type === 'event'" class="event-icon" title="事件会话">⚡</span>
       <span class="star-btn" :class="{ starred: session.pinned }" @click="toggleStar">
         {{ session.pinned ? '⭐' : '☆' }}
       </span>

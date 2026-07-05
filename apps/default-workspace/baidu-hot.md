@@ -1,0 +1,127 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - img [ref=e5]
+    - img [ref=e6]
+  - banner [ref=e7]:
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - link "新闻" [ref=e10] [cursor=pointer]:
+          - /url: http://news.baidu.com
+        - link "hao123" [ref=e11] [cursor=pointer]:
+          - /url: https://www.hao123.com
+        - link "地图" [ref=e12] [cursor=pointer]:
+          - /url: http://map.baidu.com
+        - link "视频" [ref=e13] [cursor=pointer]:
+          - /url: https://haokan.baidu.com
+        - link "贴吧" [ref=e14] [cursor=pointer]:
+          - /url: http://tieba.baidu.com
+        - link "学术" [ref=e15] [cursor=pointer]:
+          - /url: http://xueshu.baidu.com
+        - link "更多" [ref=e16] [cursor=pointer]:
+          - /url: http://www.baidu.com/more/
+      - generic [ref=e17]:
+        - link "百度首页" [ref=e18] [cursor=pointer]:
+          - /url: http://www.baidu.com/
+        - generic [ref=e19] [cursor=pointer]: 登录
+    - generic [ref=e20]:
+      - img [ref=e22] [cursor=pointer]
+      - generic [ref=e23]:
+        - link "首页" [ref=e24] [cursor=pointer]:
+          - /url: /board?tab=homepage
+        - link "热搜" [ref=e25] [cursor=pointer]:
+          - /url: /board?tab=realtime
+        - link "小说" [ref=e26] [cursor=pointer]:
+          - /url: /board?tab=novel
+        - link "电影" [ref=e27] [cursor=pointer]:
+          - /url: /board?tab=movie
+        - link "电视剧" [ref=e28] [cursor=pointer]:
+          - /url: /board?tab=teleplay
+    - generic [ref=e30]:
+      - link "首页" [ref=e31] [cursor=pointer]:
+        - /url: /board?tab=homepage
+      - link "热搜" [ref=e32] [cursor=pointer]:
+        - /url: /board?tab=realtime
+        - text: 热搜
+      - link "小说" [ref=e34] [cursor=pointer]:
+        - /url: /board?tab=novel
+      - link "电影" [ref=e35] [cursor=pointer]:
+        - /url: /board?tab=movie
+      - link "电视剧" [ref=e36] [cursor=pointer]:
+        - /url: /board?tab=teleplay
+  - main [ref=e37]:
+    - generic [ref=e38]:
+      - img [ref=e40]
+      - generic [ref=e41]: 热搜榜
+      - generic [ref=e42]:
+        - generic [ref=e43]: 类型
+        - generic [ref=e45] [cursor=pointer]: 全部类型
+    - generic [ref=e47]:
+      - generic [ref=e48]: 热搜榜 / 全部类型
+      - generic [ref=e49]:
+        - generic [ref=e50]
+        - generic [ref=e65]
+        - generic [ref=e79]
+        - generic [ref=e93]
+        - generic [ref=e107]
+        - generic [ref=e121]
+        - generic [ref=e135]
+        - generic [ref=e149]
+        - generic [ref=e163]
+        - generic [ref=e177]
+        - generic [ref=e191]
+        - generic [ref=e205]
+        - generic [ref=e219]
+        - generic [ref=e233]
+        - generic [ref=e247]
+        - generic [ref=e261]
+        - generic [ref=e275]
+        - generic [ref=e289]
+        - generic [ref=e303]
+        - generic [ref=e317]
+        - generic [ref=e331]
+        - generic [ref=e345]
+        - generic [ref=e359]
+        - generic [ref=e373]
+        - generic [ref=e387]
+        - generic [ref=e401]
+        - generic [ref=e415]
+        - generic [ref=e429]
+        - generic [ref=e443]
+        - generic [ref=e457]
+        - generic [ref=e471]
+        - generic [ref=e485]
+        - generic [ref=e499]
+        - generic [ref=e513]
+        - generic [ref=e527]
+        - generic [ref=e541]
+        - generic [ref=e555]
+        - generic [ref=e569]
+        - generic [ref=e583]
+        - generic [ref=e597]
+        - generic [ref=e611]
+        - generic [ref=e625]
+        - generic [ref=e639]
+        - generic [ref=e653]
+        - generic [ref=e667]
+        - generic [ref=e681]
+        - generic [ref=e695]
+        - generic [ref=e709]
+        - generic [ref=e723]
+        - generic [ref=e737]
+        - generic [ref=e751]
+  - generic [ref=e765]:
+    - link "设为首页" [ref=e766] [cursor=pointer]:
+      - /url: //www.baidu.com/cache/setindex/index.html
+    - link "关于百度" [ref=e767] [cursor=pointer]:
+      - /url: //home.baidu.com
+    - link "About Baidu" [ref=e768] [cursor=pointer]:
+      - /url: http://ir.baidu.com
+    - link "使用百度前必读" [ref=e769] [cursor=pointer]:
+      - /url: //www.baidu.com/duty
+    - link "意见反馈" [ref=e770] [cursor=pointer]:
+      - /url: //help.baidu.com/newadd?prod_id=1&category=4
+    - link "帮助中心" [ref=e771] [cursor=pointer]:
+      - /url: //help.baidu.com
+    - link "企业推广" [ref=e772] [cursor=pointer]:
+      - /url: //e.baidu.com/lp/hot/?refer=1297
+    - text: ©2021 Baidu

@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@vue-js-cron/light": "^5.1.1",
     "highlight.js": "^11.11.1",
     "markdown-it": "^14.2.0",
     "pinia": "^3.0",

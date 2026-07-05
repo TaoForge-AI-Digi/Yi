@@ -10,7 +10,13 @@ function mergeContent(meta: CharacterRecord, id: string) {
 }
 
 const router = new Hono()
-router.get('/', (c) => c.json(characterMetaStore.getAll().map(r => mergeContent(r, r.id))))
+router.get('/', (c) => {
+  const includeHidden = c.req.query('all') === 'true'
+  const chars = characterMetaStore.getAll()
+    .filter(r => includeHidden || !r.hidden)
+    .map(r => mergeContent(r, r.id))
+  return c.json(chars)
+})
 router.get('/:id', (c) => {
   const record = characterMetaStore.getById(c.req.param('id'))
   if (!record) return c.json({ error: 'Not found' }, 404)

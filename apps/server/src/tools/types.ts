@@ -31,6 +31,7 @@ export interface ToolResult {
 export interface ToolContext {
   workspace: string
   signal?: AbortSignal
+  allowedRoots?: string[]
 }
 
 export interface ToolModule {

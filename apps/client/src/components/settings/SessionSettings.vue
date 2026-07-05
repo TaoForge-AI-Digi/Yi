@@ -9,6 +9,22 @@ const streaming = ref(true)
 const compact = ref(false)
 const showReasoning = ref(true)
 const showCost = ref(false)
+
+const blockEventInterrupt = ref(localStorage.getItem('blockEventInterrupt') === 'true')
+function toggleBlock() {
+  blockEventInterrupt.value = !blockEventInterrupt.value
+  localStorage.setItem('blockEventInterrupt', String(blockEventInterrupt.value))
+}
+
+const schedulerInterval = ref(localStorage.getItem('eventSchedulerInterval') || '10')
+function setSchedulerInterval() {
+  localStorage.setItem('eventSchedulerInterval', schedulerInterval.value)
+}
+
+const archiveHours = ref(localStorage.getItem('eventArchiveHours') || '24')
+function setArchiveHours() {
+  localStorage.setItem('eventArchiveHours', archiveHours.value)
+}
 </script>
 
 <template>
@@ -42,6 +58,24 @@ const showCost = ref(false)
         <input v-model="showCost" type="checkbox" />
         <span class="switch-slider"></span>
       </label>
+    </SettingRow>
+
+    <div class="section-divider"></div>
+    <h4 class="subsection-title">事件</h4>
+
+    <SettingRow label="默认不允许打断" hint="开启后事件对话默认禁止输入，需手动点击「允许打断」">
+      <label class="switch">
+        <input type="checkbox" :checked="blockEventInterrupt" @change="toggleBlock" />
+        <span class="switch-slider"></span>
+      </label>
+    </SettingRow>
+
+    <SettingRow label="调度轮询间隔（秒）" hint="事件调度器检查待处理事件的间隔">
+      <input type="number" min="1" max="300" class="setting-input" v-model.number="schedulerInterval" @change="setSchedulerInterval" />
+    </SettingRow>
+
+    <SettingRow label="自动归档时间（小时）" hint="已完成/失败事件超过此时间后自动归档">
+      <input type="number" min="1" max="720" class="setting-input" v-model.number="archiveHours" @change="setArchiveHours" />
     </SettingRow>
   </section>
 </template>
@@ -103,5 +137,14 @@ const showCost = ref(false)
 
 .switch input:checked + .switch-slider::before {
   transform: translateX(18px);
+}
+
+.setting-input {
+  width: 80px;
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 13px;
+  text-align: center;
 }
 </style>

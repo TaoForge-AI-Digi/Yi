@@ -115,15 +115,6 @@ export function validateConstraints(toolName: string, args: Record<string, any>,
   return null
 }
 
-export function getToolDefinitions() {
-  return getAll()
-    .filter(t => !t.signal)
-    .map(t => ({
-      type: 'function' as const,
-      function: { name: t.name, description: t.description, parameters: t.parameters },
-    }))
-}
-
 export function resolveCharacterTools(characterTools?: ToolBinding[]): ToolBinding[] {
   if (!characterTools || characterTools.length === 0) {
     return getAll().filter(t => !t.signal).map(t => ({ name: t.name }))

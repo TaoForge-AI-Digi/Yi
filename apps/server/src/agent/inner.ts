@@ -3,7 +3,8 @@ import { characterMetaStore, type ToolBinding } from '../db/characterStore.js'
 import { streamChatCompletion, type LLMMessage, type ToolCall } from '../llm/client.js'
 import { getDangerousTools, validateConstraints } from '../tools/definitions.js'
 import { executeTool } from '../tools/executor.js'
-import { getSessionState, isToolApprovedForSession, approveToolForSession } from './session.js'
+import type { ToolResult } from '../tools/types.js'
+import { getSessionState, isToolApprovedForSession, approveToolForSession, getAllowedPaths, addAllowedPath } from './session.js'
 import { logLLMCall } from '../debug/llm-logger.js'
 import type { Strategy } from './session.js'
 import type { Server, Socket } from 'socket.io'
@@ -365,12 +366,40 @@ export async function innerLoop(
 
   async function runOne(p: typeof allowed[0]): Promise<void> {
     const startTime = Date.now()
-    let result
-    try {
-      result = await executeTool(p.name, p.args, workspace || process.cwd(), signal, mcpClients)
-    } catch (err: any) {
-      result = { output: '', error: `${p.name}: ${err.message || String(err)}` }
+
+    async function execWithRoots(extraRoots?: string[]): Promise<ToolResult> {
+      const roots = sessionId ? getAllowedPaths(sessionId) : undefined
+      const allRoots = extraRoots ? [...(roots || []), ...extraRoots] : roots
+      try {
+        return await executeTool(p.name, p.args, workspace || process.cwd(), signal, mcpClients, allRoots)
+      } catch (err: any) {
+        return { output: '', error: `${p.name}: ${err.message || String(err)}` }
+      }
     }
+
+    let result = await execWithRoots()
+
+    if (result.escaped && sessionId && socket) {
+      const escapedPath = result.error?.replace('Path escapes workspace: ', '') || ''
+      const choice = await new Promise<'once' | 'always' | 'reject'>((resolve) => {
+        socket.emit('approval.requested', {
+          session_id: sessionId,
+          tool_call_id: p.tc.id,
+          tool_name: `[Workspace] ${p.name}`,
+          tool_input: JSON.stringify({ ...p.args, _escaped_path: escapedPath }),
+        })
+        const handler = (data: { tool_call_id: string; choice: 'once' | 'always' | 'reject' }) => {
+          if (data.tool_call_id === p.tc.id) { socket.off('approval.respond', handler); resolve(data.choice) }
+        }
+        socket.on('approval.respond', handler)
+        setTimeout(() => { socket.off('approval.respond', handler); resolve('reject') }, 60000)
+      })
+      if (choice !== 'reject') {
+        if (choice === 'always') addAllowedPath(sessionId, escapedPath)
+        result = await execWithRoots(choice === 'once' ? [escapedPath] : undefined)
+      }
+    }
+
     const duration = Date.now() - startTime
 
     const rec: ToolCallRecord = { toolName: p.name, hasError: !!result.error, error: result.error, args: p.argsStr }

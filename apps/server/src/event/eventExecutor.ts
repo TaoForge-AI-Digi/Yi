@@ -1,0 +1,91 @@
+import type { Server, Socket } from 'socket.io'
+import { sessionStore } from '../db/sessionStore.js'
+import { messageStore } from '../db/messageStore.js'
+import { characterMetaStore } from '../db/characterStore.js'
+import { providerStore } from '../db/providerStore.js'
+import { sessionLoop } from '../agent/loop.js'
+import { eventService } from './eventService.js'
+import type { EventRow } from './types.js'
+
+function makeFakeSocket(io: Server): Socket {
+  return {
+    emit: (event: string, ...args: any[]) => { io.emit(event, ...args); return true },
+    on: () => {},
+    off: () => {},
+    id: 'event-scheduler',
+  } as any as Socket
+}
+
+export async function executeEvent(evt: EventRow, io: Server): Promise<void> {
+  const payload = JSON.parse(evt.payload || '{}')
+  const instruction = payload.instruction || ''
+  const agentId = evt.assigned_agent_id
+
+  const charMeta = characterMetaStore.getById(agentId)
+  if (!charMeta) {
+    await eventService.updateStatus(evt.id, 'failed', { error_log: `Agent "${agentId}" not found` })
+    return
+  }
+
+  const sessionId = `evts_${evt.id}_${Date.now()}`
+
+  sessionStore.create({
+    id: sessionId,
+    character_id: agentId,
+    title: instruction.slice(0, 50),
+    provider_id: evt.provider_id || charMeta.provider || undefined,
+    model: evt.model || charMeta.model || undefined,
+    workspace: evt.workspace || undefined,
+    session_type: 'event',
+    event_id: evt.id,
+  })
+
+  messageStore.addMessage(sessionId, { role: 'user', content: instruction })
+
+  io.emit('session:new', { sessionId, title: instruction.slice(0, 50), isEvent: true })
+
+  const result = await sessionLoop(io, makeFakeSocket(io), sessionId).catch(async (err) => {
+    console.error('[event-executor] sessionLoop error:', err)
+    const updated = eventService.incrementRetry(evt.id)
+    if (updated) {
+      eventService.updateStatus(evt.id, 'failed', { error_log: err.message || String(err) })
+    }
+    io.emit('event:status_changed', { eventId: evt.id, status: 'failed', error: err.message })
+    return null
+  })
+
+  if (!result) return
+  const msgs = messageStore.getMessages(sessionId, 1)
+  const hadRun = msgs.some(m => m.role === 'assistant')
+
+  if (!hadRun && result.status === 'stop') {
+    const session = sessionStore.getById(sessionId)
+    let errorLog = 'Session exited without LLM call'
+    if (session) {
+      if (!session.provider_id) errorLog = 'No provider configured for event session'
+      else if (!providerStore.getById(session.provider_id)) errorLog = `Provider "${session.provider_id}" not found`
+      else if (!session.model) errorLog = 'No model configured for event session'
+    }
+    await eventService.updateStatus(evt.id, 'failed', { error_log: errorLog })
+    io.emit('event:status_changed', { eventId: evt.id, status: 'failed', error: errorLog })
+    sessionStore.delete(sessionId)
+    return
+  }
+
+  const status: import('./types.js').EventStatus = result.status === 'cancelled' ? 'failed' : 'completed'
+  const lastMsg = msgs[msgs.length - 1]
+  const resultSummary = lastMsg?.content
+    ? (typeof lastMsg.content === 'string' ? lastMsg.content.slice(0, 500) : JSON.stringify(lastMsg.content).slice(0, 500))
+    : undefined
+
+  if (status === 'completed') {
+    const newEvent = eventService.completeAndRequeue(evt.id, { result_summary: resultSummary })
+    io.emit('event:status_changed', { eventId: evt.id, status: 'completed', result_summary: resultSummary })
+    if (newEvent) {
+      io.emit('event:created', newEvent)
+    }
+  } else {
+    await eventService.updateStatus(evt.id, status, { result_summary: resultSummary })
+    io.emit('event:status_changed', { eventId: evt.id, status, result_summary: resultSummary })
+  }
+}

@@ -26,4 +26,5 @@ export interface RunEvent {
   error?: string
   usage?: { input_tokens: number; output_tokens: number }
   strategy?: Strategy
+  status?: string
 }

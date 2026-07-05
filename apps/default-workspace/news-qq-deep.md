@@ -1,0 +1,78 @@
+- generic [active] [ref=e1]:
+  - link "欢迎进入 腾讯网,盲人用户使用操作智能引导，请按快捷键Ctrl+Alt+R；阅读详细操作说明请按快捷键Ctrl+Alt+问号键。":
+    - /url: javascript:void(0)
+    - img [ref=e2] [cursor=pointer]
+  - generic [ref=e3]:
+    - generic [ref=e5]:
+      - link [ref=e6] [cursor=pointer]:
+        - /url: https://www.qq.com
+      - list [ref=e8]:
+        - listitem [ref=e9]:
+          - link "首页" [ref=e10] [cursor=pointer]:
+            - /url: https://www.qq.com
+        - listitem [ref=e14]:
+          - link "要闻" [ref=e15] [cursor=pointer]:
+            - /url: https://news.qq.com
+        - listitem [ref=e16]:
+          - link "深圳" [ref=e17] [cursor=pointer]:
+            - /url: https://news.qq.com/d/sz
+          - img [ref=e18] [cursor=pointer]
+        - listitem [ref=e21]:
+          - link "AI" [ref=e22] [cursor=pointer]:
+            - /url: https://news.qq.com/ch/fx
+        - listitem [ref=e23]:
+          - link "教育" [ref=e24] [cursor=pointer]:
+            - /url: https://news.qq.com/ch/edu
+        - listitem [ref=e25]:
+          - generic [ref=e26] [cursor=pointer]: 更多
+          - img [ref=e27] [cursor=pointer]
+      - generic [ref=e30] [cursor=pointer]:
+        - img [ref=e31]
+        - generic [ref=e35]: 游戏
+      - generic [ref=e36] [cursor=pointer]:
+        - img "应用" [ref=e37]
+        - generic [ref=e38]: 应用
+      - generic [ref=e39] [cursor=pointer]: 网页设置
+      - generic [ref=e43] [cursor=pointer]: 登录
+      - generic [ref=e46] [cursor=pointer]:
+        - img [ref=e47]
+        - generic [ref=e51]:
+          - generic [ref=e52]: 安装电脑版
+          - generic [ref=e53]: 内容更精彩
+    - generic [ref=e54]:
+      - generic [ref=e55]:
+        - generic [ref=e56]:
+          - generic [ref=e57]
+          - generic [ref=e80]
+          - generic [ref=e149]
+          - generic [ref=e476] [cursor=pointer]: 加载更多
+          - contentinfo "腾讯网版权底部" [ref=e477]
+        - generic [ref=e494]:
+          - generic [ref=e495]
+          - generic [ref=e531]
+          - generic [ref=e563] [cursor=pointer]
+          - generic [ref=e575] [cursor=pointer]
+          - generic [ref=e591]
+          - generic [ref=e674]
+      - generic [ref=e718]:
+        - link "返回首页" [ref=e719] [cursor=pointer]:
+          - /url: https://www.qq.com
+          - img [ref=e720]
+          - generic [ref=e723]: 首页
+        - generic "页面刷新" [ref=e724] [cursor=pointer]:
+          - img [ref=e725]
+          - generic [ref=e729]: 刷新
+        - generic "意见反馈" [ref=e730] [cursor=pointer]:
+          - img [ref=e731]
+          - generic [ref=e737]: 反馈
+        - generic "无障碍" [ref=e738] [cursor=pointer]:
+          - img [ref=e739]
+          - generic [ref=e742]: 无障碍
+        - generic "更多设置" [ref=e743] [cursor=pointer]:
+          - img [ref=e744]
+          - generic [ref=e748]: 更多
+        - generic "返回页面顶部":
+          - img
+          - generic: 顶部
+  - iframe [ref=e749]:
+    

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useChatStore } from '@/stores/chat'
 import type { Strategy } from '@/api/socket'
 import InputToolbar from './Chat/InputToolbar.vue'
@@ -8,6 +8,13 @@ const chatStore = useChatStore()
 const text = ref('')
 const sending = ref(false)
 const textareaRef = ref<HTMLTextAreaElement>()
+const isEventSession = computed(() => chatStore.activeSession?.session_type === 'event')
+const blockEventInterrupt = localStorage.getItem('blockEventInterrupt') === 'true'
+const permitEventInput = ref(false)
+function permitInput() { permitEventInput.value = true }
+const inputDisabled = computed(() => isEventSession.value && blockEventInterrupt && !permitEventInput.value)
+
+watch(() => chatStore.activeSessionId, () => { permitEventInput.value = false })
 
 const commandStrategies: Record<string, Strategy> = {
   '/plan': 'Plan', '/ask': 'Ask', '/bypass': 'Bypass',
@@ -97,8 +104,9 @@ function resetHeight() {
         <textarea
           ref="textareaRef"
           v-model="text"
-          placeholder="Type a message... (@file:path @url:URL @folder:path) (Shift+Enter for new line)"
+          :placeholder="inputDisabled ? '⛔ 事件仅可查看，无法发送消息' : 'Type a message... (@file:path @url:URL @folder:path) (Shift+Enter for new line)'"
           rows="1"
+          :disabled="inputDisabled"
           @keydown="onKeydown"
           @input="autoResize"
         />
@@ -108,12 +116,18 @@ function resetHeight() {
         <button
           class="btn"
           :class="chatStore.isStreaming ? 'abort' : 'send'"
-          :disabled="!chatStore.isStreaming && !text.trim()"
+          :disabled="inputDisabled || (!chatStore.isStreaming && !text.trim())"
           @click="handleSubmit"
         >{{ chatStore.isStreaming ? '■ Stop' : '发送' }}</button>
       </div>
     </div>
-    <div class="input-hint">Enter 发送 · Shift+Enter 换行</div>
+    <div class="input-hint">
+      <span v-if="isEventSession && blockEventInterrupt && !permitEventInput">
+        事件执行中 · 仅可查看
+        <label class="unmute-link" @click="permitInput">允许打断</label>
+      </span>
+      <span v-else>Enter 发送 · Shift+Enter 换行</span>
+    </div>
   </div>
 </template>
 
@@ -127,6 +141,7 @@ textarea {
   min-height: 40px; max-height: 300px; box-sizing: border-box;
 }
 textarea:focus { outline: none; border-color: #007aff; }
+textarea:disabled { background: #f5f5f5; cursor: not-allowed; }
 .resize-handle {
   position: absolute; top: 2px; right: 6px;
   cursor: n-resize; font-size: 16px; color: #bbb; line-height: 1;
@@ -139,4 +154,5 @@ textarea:focus { outline: none; border-color: #007aff; }
 .btn.send:disabled { opacity: 0.5; cursor: default; }
 .btn.abort { background: #ff3b30; color: white; }
 .input-hint { padding: 0 12px 6px; font-size: 11px; color: #aaa; text-align: right; }
+.unmute-link { color: #007aff; cursor: pointer; text-decoration: underline; margin-left: 4px; }
 </style>

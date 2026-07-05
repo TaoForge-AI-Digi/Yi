@@ -11,9 +11,9 @@ export const tool: ToolModule = {
     properties: { path: { type: 'string', description: 'Path relative to workspace' } },
     required: ['path'],
   },
-  execute: async (args, { workspace }) => {
+  execute: async (args, { workspace, allowedRoots }) => {
     const p = args.path || ''
-    assertPathSafe(p, workspace)
+    assertPathSafe(p, workspace, allowedRoots)
     const fullPath = resolve(workspace, p)
     if (!existsSync(fullPath)) return { output: '', error: `File not found: ${p}` }
     if (statSync(fullPath).size > 1024 * 1024) return { output: '', error: 'File too large (>1MB)' }

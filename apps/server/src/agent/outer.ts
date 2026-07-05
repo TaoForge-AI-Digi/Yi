@@ -11,6 +11,7 @@ import { connectMCPServer, disconnectMCPServer } from '../tools/mcp-client.js'
 import { mcpServerStore } from '../db/toolStore.js'
 import { setMCPStatus } from '../tools/mcp-status.js'
 import { preprocessContextReferences } from './context-references.js'
+import { eventService } from '../event/eventService.js'
 import * as fs from 'fs'
 import * as path from 'path'
 import type { LLMMessage } from '../llm/client.js'
@@ -302,10 +303,8 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
   // Skills: index in system prompt only (no pre-injection of full content)
   const skillIndex = buildSkillIndex(charMeta)
   if (skillIndex.length > 0) {
-    const hasSkillManager = tools?.some((t: { function: { name: string } }) => t.function.name === 'skill_manager')
     const skillList = skillIndex.map(s => s.listing).join('\n')
-    const viewHint = hasSkillManager ? `\nUse \`skill_manager(action: 'view', name: '...')\` to read a skill's full content.` : ''
-    systemParts.push(`## Available Skills\n${skillList}${viewHint}`)
+    systemParts.push(`## Available Skills\n${skillList}\nUse \`skill_manager\` with action="read" to view a skill's full SKILL.md content.`)    
     const hints = skillIndex.filter(s => s.attachments.length > 0)
       .map(s => `  ${s.name}: ${s.attachments.join(', ')}`)
     if (hints.length) {
@@ -355,7 +354,10 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
       if (consecutiveErrors >= 2) {
         // Two consecutive errors — give up
         socket.emit('run.failed', { session_id: sessionId, error: result.error })
-        break
+        for (const [, client] of mcpClients) {
+          await disconnectMCPServer(client).catch(() => {})
+        }
+        return { status: 'stop', sessionId, totalInputTokens, totalOutputTokens }
       }
       // First error — report and let the model try again
       const guidance = `[System: An API error occurred (${result.error}). This may be transient. Please retry your last action with a simpler approach or different strategy.]`
@@ -444,6 +446,7 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
           output_tokens: (session.output_tokens || 0) + totalOutputTokens,
         })
       }
+      dispatchSessionCompletedEvent(session)
       for (const [, client] of mcpClients) {
         await disconnectMCPServer(client).catch(() => {})
       }
@@ -482,9 +485,29 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
     })
   }
 
+  dispatchSessionCompletedEvent(session)
+
   for (const [, client] of mcpClients) {
     await disconnectMCPServer(client).catch(() => {})
   }
 
   return { status: completedStatus, sessionId, totalInputTokens, totalOutputTokens }
+}
+
+function dispatchSessionCompletedEvent(session: import('../db/sessionStore.js').SessionRow) {
+  if (session.session_type === 'event') return
+  try {
+    eventService.create({
+      source_type: 'agent',
+      source_id: session.character_id,
+      source_meta: { session_id: session.id, trigger: 'session.completed' },
+      assigned_agent_id: 'master_yi',
+      type: 'once',
+      payload: { instruction: `Session ${session.id} completed, analyze trajectory for potential skill extraction` },
+      status: 'pending',
+      scheduled_at: Date.now(),
+    })
+  } catch (err) {
+    console.warn('[session.completed] Failed to dispatch event:', err)
+  }
 }

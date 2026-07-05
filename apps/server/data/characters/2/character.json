@@ -1,6 +1,6 @@
 {
   "name": "呆子",
-  "description": "",
+  "description": "用来测试的呆呆角色",
   "avatar": "",
   "color": "#6366f1",
   "memory": {
@@ -45,5 +45,5 @@
   "enabled": true,
   "id": "2",
   "createdAt": 1782988722809,
-  "updatedAt": 1782989041252
+  "updatedAt": 1783175615965
 }

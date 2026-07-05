@@ -17,13 +17,16 @@
   ],
   "default_strategy": "Bypass",
   "skills": [
-    "lowcode-flow",
-    "lowcode-analyze",
-    "lowcode-designer"
+    "mcp-setup",
+    "model-provider-setup",
+    "session-management",
+    "skill-authoring",
+    "tool-constraint",
+    "character-creation"
   ],
   "enabled": true,
   "createdAt": 1782738601774,
-  "updatedAt": 1783062892923,
+  "updatedAt": 1783175491873,
   "tools": [
     {
       "name": "read"
@@ -60,6 +63,12 @@
     },
     {
       "name": "mcp:playwright"
+    },
+    {
+      "name": "character_manager"
+    },
+    {
+      "name": "delegate_task"
     }
   ]
 }
