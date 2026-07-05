@@ -5,16 +5,18 @@ import { useI18n } from 'vue-i18n'
 import ProviderSettings from './ProviderSettings.vue'
 import DisplaySettings from './DisplaySettings.vue'
 import SessionSettings from './SessionSettings.vue'
+import EventSettings from './EventSettings.vue'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 
-const allKeys = ['provider', 'display', 'session', 'about']
+const allKeys = ['provider', 'display', 'session', 'event', 'about']
 const navTabs = [
   { key: 'provider', labelKey: 'settingsNav.provider' },
   { key: 'display', labelKey: 'settingsNav.display' },
   { key: 'session', labelKey: 'settingsNav.session' },
+  { key: 'event', labelKey: 'settingsNav.event' },
   { key: 'about', labelKey: 'settingsNav.about' },
 ]
 
@@ -53,6 +55,7 @@ function switchTab(key: string) {
       <ProviderSettings v-if="activeTab === 'provider'" />
       <DisplaySettings v-if="activeTab === 'display'" />
       <SessionSettings v-if="activeTab === 'session'" />
+      <EventSettings v-if="activeTab === 'event'" />
       <section v-if="activeTab === 'about'" class="settings-section">
         <h3 class="section-title">{{ t('settingsNav.about') }}</h3>
         <div class="about-info">

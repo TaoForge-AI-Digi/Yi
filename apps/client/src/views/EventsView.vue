@@ -244,9 +244,7 @@ function timeAgo(ts: number | null): string {
   return `${days}天前`
 }
 
-const availableChars = computed(() =>
-  charactersStore.characters.filter(c => c.role === 'sub' || c.role === 'both')
-)
+const availableChars = computed(() => charactersStore.characters)
 
 const statusColumns = [
   { key: 'pending', label: '待处理' },
@@ -373,7 +371,7 @@ const groupedByStatus = computed(() => {
               <div class="form-group">
                 <label>分组</label>
                 <select v-model="form.assigned_group_id" :disabled="selectedCharGroups.length === 0">
-                  <option value="">默认</option>
+                  <option value="">无</option>
                   <option v-for="g in selectedCharGroups" :key="g" :value="g">{{ g }}</option>
                 </select>
               </div>

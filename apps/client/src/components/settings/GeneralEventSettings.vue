@@ -5,43 +5,41 @@ import SettingRow from './SettingRow.vue'
 
 const { t } = useI18n()
 
-const streaming = ref(true)
-const compact = ref(false)
-const showReasoning = ref(true)
-const showCost = ref(false)
+const blockEventInterrupt = ref(localStorage.getItem('blockEventInterrupt') === 'true')
+function toggleBlock() {
+  blockEventInterrupt.value = !blockEventInterrupt.value
+  localStorage.setItem('blockEventInterrupt', String(blockEventInterrupt.value))
+}
+
+const schedulerInterval = ref(localStorage.getItem('eventSchedulerInterval') || '10')
+function setSchedulerInterval() {
+  localStorage.setItem('eventSchedulerInterval', schedulerInterval.value)
+}
+
+const archiveHours = ref(localStorage.getItem('eventArchiveHours') || '24')
+function setArchiveHours() {
+  localStorage.setItem('eventArchiveHours', archiveHours.value)
+}
 </script>
 
 <template>
   <section class="settings-section">
-    <h3 class="section-title">{{ t('session.title') }}</h3>
-    <p class="section-desc">{{ t('session.desc') }}</p>
+    <h3 class="section-title">{{ t('event.title') }}</h3>
+    <p class="section-desc">{{ t('event.desc') }}</p>
 
-    <SettingRow :label="t('display.streaming')" :hint="t('display.streamingHint')">
+    <SettingRow :label="t('event.blockInterrupt')" :hint="t('event.blockInterruptHint')">
       <label class="switch">
-        <input v-model="streaming" type="checkbox" />
+        <input type="checkbox" :checked="blockEventInterrupt" @change="toggleBlock" />
         <span class="switch-slider"></span>
       </label>
     </SettingRow>
 
-    <SettingRow :label="t('display.compact')" :hint="t('display.compactHint')">
-      <label class="switch">
-        <input v-model="compact" type="checkbox" />
-        <span class="switch-slider"></span>
-      </label>
+    <SettingRow :label="t('event.schedulerInterval')" :hint="t('event.schedulerIntervalHint')">
+      <input type="number" min="1" max="300" class="setting-input" v-model.number="schedulerInterval" @change="setSchedulerInterval" />
     </SettingRow>
 
-    <SettingRow :label="t('display.showReasoning')" :hint="t('display.showReasoningHint')">
-      <label class="switch">
-        <input v-model="showReasoning" type="checkbox" />
-        <span class="switch-slider"></span>
-      </label>
-    </SettingRow>
-
-    <SettingRow :label="t('display.showCost')" :hint="t('display.showCostHint')">
-      <label class="switch">
-        <input v-model="showCost" type="checkbox" />
-        <span class="switch-slider"></span>
-      </label>
+    <SettingRow :label="t('event.archiveHours')" :hint="t('event.archiveHoursHint')">
+      <input type="number" min="1" max="720" class="setting-input" v-model.number="archiveHours" @change="setArchiveHours" />
     </SettingRow>
   </section>
 </template>
