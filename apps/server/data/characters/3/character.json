@@ -8,7 +8,7 @@
   "enabled": true,
   "id": "3",
   "createdAt": 1783175542798,
-  "updatedAt": 1783252431024,
+  "updatedAt": 1783310158879,
   "avatar": "",
   "memory": {
     "enabled": false,
@@ -50,16 +50,15 @@
       "name": "task_complete"
     },
     {
-      "name": "delegate_task"
-    },
-    {
       "name": "mcp:codegraph"
     },
     {
       "name": "mcp:playwright"
     }
   ],
-  "groups": [],
+  "groups": [
+    "弈"
+  ],
   "skills": [
     "character-creation",
     "mcp-setup",

@@ -8,7 +8,7 @@
   "enabled": true,
   "id": "master_yi",
   "createdAt": 1783175542810,
-  "updatedAt": 1783258259034,
+  "updatedAt": 1783310173596,
   "avatar": "",
   "memory": {
     "enabled": false,
@@ -50,7 +50,9 @@
       "name": "debug_sessions"
     }
   ],
-  "groups": [],
+  "groups": [
+    "弈"
+  ],
   "skills": [
     "character-creation",
     "mcp-setup",

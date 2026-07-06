@@ -11,10 +11,7 @@
   },
   "maxSteps": 10,
   "role": "both",
-  "groups": [
-    "test",
-    "default"
-  ],
+  "groups": [],
   "default_strategy": "Bypass",
   "skills": [
     "mcp-setup",
@@ -26,7 +23,7 @@
   ],
   "enabled": true,
   "createdAt": 1782738601774,
-  "updatedAt": 1783246670996,
+  "updatedAt": 1783310119289,
   "tools": [
     {
       "name": "read"
@@ -66,9 +63,6 @@
     },
     {
       "name": "character_manager"
-    },
-    {
-      "name": "delegate_task"
     }
   ]
 }
