@@ -1,18 +1,36 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch, nextTick } from 'vue'
+import { useChatStore } from '@/stores/chat'
 
-defineProps<{
+const props = defineProps<{
   toolName: string
   toolInput?: string
   toolOutput?: string
   status: string
 }>()
 
+const chatStore = useChatStore()
 const expanded = ref(false)
+
+watch(() => chatStore.toolExpandAll, (val) => { expanded.value = val })
+const outputRef = ref<HTMLPreElement | null>(null)
+
+watch(() => props.status, (s) => {
+  if (s === 'running' || s === 'error') {
+    expanded.value = true
+  }
+}, { immediate: true })
+
+watch(() => props.toolOutput, async () => {
+  if (expanded.value && props.status === 'running') {
+    await nextTick()
+    outputRef.value?.scrollTo({ top: outputRef.value.scrollHeight, behavior: 'smooth' })
+  }
+})
 </script>
 
 <template>
-  <div class="tool-detail">
+  <div class="tool-detail" :class="{ 'is-running': status === 'running' }">
     <div class="tool-header" @click="expanded = !expanded">
       <span class="tool-name">🛠 {{ toolName }}</span>
       <span class="status-badge" :class="status">{{ status }}</span>
@@ -23,9 +41,9 @@ const expanded = ref(false)
         <div class="section-title">输入:</div>
         <pre class="tool-data">{{ toolInput }}</pre>
       </div>
-      <div v-if="toolOutput" class="tool-section">
+      <div v-if="toolOutput != null && toolOutput !== ''" class="tool-section">
         <div class="section-title">输出:</div>
-        <pre class="tool-data output">{{ toolOutput }}</pre>
+        <pre ref="outputRef" class="tool-data output" :class="{ terminal: status === 'running' }">{{ toolOutput }}</pre>
       </div>
     </div>
   </div>
@@ -36,6 +54,10 @@ const expanded = ref(false)
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   margin-top: 8px;
+  transition: border-color 0.2s;
+}
+.tool-detail.is-running {
+  border-color: #ffc107;
 }
 .tool-header {
   display: flex;
@@ -104,5 +126,13 @@ const expanded = ref(false)
 }
 .tool-data.output {
   background: #e8f5e9;
+}
+.tool-data.output.terminal {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  max-height: 400px;
+  overflow-y: auto;
+  line-height: 1.4;
 }
 </style>

@@ -41,6 +41,8 @@ export interface Session {
   active_group?: string
   session_type?: 'chat' | 'event'
   event_id?: string | null
+  context_window?: number | null
+  compacted?: boolean
   created_at: number; updated_at: number
 }
 
@@ -76,7 +78,29 @@ export const useChatStore = defineStore('chat', () => {
   const evolutionNotification = ref<{ session_id: string; insight_type: string; description: string } | null>(null)
   let notificationTimer: ReturnType<typeof setTimeout> | null = null
 
+  const toolExpandAll = ref(false)
+  const defaultContextWindow = 200000
+  const contextUsage = computed(() => {
+    const s = activeSession.value
+    if (!s) return { pct: 0, used: 0, total: defaultContextWindow, show: false }
+    const cw = s.context_window || defaultContextWindow
+    let total = 0
+    for (const m of s.messages) {
+      if (m.content) total += m.content.length
+      if (m.tool_output) total += m.tool_output.length
+    }
+    const tokenEst = Math.ceil(total / 4)
+    return {
+      pct: Math.min(100, Math.round((tokenEst / cw) * 100)),
+      used: tokenEst,
+      total: cw,
+      show: total > 0,
+    }
+  })
+
   const attachments = ref<{ name: string; content: string; type: 'text' | 'image' }[]>([])
+
+  function toggleAllTools() { toolExpandAll.value = !toolExpandAll.value }
 
   function addAttachment(name: string, content: string, type: 'text' | 'image') {
     attachments.value.push({ name, content, type })
@@ -211,12 +235,20 @@ export const useChatStore = defineStore('chat', () => {
     socket.on('tool.started', onPersistentToolStarted)
     socket.off('tool.completed', onPersistentToolCompleted)
     socket.on('tool.completed', onPersistentToolCompleted)
+    socket.off('tool.output', onPersistentToolOutput)
+    socket.on('tool.output', onPersistentToolOutput)
     socket.off('run.completed', onPersistentCompleted)
     socket.on('run.completed', onPersistentCompleted)
+    socket.off('run.compacted', onPersistentCompacted)
+    socket.on('run.compacted', onPersistentCompacted)
     socket.off('run.started')
-    socket.on('run.started', (data: RunEvent) => {
+    socket.on('run.started', (data: RunEvent & { context_window?: number }) => {
       if (data.session_id === activeSessionId.value) {
         isStreaming.value = true
+      }
+      if (data.context_window) {
+        const s = sessions.value.find(x => x.id === data.session_id)
+        if (s) s.context_window = data.context_window
       }
     })
     socket.off('run.failed', onPersistentFailed)
@@ -256,6 +288,13 @@ export const useChatStore = defineStore('chat', () => {
       const tool = s.messages.find(m => m.role === 'tool' && m.tool_call_id === data.tool_call_id)
       if (tool) { tool.tool_status = (data.tool_status as any) || 'success'; tool.tool_output = data.tool_output }
     }
+    function onPersistentToolOutput(data: RunEvent) {
+      if (isActiveSession(data.session_id)) return
+      const s = sessions.value.find(x => x.id === data.session_id)
+      if (!s) return
+      const tool = s.messages.find(m => m.role === 'tool' && m.tool_call_id === data.tool_call_id)
+      if (tool) { tool.tool_output = (tool.tool_output || '') + (data.output || '') }
+    }
     function onPersistentCompleted(data: RunEvent) {
       if (isActiveSession(data.session_id)) return
       if (data.session_id === activeSessionId.value) {
@@ -265,6 +304,10 @@ export const useChatStore = defineStore('chat', () => {
       if (!s) return
       const last = s.messages[s.messages.length - 1]
       if (last?.is_streaming) last.is_streaming = false
+    }
+    function onPersistentCompacted(data: RunEvent) {
+      const s = sessions.value.find(x => x.id === data.session_id)
+      if (s) s.compacted = true
     }
     function onPersistentFailed(data: RunEvent) {
       if (isActiveSession(data.session_id)) return
@@ -287,6 +330,7 @@ export const useChatStore = defineStore('chat', () => {
       parent_id: s.parent_id ?? undefined,
       active_group: s.active_group ?? undefined,
       current_strategy: s.current_strategy,
+      context_window: s.context_window ?? undefined,
       messages: [],
     }))
     for (const s of sessions.value) {
@@ -302,7 +346,7 @@ export const useChatStore = defineStore('chat', () => {
               workspace: c.workspace ?? undefined,
               parent_id: c.parent_id ?? undefined,
               active_group: c.active_group ?? undefined,
-              current_strategy: c.current_strategy,
+              context_window: c.context_window ?? undefined,
               messages: [],
             })
           }
@@ -346,6 +390,7 @@ export const useChatStore = defineStore('chat', () => {
       session_type: opts.session_type,
       event_id: opts.event_id,
       current_strategy,
+      context_window: undefined,
       messages: [], created_at: Date.now(), updated_at: Date.now(),
     }
     sessions.value.unshift(session)
@@ -424,10 +469,16 @@ export const useChatStore = defineStore('chat', () => {
       return sessions.value.find(s => s.parent_id === session!.id && s.id === sid) || null
     }
 
-    const onStrategyUpdated = (data: RunEvent) => {
+    const onStrategyUpdated = (data: RunEvent & { context_window?: number }) => {
       const s = findSession(data.session_id)
       if (!s) return
       if (data.strategy) s.current_strategy = data.strategy
+    }
+    const onRunStarted = (data: RunEvent & { context_window?: number }) => {
+      if (data.context_window) {
+        const s = findSession(data.session_id)
+        if (s) s.context_window = data.context_window
+      }
     }
     const isEventSession = session!.session_type === 'event'
     const onDelta = (data: RunEvent) => {
@@ -464,6 +515,13 @@ export const useChatStore = defineStore('chat', () => {
       const tool = s.messages.find(m => m.role === 'tool' && m.tool_call_id === data.tool_call_id)
       if (tool) { tool.tool_status = (data.tool_status as any) || 'success'; tool.tool_output = data.tool_output }
     }
+    const onToolOutput = (data: RunEvent) => {
+      if (isEventSession) return
+      const s = findSession(data.session_id)
+      if (!s) return
+      const tool = s.messages.find(m => m.role === 'tool' && m.tool_call_id === data.tool_call_id)
+      if (tool) { tool.tool_output = (tool.tool_output || '') + (data.output || '') }
+    }
     const onApprovalRequested = (data: RunEvent) => {
       if (data.session_id !== session!.id) return
       pendingApproval.value = {
@@ -476,8 +534,11 @@ export const useChatStore = defineStore('chat', () => {
       const last = s.messages[s.messages.length - 1]
       if (last?.is_streaming) last.is_streaming = false
       if (data.session_id === session!.id) isStreaming.value = false
-      // Don't cleanup on child completion — parent may still be running
       if (data.session_id === session!.id) cleanup()
+    }
+    const onCompacted = (data: RunEvent) => {
+      const s = findSession(data.session_id)
+      if (s) s.compacted = true
     }
     const onFailed = (data: RunEvent) => {
       const s = findSession(data.session_id)
@@ -494,8 +555,11 @@ export const useChatStore = defineStore('chat', () => {
       socket.off('message.delta', onDelta)
       socket.off('tool.started', onToolStarted)
       socket.off('tool.completed', onToolCompleted)
+      socket.off('tool.output', onToolOutput)
       socket.off('approval.requested', onApprovalRequested)
+      socket.off('run.started', onRunStarted)
       socket.off('run.completed', onCompleted)
+      socket.off('run.compacted', onCompacted)
       socket.off('run.failed', onFailed)
     }
 
@@ -503,8 +567,11 @@ export const useChatStore = defineStore('chat', () => {
     socket.on('message.delta', onDelta)
     socket.on('tool.started', onToolStarted)
     socket.on('tool.completed', onToolCompleted)
+    socket.on('tool.output', onToolOutput)
     socket.on('approval.requested', onApprovalRequested)
+    socket.on('run.started', onRunStarted)
     socket.on('run.completed', onCompleted)
+    socket.on('run.compacted', onCompacted)
     socket.on('run.failed', onFailed)
   }
 
@@ -588,6 +655,9 @@ export const useChatStore = defineStore('chat', () => {
   return {
     sessions, activeSessionId, activeSession, isStreaming, pendingApproval, currentStrategy,
     collapsedWorkspaces, workspaceGroups, isBatchMode, selectedSessionIds,
+    evolutionNotification,
+    toolExpandAll, toggleAllTools,
+    contextUsage,
     attachments, addAttachment, removeAttachment, clearAttachments,
     loadSessions, createSession, switchSession, sendMessage, setStrategy, respondApproval, abortRun,
     renameSession, deleteSingleSession, resetToMessage,

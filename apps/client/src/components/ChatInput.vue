@@ -9,6 +9,7 @@ const text = ref('')
 const sending = ref(false)
 const textareaRef = ref<HTMLTextAreaElement>()
 const isEventSession = computed(() => chatStore.activeSession?.session_type === 'event')
+const ctx = computed(() => chatStore.contextUsage)
 const blockEventInterrupt = localStorage.getItem('blockEventInterrupt') === 'true'
 const permitEventInput = ref(false)
 function permitInput() { permitEventInput.value = true }
@@ -99,6 +100,11 @@ function resetHeight() {
 <template>
   <div class="chat-input-area">
     <InputToolbar />
+    <div v-if="ctx.show" class="context-bar" :class="{ warn: ctx.pct > 70, danger: ctx.pct > 90, compacted: chatStore.activeSession?.compacted }">
+      <div class="context-fill" :style="{ width: ctx.pct + '%' }"></div>
+      <span class="context-label">{{ ctx.pct }}% ({{ (ctx.used / 1000).toFixed(0) }}K / {{ (ctx.total / 1000).toFixed(0) }}K tokens)</span>
+      <span v-if="chatStore.activeSession?.compacted" class="compacted-badge">压缩</span>
+    </div>
     <div class="input-row">
       <div class="textarea-wrap">
         <textarea
@@ -133,6 +139,26 @@ function resetHeight() {
 
 <style scoped>
 .chat-input-area { border-top: 1px solid #e0e0e0; }
+.context-bar {
+  position: relative; margin: 4px 12px 0; height: 18px;
+  background: #e8e8e8; border-radius: 4px; overflow: hidden;
+}
+.context-fill {
+  height: 100%; background: #007aff; border-radius: 4px;
+  transition: width 0.3s ease; min-width: 0;
+}
+.context-bar.warn .context-fill { background: #ff9500; }
+.context-bar.danger .context-fill { background: #ff3b30; }
+.context-label {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 10px; color: #555; font-weight: 500; line-height: 18px;
+}
+.compacted-badge {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  font-size: 9px; background: #8b5cf6; color: #fff; padding: 1px 5px;
+  border-radius: 3px; line-height: 14px; font-weight: 600;
+}
+.context-bar.compacted { border: 1px solid #8b5cf6; }
 .input-row { display: flex; gap: 8px; padding: 8px 12px 4px; align-items: flex-end; }
 .textarea-wrap { flex: 1; position: relative; }
 textarea {

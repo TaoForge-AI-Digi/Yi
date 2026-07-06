@@ -12,6 +12,14 @@ import type { MCPClient } from '../tools/mcp-client.js'
 
 const READ_ONLY_TOOLS = new Set(['read', 'grep', 'glob', 'webfetch', 'websearch'])
 
+const MAX_TOOL_OUTPUT_CHARS = 8000
+
+export function truncateToolOutput(output: string): string {
+  if (output.length <= MAX_TOOL_OUTPUT_CHARS) return output
+  const tail = output.slice(-MAX_TOOL_OUTPUT_CHARS)
+  return `... (${(output.length / 1024).toFixed(0)}KB total, showing last ${MAX_TOOL_OUTPUT_CHARS / 1024}KB)\n${tail}`
+}
+
 export interface ToolCallRecord {
   toolName: string
   hasError: boolean
@@ -258,6 +266,11 @@ export async function innerLoop(
   if (delegateCall) {
     let args: Record<string, string> = {}
     try { args = JSON.parse(delegateCall.function.arguments) } catch { args = {} }
+    // Add stub results for non-signal tools so every tool_call_id has a match
+    for (const tc of toolCallsAcc) {
+      if (tc.function.name === 'delegate_task') continue
+      newMessages.push({ role: 'tool', content: JSON.stringify({ output: '', error: 'Skipped: delegate_task takes priority' }), tool_call_id: tc.id })
+    }
     return {
       type: 'sub_agent_request',
       messages: newMessages, fullText, reasoningText,
@@ -276,6 +289,11 @@ export async function innerLoop(
     let args: Record<string, string> = {}
     try { args = JSON.parse(completeCall.function.arguments) } catch { args = {} }
     const summary = args.summary || ''
+    // Add stub results for non-signal tools so every tool_call_id has a match
+    for (const tc of toolCallsAcc) {
+      if (tc.function.name === 'task_complete') continue
+      newMessages.push({ role: 'tool', content: JSON.stringify({ output: '', error: 'Skipped: task_complete takes priority' }), tool_call_id: tc.id })
+    }
     return {
       type: 'task_complete',
       messages: newMessages, fullText, reasoningText,
@@ -371,7 +389,9 @@ export async function innerLoop(
       const roots = sessionId ? getAllowedPaths(sessionId) : undefined
       const allRoots = extraRoots ? [...(roots || []), ...extraRoots] : roots
       try {
-        return await executeTool(p.name, p.args, workspace || process.cwd(), signal, mcpClients, allRoots)
+        return await executeTool(p.name, p.args, workspace || process.cwd(), signal, mcpClients, allRoots, (chunk) => {
+          socket?.emit('tool.output', { session_id: sessionId, tool_call_id: p.tc.id, output: chunk })
+        })
       } catch (err: any) {
         return { output: '', error: `${p.name}: ${err.message || String(err)}` }
       }
@@ -409,7 +429,9 @@ export async function innerLoop(
     if (sessionId) {
       messageStore.addMessage(sessionId, { role: 'tool', content: JSON.stringify({ output: result.output, error: result.error }), tool_name: p.name, tool_input: JSON.stringify({ call_id: p.tc.id, args: p.argsStr }), tool_output: result.error || result.output, tool_status: toolStatus })
     }
-    newMessages.push({ role: 'tool', content: JSON.stringify({ output: result.output, error: result.error }), tool_call_id: p.tc.id })
+    const llmOutput = truncateToolOutput(result.output || '')
+    const llmError = truncateToolOutput(result.error || '')
+    newMessages.push({ role: 'tool', content: JSON.stringify({ output: llmOutput, error: llmError }), tool_call_id: p.tc.id })
     socket?.emit('tool.completed', { session_id: sessionId, tool_call_id: p.tc.id, tool_name: p.name, tool_output: result.error || result.output, tool_status: toolStatus, duration_ms: duration })
   }
 

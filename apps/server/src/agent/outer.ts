@@ -3,7 +3,7 @@ import { messageStore } from '../db/messageStore.js'
 import { characterMetaStore } from '../db/characterStore.js'
 import { providerStore } from '../db/providerStore.js'
 import { characterContentStore } from '../character/store.js'
-import { innerLoop, detectDoomLoop, type ToolCallRecord } from './inner.js'
+import { innerLoop, detectDoomLoop, truncateToolOutput, type ToolCallRecord } from './inner.js'
 import { detectInsight } from '../evolution/index.js'
 import { spawnAndRunSubAgent, summarizeAndMerge } from './sub-agent.js'
 import { buildSkillIndex } from './skill-loader.js'
@@ -22,7 +22,7 @@ import type { MessageRow } from '../db/messageStore.js'
 import type { MCPClient } from '../tools/mcp-client.js'
 
 const MAX_TURNS = 20
-const DEFAULT_CONTEXT_WINDOW = 128000
+const DEFAULT_CONTEXT_WINDOW = 200000
 
 const DEFAULT_WORKSPACE = path.resolve(process.cwd(), '..', 'default-workspace')
 if (!fs.existsSync(DEFAULT_WORKSPACE)) {
@@ -38,15 +38,14 @@ const KEEP_TURNS = 3
 
 const TOOL_USE_ENFORCEMENT_GUIDANCE =
   "# Tool-use enforcement\n" +
-  "You MUST use your tools to take action \u2014 do not describe what you would do " +
-  "or plan to do without actually doing it. When you say you will perform an " +
-  "action, you MUST immediately make the corresponding tool call in the same " +
-  "response. Never end your turn with a promise of future action \u2014 execute it now.\n" +
-  "Keep working until the task is actually complete. If you have tools available " +
-  "that can accomplish the task, use them instead of telling the user what you would do.\n" +
+  "You MUST use your tools to take action. When you call a tool and get a result, " +
+  "that is almost never the end \u2014 analyze the result and decide what to do next. " +
+  "Most tasks require multiple tool calls across several turns.\n" +
+  "Never stop after a single tool call. Keep calling tools until the task is " +
+  "actually complete. If you need more information, call another tool.\n" +
   "Every response should either (a) contain tool calls that make progress, or " +
-  "(b) deliver a final result to the user. Responses that only describe intentions " +
-  "without acting are not acceptable."
+  "(b) deliver a final result with evidence. Responses that only describe intentions " +
+  "are not acceptable."
 
 const TASK_COMPLETION_GUIDANCE =
   "# Finishing the job\n" +
@@ -161,7 +160,14 @@ function rowToLLMMessage(row: MessageRow): LLMMessage | null {
     let callId = ''
     try { const p = JSON.parse(row.tool_input || '{}'); if (p.call_id) callId = p.call_id } catch {}
     if (!callId) return null
-    return { role: 'tool', content: row.content || '', tool_call_id: callId }
+    let content = row.content || ''
+    try {
+      const parsed = JSON.parse(content)
+      if (parsed.output) parsed.output = truncateToolOutput(String(parsed.output))
+      if (parsed.error) parsed.error = truncateToolOutput(String(parsed.error))
+      content = JSON.stringify(parsed)
+    } catch {}
+    return { role: 'tool', content, tool_call_id: callId }
   }
   if (row.role === 'assistant' && row.tool_input) {
     try {
@@ -200,6 +206,10 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
 
   const model = session.model || provider.models[0]?.id
   if (!model) { socket.emit('run.failed', { session_id: sessionId, error: 'No model configured' }); return { status: 'stop', sessionId, totalInputTokens: 0, totalOutputTokens: 0 } }
+
+  const modelConfig = provider.models.find(m => m.id === model)
+  const contextWindow = modelConfig?.context_window || DEFAULT_CONTEXT_WINDOW
+  sessionStore.update(sessionId, { context_window: contextWindow })
 
   const toolDefs = getCharacterToolDefinitions(charMeta.tools)
 
@@ -338,10 +348,19 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
   const toolCallHistory: ToolCallRecord[] = []
   let insightDispatched = false
 
-  socket.emit('run.started', { session_id: sessionId })
+  socket.emit('run.started', { session_id: sessionId, context_window: contextWindow })
 
   while (turn < MAX_TURNS && !signal?.aborted) {
     turn++
+
+    // Log memory every 5 turns
+    if (turn % 5 === 0) {
+      const mem = process.memoryUsage()
+      const heapMB = (mem.heapUsed / 1024 / 1024).toFixed(0)
+      const totalMB = (mem.heapTotal / 1024 / 1024).toFixed(0)
+      const ctxPct = ((estimateTokens(messages) / contextWindow) * 100).toFixed(0)
+      console.log(`[session] ${sessionId} turn ${turn}: heap ${heapMB}/${totalMB}MB, ${messages.length} msgs, ctx ${ctxPct}%`)
+    }
 
     const result = await innerLoop(
       messages, tools, provider, model, session.character_id,
@@ -353,16 +372,27 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
     totalOutputTokens += result.totalOutputTokens
 
     if (result.type === 'error') {
+      const errMsg = result.error?.toLowerCase() || ''
+
+      if (errMsg.includes('context length') || errMsg.includes('maximum context') || errMsg.includes('context_length') || errMsg.includes('too many tokens')) {
+        console.log(`[session] ${sessionId} failed: context overflow (${turn} turns)`)
+        socket.emit('run.failed', { session_id: sessionId, error: `Context overflow: ${result.error}` })
+        for (const [, client] of mcpClients) {
+          await disconnectMCPServer(client).catch(() => {})
+        }
+        return { status: 'stop', sessionId, totalInputTokens, totalOutputTokens }
+      }
+
       consecutiveErrors++
       if (consecutiveErrors >= 2) {
-        // Two consecutive errors — give up
+        console.log(`[session] ${sessionId} failed: 2 consecutive errors (${turn} turns)`)
         socket.emit('run.failed', { session_id: sessionId, error: result.error })
         for (const [, client] of mcpClients) {
           await disconnectMCPServer(client).catch(() => {})
         }
         return { status: 'stop', sessionId, totalInputTokens, totalOutputTokens }
       }
-      // First error — report and let the model try again
+      // First non-context error — report and let the model try again
       const guidance = `[System: An API error occurred (${result.error}). This may be transient. Please retry your last action with a simpler approach or different strategy.]`
       messages.push({ role: 'system', content: guidance })
       continue
@@ -384,7 +414,8 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
           req.sub_strategy, signal, 0, io, socket,
         )
         const summary = summarizeAndMerge([subResult])
-        const toolCallId = result.toolCalls?.[0]?.id || `delegate_${Date.now()}`
+        const delegateCall = result.toolCalls?.find(tc => tc.function.name === 'delegate_task')
+        const toolCallId = delegateCall?.id || `delegate_${Date.now()}`
         const summaryContent = `[Sub-agent "${req.target_character_id}" completed]\n\nSummary: ${summary.summary}\n\nConclusions:\n${summary.conclusions.map((c, i) => `${i + 1}. ${c}`).join('\n')}`
         messages.push({
           role: 'tool',
@@ -405,15 +436,17 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
           tool_status: 'success', duration_ms: 0,
         })
       } catch (err: any) {
+        const delegateCall = result.toolCalls?.find(tc => tc.function.name === 'delegate_task')
+        const toolCallId = delegateCall?.id || `delegate_${Date.now()}`
         const errMsg = `Sub-agent delegation failed: ${err.message || err}`
-        messages.push({ role: 'tool', content: JSON.stringify({ error: errMsg }), tool_call_id: result.toolCalls?.[0]?.id || '' })
+        messages.push({ role: 'tool', content: JSON.stringify({ error: errMsg }), tool_call_id: toolCallId })
         messageStore.addMessage(sessionId, {
           role: 'tool', content: JSON.stringify({ error: errMsg }),
           tool_name: 'delegate_task', tool_input: JSON.stringify({}),
           tool_output: errMsg, tool_status: 'error',
         })
         socket.emit('tool.completed', {
-          session_id: sessionId, tool_call_id: result.toolCalls?.[0]?.id || '',
+          session_id: sessionId, tool_call_id: toolCallId,
           tool_name: 'delegate_task', tool_output: errMsg,
           tool_status: 'error', duration_ms: 0,
         })
@@ -422,7 +455,8 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
     }
 
     if (result.type === 'task_complete') {
-      const toolCallId = result.toolCalls?.[0]?.id || `complete_${Date.now()}`
+      const completeCall = result.toolCalls?.find(tc => tc.function.name === 'task_complete')
+      const toolCallId = completeCall?.id || `complete_${Date.now()}`
       const summaryOutput = result.taskCompleteSummary || 'Task marked complete'
       messages.push({
         role: 'tool',
@@ -464,7 +498,7 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
       })
     }
 
-    if (shouldCompact(messages)) {
+    if (shouldCompact(messages, contextWindow)) {
       const { messages: compacted, compacted: didCompact } = compactHistory(messages)
       if (didCompact) {
         messages.length = 0
@@ -474,10 +508,21 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
     }
 
     if (result.type === 'aborted') break
-    if (result.type === 'final_answer') break
+    if (result.type === 'final_answer') {
+      if (toolCallHistory.length > 0 && turn < 3) {
+        messages.push({
+          role: 'system',
+          content: '[Continue] The task is not complete. Review what you have so far and continue working. Use tools as needed.'
+        })
+        continue
+      }
+      break
+    }
   }
 
-  const completedStatus = signal?.aborted ? 'cancelled' : turn >= MAX_TURNS ? 'max_turns' : 'stop'
+  const completedStatus: 'cancelled' | 'max_turns' | 'stop' = signal?.aborted ? 'cancelled' : turn >= MAX_TURNS ? 'max_turns' : 'stop'
+  const detail = toolCallHistory.length === 0 ? 'stop (no tools used)' : completedStatus
+  console.log(`[session] ${sessionId} completed: ${detail} (${turn} turns, ${toolCallHistory.length} tool calls)`)
   socket.emit('run.completed', { session_id: sessionId, status: completedStatus })
 
   if (totalInputTokens > 0 || totalOutputTokens > 0) {

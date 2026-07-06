@@ -131,6 +131,7 @@ async function removeProvider(id: string) {
           >
             <span class="model-name">{{ m.name || m.id }}</span>
             <span class="model-id">{{ m.id }}</span>
+            <span class="model-ctx" :class="{ missing: !m.context_window }">{{ m.context_window ? (m.context_window / 1000).toFixed(0) + 'K' : '未获取' }}</span>
             <input
               type="checkbox"
               :checked="isModelEnabled(p, m.id)"
@@ -364,6 +365,11 @@ async function removeProvider(id: string) {
   font-size: 11px;
   color: #999;
 }
+.model-ctx {
+  font-size: 10px; color: #666; background: #f0f0f0;
+  padding: 1px 5px; border-radius: 3px; font-weight: 500;
+}
+.model-ctx.missing { color: #999; background: #f5f5f5; font-weight: 400; font-style: italic; }
 
 .model-toggle {
   width: 16px;

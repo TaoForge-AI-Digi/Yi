@@ -6,6 +6,7 @@ export interface SessionSummary {
   parent_id: string | null; active_group: string | null
   session_type?: 'chat' | 'event'; event_id?: string | null
   current_strategy?: 'Plan' | 'Ask' | 'Bypass'
+  context_window?: number | null
   created_at: number; updated_at: number
 }
 

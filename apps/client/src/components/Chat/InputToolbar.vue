@@ -84,6 +84,9 @@ function onFilePicked(e: Event) {
       <button class="thinking-toggle" :class="{ active: session.thinking }" @click="toggleThinking">
         🧠 {{ t('chat.thinking') }}
       </button>
+      <button class="tool-toggle-btn" @click="chatStore.toggleAllTools()" :title="chatStore.toolExpandAll ? '折叠全部工具' : '展开全部工具'">
+        {{ chatStore.toolExpandAll ? '⊟ 折叠全部' : '⊞ 展开全部' }}
+      </button>
       <label v-if="session.thinking" class="toolbar-item">
         <span class="label">{{ t('chat.reasoningEffort') }}</span>
         <select :value="session.reasoning_effort || ''" @change="onReasoningEffortChange">
@@ -165,6 +168,23 @@ function onFilePicked(e: Event) {
   background: #e8f4ff;
   border-color: #007aff;
   color: #007aff;
+}
+.tool-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  font-size: 12px;
+  color: #666;
+  white-space: nowrap;
+}
+.tool-toggle-btn:hover {
+  border-color: #1976d2;
+  color: #1976d2;
 }
 
 .attach-btn {

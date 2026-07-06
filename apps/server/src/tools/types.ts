@@ -32,6 +32,7 @@ export interface ToolContext {
   workspace: string
   signal?: AbortSignal
   allowedRoots?: string[]
+  onOutput?: (chunk: string) => void
 }
 
 export interface ToolModule {

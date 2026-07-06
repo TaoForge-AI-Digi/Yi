@@ -23,6 +23,7 @@ export interface RunEvent {
   tool_input?: string
   tool_output?: string
   tool_status?: string
+  output?: string
   error?: string
   usage?: { input_tokens: number; output_tokens: number }
   strategy?: Strategy

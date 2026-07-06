@@ -5,6 +5,7 @@ import { messageStore } from '../db/messageStore.js'
 import { characterMetaStore } from '../db/characterStore.js'
 import { providerStore } from '../db/providerStore.js'
 import { sessionLoop } from '../agent/loop.js'
+import { enqueueRun } from '../agent/session-runner.js'
 import { eventService } from './eventService.js'
 import { evolutionConfig } from '../evolution/evolutionConfig.js'
 import type { EventRow } from './types.js'
@@ -37,7 +38,6 @@ export async function executeEvent(evt: EventRow, io: Server): Promise<void> {
   let modelName: string | null | undefined = evt.model
   let ws: string | null | undefined = evt.workspace
 
-  // Re-read evolution config at runtime so insight events always use latest settings
   if (evt.source_type === 'agent' && evt.source_meta) {
     try {
       const meta = JSON.parse(evt.source_meta)
@@ -68,14 +68,21 @@ export async function executeEvent(evt: EventRow, io: Server): Promise<void> {
 
   io.emit('session:new', { sessionId, title: instruction.slice(0, 50), isEvent: true })
 
-  const result = await sessionLoop(io, makeFakeSocket(io), sessionId).catch(async (err) => {
-    console.error('[event-executor] sessionLoop error:', err)
-    const updated = eventService.incrementRetry(evt.id)
-    if (updated) {
-      eventService.updateStatus(evt.id, 'failed', { error_log: err.message || String(err) })
-    }
-    io.emit('event:status_changed', { eventId: evt.id, status: 'failed', error: err.message })
-    return null
+  const fakeSocket = makeFakeSocket(io)
+
+  const result = await new Promise<import('../agent/outer.js').RunResult | null>(async (resolve) => {
+    enqueueRun(sessionId, async (signal) => {
+      const res = await sessionLoop(io, fakeSocket, sessionId, signal).catch(async (err) => {
+        console.error('[event-executor] sessionLoop error:', err)
+        const updated = eventService.incrementRetry(evt.id)
+        if (updated) {
+          eventService.updateStatus(evt.id, 'failed', { error_log: err.message || String(err) })
+        }
+        io.emit('event:status_changed', { eventId: evt.id, status: 'failed', error: err.message })
+        return null
+      })
+      resolve(res)
+    })
   })
 
   if (!result) return
