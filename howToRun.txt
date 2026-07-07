@@ -3,3 +3,11 @@ cd apps/server; npx tsx src/index.ts
 
 # Terminal 2 - Client dev server
 cd apps/client; npx vite
+
+
+
+OR
+
+双击运行 setup.bat
+
+双击运行 run.bat
