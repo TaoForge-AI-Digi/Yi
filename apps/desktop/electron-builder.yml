@@ -1,0 +1,57 @@
+appId: com.yi-lin.app
+productName: "\u5F08"
+copyright: "Copyright \u00A9 2024"
+
+directories:
+  output: release
+  buildResources: resources
+
+files:
+  - dist/**/*
+  - "!node_modules/**/*"
+
+extraResources:
+  - from: resources/server
+    to: server
+    filter:
+      - "**/*"
+      - "!node_modules/**/*.{h,c,cpp,o,node,map}"
+      - "!node_modules/**/build/**"
+      - "!node_modules/**/test/**"
+      - "!node_modules/**/tests/**"
+      - "!node_modules/**/.cache/**"
+
+asar: true
+asarUnpack:
+  - "node_modules/electron-updater/**"
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: resources/icon.png
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+
+mac:
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+  icon: resources/icon.png
+
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]
+  icon: resources/icon.png
+
+publish:
+  - provider: github
+    owner: <your-github-username>
+    repo: <your-repo-name>
+    releaseType: release
+  # - provider: generic
+  #   url: https://your-oss.example.com/releases
+  #   channel: latest
