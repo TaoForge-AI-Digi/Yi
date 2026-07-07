@@ -2,38 +2,19 @@
 cd /d "%~dp0"
 title Yi-Lin Setup
 
-:: ---------- Pre-flight checks ----------
+:: ---------- Ensure Node.js ----------
 echo [1/5] Checking prerequisites...
 
-:: Check Node.js
+:check_node
 where node >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [ERROR] Node.js is not installed or not in PATH.
-    echo.
-    echo Please install Node.js 18+ from https://nodejs.org/
-    echo Or use fnm:  fnm install 18  ^&^&  fnm use 18
-    echo Or use nvm:  nvm install 18  ^&^&  nvm use 18
-    pause
-    exit /b 1
-)
+if %errorlevel% neq 0 goto install_node
 
-:: Check Node.js version
 for /f "tokens=1 delims=." %%a in ('node -v') do set NODE_VER=%%a
 set NODE_MAJOR=%NODE_VER:~1%
 if %NODE_MAJOR% lss 18 (
-    echo [ERROR] Node.js 18+ is required.
-    for /f "delims=" %%v in ('node -v') do echo   Current: %%v
-    pause
-    exit /b 1
-)
-
-:: Check npm
-where npm >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [ERROR] npm is not installed or not in PATH.
-    echo Node.js should have included npm. Try reinstalling from https://nodejs.org/
-    pause
-    exit /b 1
+    echo [WARNING] Node.js version too old: %NODE_VER:~1%
+    echo Reinstalling...
+    goto install_node
 )
 
 for /f "delims=" %%v in ('node -v') do set NODE_VER=%%v
@@ -41,6 +22,45 @@ for /f "delims=" %%v in ('npm -v') do set NPM_VER=%%v
 echo        Node.js found: %NODE_VER%
 echo        npm found:      v%NPM_VER%
 echo.
+goto deps_install
+
+:install_node
+echo [SETUP] Node.js not found. Attempting automatic install...
+
+where winget >nul 2>&1
+if %errorlevel% equ 0 (
+    echo Installing Node.js via winget...
+    winget install OpenJS.NodeJS.LTS --silent --accept-package-agreements
+    if %errorlevel% neq 0 (
+        echo [WARNING] winget install failed, trying alternative...
+        goto install_fnm
+    )
+    :: Refresh PATH
+    for /f "delims=" %%v in ('echo %PATH%') do set PATH=%PATH%;C:\Program Files\nodejs\
+    goto check_node
+)
+
+:install_fnm
+where fnm >nul 2>&1
+if %errorlevel% equ 0 (
+    echo Installing Node.js via fnm...
+    fnm install 18 && fnm use 18
+    call fnm env --use-on-cd | more
+    goto check_node
+)
+
+:install_manual
+echo.
+echo ======================================================
+echo  Could not auto-install Node.js.
+echo  Please install manually from:
+echo  https://nodejs.org/  (LTS version, 18+)
+echo ======================================================
+echo.
+pause
+exit /b 1
+
+:deps_install
 
 :: ---------- Install server dependencies ----------
 echo [2/5] Installing server dependencies...
