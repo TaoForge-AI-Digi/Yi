@@ -47,7 +47,7 @@ cpSync(clientDist, resolve(clientDest, 'dist'), { recursive: true })
 console.log('Client dist copied to', clientDest)
 
 // Copy app icon
-const iconSrc = resolve(root, '../../assets/yi-logo.png')
+const iconSrc = resolve(root, '../../assets/yi-logo-256.png')
 const iconDest = resolve(root, 'resources/icon.png')
 if (existsSync(iconSrc)) {
   copyFileSync(iconSrc, iconDest)

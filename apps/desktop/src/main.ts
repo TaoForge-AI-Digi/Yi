@@ -47,7 +47,7 @@ function startServer(): Promise<void> {
 
 function createWindow(): void {
   const iconPath = isDev
-    ? path.join(__dirname, '../../assets/yi-logo.png')
+    ? path.join(__dirname, '../../assets/yi-logo-256.png')
     : path.join(process.resourcesPath, 'icon.png')
 
   mainWindow = new BrowserWindow({

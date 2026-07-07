@@ -20,6 +20,8 @@ extraResources:
       - "!node_modules/**/.cache/**"
   - from: resources/client
     to: client
+  - from: resources/icon.png
+    to: icon.png
 
 asar: true
 asarUnpack:
