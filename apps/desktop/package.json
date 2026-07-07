@@ -2,11 +2,13 @@
   "name": "yi-lin-desktop",
   "version": "0.1.0",
   "private": true,
+  "description": "Yi-Lin AI Agent Desktop",
+  "author": "Yi-Lin",
   "main": "dist/main.js",
   "scripts": {
     "dev": "electron .",
-    "build": "node scripts/copy-server.js && electron-builder",
-    "release": "node scripts/copy-server.js && electron-builder --publish always"
+    "build": "npx tsc && node scripts/copy-server.js && npx electron-builder",
+    "release": "npx tsc && node scripts/copy-server.js && npx electron-builder --publish always"
   },
   "dependencies": {
     "electron-updater": "^6.3"
@@ -14,7 +16,6 @@
   "devDependencies": {
     "electron": "^33.0",
     "electron-builder": "^25.0",
-    "@electron/rebuild": "^3.6",
     "typescript": "^5.6"
   }
 }

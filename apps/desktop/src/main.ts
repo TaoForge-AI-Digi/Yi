@@ -1,5 +1,5 @@
 import { app, BrowserWindow } from 'electron'
-import { fork, ChildProcess } from 'child_process'
+import { spawn, ChildProcess } from 'child_process'
 import path from 'path'
 import { checkForUpdates } from './updater'
 
@@ -16,8 +16,9 @@ function startServer(): Promise<void> {
     }
 
     const serverEntry = path.join(process.resourcesPath, 'server', 'dist', 'index.js')
+    const electronPath = process.execPath
 
-    serverProcess = fork(serverEntry, [], {
+    serverProcess = spawn(electronPath, [serverEntry], {
       env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', PORT: '3001' },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
@@ -61,7 +62,7 @@ function createWindow(): void {
     mainWindow.loadURL('http://localhost:5173')
     mainWindow.webContents.openDevTools()
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../../client/dist/index.html'))
+    mainWindow.loadFile(path.join(process.resourcesPath, 'client', 'dist', 'index.html'))
   }
 
   mainWindow.on('closed', () => { mainWindow = null })
@@ -70,7 +71,7 @@ function createWindow(): void {
 app.whenReady().then(async () => {
   try {
     await startServer()
-  } catch (err) {
+  } catch (err: any) {
     console.error('Failed to start server:', err)
     app.quit()
     return

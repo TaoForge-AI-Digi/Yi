@@ -31,5 +31,7 @@ export function checkForUpdates(win: BrowserWindow): void {
     win.webContents.send('update-status', `error:${err.message}`)
   })
 
-  autoUpdater.checkForUpdates()
+  autoUpdater.checkForUpdates().catch((err: any) => {
+    console.error('Update check failed:', err.message)
+  })
 }

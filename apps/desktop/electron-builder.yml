@@ -8,18 +8,18 @@ directories:
 
 files:
   - dist/**/*
-  - "!node_modules/**/*"
 
 extraResources:
   - from: resources/server
     to: server
     filter:
       - "**/*"
-      - "!node_modules/**/*.{h,c,cpp,o,node,map}"
-      - "!node_modules/**/build/**"
+      - "!node_modules/**/*.{h,c,cpp,o,map}"
       - "!node_modules/**/test/**"
       - "!node_modules/**/tests/**"
       - "!node_modules/**/.cache/**"
+  - from: resources/client
+    to: client
 
 asar: true
 asarUnpack:
@@ -27,13 +27,9 @@ asarUnpack:
 
 win:
   target:
-    - target: nsis
+    - target: portable
       arch: [x64]
   icon: resources/icon.png
-
-nsis:
-  oneClick: false
-  allowToChangeInstallationDirectory: true
 
 mac:
   target:

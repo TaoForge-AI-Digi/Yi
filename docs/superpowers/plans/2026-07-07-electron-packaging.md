@@ -105,7 +105,7 @@ npm install
 
 ```typescript
 import { app, BrowserWindow } from 'electron'
-import { fork, ChildProcess } from 'child_process'
+import { spawn, ChildProcess } from 'child_process'
 import path from 'path'
 import { checkForUpdates } from './updater'
 
@@ -122,8 +122,9 @@ function startServer(): Promise<void> {
     }
 
     const serverEntry = path.join(process.resourcesPath, 'server', 'dist', 'index.js')
+    const electronPath = process.execPath
 
-    serverProcess = fork(serverEntry, [], {
+    serverProcess = spawn(electronPath, [serverEntry], {
       env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', PORT: '3001' },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
@@ -167,7 +168,7 @@ function createWindow(): void {
     mainWindow.loadURL('http://localhost:5173')
     mainWindow.webContents.openDevTools()
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../../client/dist/index.html'))
+    mainWindow.loadFile(path.join(process.resourcesPath, 'client', 'dist', 'index.html'))
   }
 
   mainWindow.on('closed', () => { mainWindow = null })
@@ -276,7 +277,9 @@ export function checkForUpdates(win: BrowserWindow): void {
     win.webContents.send('update-status', `error:${err.message}`)
   })
 
-  autoUpdater.checkForUpdates()
+  autoUpdater.checkForUpdates().catch((err: any) => {
+    console.error('Update check failed:', err.message)
+  })
 }
 ```
 
@@ -292,7 +295,7 @@ export function checkForUpdates(win: BrowserWindow): void {
 - Produces: `copy-server.js` — 构建时复制编译后的 server 到 resources/server
 - Produces: `electron-builder.yml` — 打包配置，含 extraResources 和发布配置
 
-- [ ] **创建 apps/desktop/scripts/copy-server.js**
+- [ ] **创建 apps/desktop/scripts/copy-server.js (同时复制 client dist)**
 
 ```javascript
 const { copyFileSync, cpSync, existsSync, rmSync, mkdirSync } = require('fs')
@@ -301,10 +304,13 @@ const { execSync } = require('child_process')
 
 const root = resolve(__dirname, '..')
 const serverRoot = resolve(root, '../server')
-const dest = resolve(root, 'resources/server')
+const clientRoot = resolve(root, '../client')
+const serverDest = resolve(root, 'resources/server')
+const clientDest = resolve(root, 'resources/client')
 
-if (existsSync(dest)) rmSync(dest, { recursive: true })
-mkdirSync(dest, { recursive: true })
+// Copy server
+if (existsSync(serverDest)) rmSync(serverDest, { recursive: true })
+mkdirSync(serverDest, { recursive: true })
 
 const serverDist = resolve(serverRoot, 'dist')
 if (!existsSync(serverDist)) {
@@ -312,14 +318,25 @@ if (!existsSync(serverDist)) {
   process.exit(1)
 }
 
-cpSync(serverDist, resolve(dest, 'dist'), { recursive: true })
-copyFileSync(resolve(serverRoot, 'package.json'), resolve(dest, 'package.json'))
-cpSync(resolve(serverRoot, 'node_modules'), resolve(dest, 'node_modules'), { recursive: true })
+cpSync(serverDist, resolve(serverDest, 'dist'), { recursive: true })
+copyFileSync(resolve(serverRoot, 'package.json'), resolve(serverDest, 'package.json'))
+cpSync(resolve(serverRoot, 'node_modules'), resolve(serverDest, 'node_modules'), { recursive: true })
 
 console.log('Rebuilding native modules for Electron...')
-execSync('npx @electron/rebuild -f -w better-sqlite3', { cwd: dest, stdio: 'inherit' })
+execSync('npx @electron/rebuild -f -w better-sqlite3', { cwd: serverDest, stdio: 'inherit' })
+console.log('Server resources copied to', serverDest)
 
-console.log('Server resources copied to', dest)
+// Copy client dist
+const clientDist = resolve(clientRoot, 'dist')
+if (!existsSync(clientDist)) {
+  console.error('Client dist not found. Build client first: cd apps/client && npm run build')
+  process.exit(1)
+}
+
+if (existsSync(clientDest)) rmSync(clientDest, { recursive: true })
+mkdirSync(clientDest, { recursive: true })
+cpSync(clientDist, resolve(clientDest, 'dist'), { recursive: true })
+console.log('Client dist copied to', clientDest)
 ```
 
 - [ ] **创建 apps/desktop/electron-builder.yml**
@@ -341,11 +358,12 @@ extraResources:
     to: server
     filter:
       - "**/*"
-      - "!node_modules/**/*.{h,c,cpp,o,node,map}"
-      - "!node_modules/**/build/**"
+      - "!node_modules/**/*.{h,c,cpp,o,map}"
       - "!node_modules/**/test/**"
       - "!node_modules/**/tests/**"
       - "!node_modules/**/.cache/**"
+  - from: resources/client
+    to: client
 
 asar: true
 asarUnpack:
@@ -353,13 +371,9 @@ asarUnpack:
 
 win:
   target:
-    - target: nsis
+    - target: portable
       arch: [x64]
   icon: resources/icon.png
-
-nsis:
-  oneClick: false
-  allowToChangeInstallationDirectory: true
 
 mac:
   target:
