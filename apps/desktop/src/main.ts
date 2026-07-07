@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, Menu } from 'electron'
 import { spawn, ChildProcess } from 'child_process'
 import path from 'path'
 import { checkForUpdates } from './updater'
@@ -46,11 +46,16 @@ function startServer(): Promise<void> {
 }
 
 function createWindow(): void {
+  const iconPath = isDev
+    ? path.join(__dirname, '../../assets/yi-logo.png')
+    : path.join(process.resourcesPath, 'icon.png')
+
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     minWidth: 800,
     minHeight: 600,
+    icon: iconPath,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -69,6 +74,8 @@ function createWindow(): void {
 }
 
 app.whenReady().then(async () => {
+  Menu.setApplicationMenu(null)
+
   try {
     await startServer()
   } catch (err: any) {
