@@ -29,19 +29,19 @@ win:
   target:
     - target: portable
       arch: [x64]
-  icon: resources/icon.png
+  icon: icon.png
 
 mac:
   target:
     - target: dmg
       arch: [x64, arm64]
-  icon: resources/icon.png
+  icon: icon.png
 
 linux:
   target:
     - target: AppImage
       arch: [x64]
-  icon: resources/icon.png
+  icon: icon.png
 
 publish:
   - provider: github
