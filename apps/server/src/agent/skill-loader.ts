@@ -2,7 +2,7 @@ import { readFileSync, existsSync, readdirSync } from 'fs'
 import { resolve, join } from 'path'
 import type { CharacterRecord } from '../db/characterStore.js'
 
-export const SKILLS_ROOT = resolve(import.meta.dirname, '../../../../skills')
+export const SKILLS_ROOT = resolve(import.meta.dirname, '../../data/skills')
 
 export interface SkillIndex {
   name: string
@@ -34,7 +34,7 @@ function parseFrontmatter(content: string): Record<string, any> {
   return fm
 }
 
-function stripFrontmatter(content: string): string {
+export function stripFrontmatter(content: string): string {
   const match = content.match(/^---\n[\s\S]*?\n(?:---|\.\.\.)\n([\s\S]*)$/)
   return match ? match[1].trim() : content
 }
@@ -91,6 +91,12 @@ export function skillDirFor(name: string): string | null {
   return findSkillDir(name)
 }
 
+function extractYilinArray(content: string, field: string): string[] {
+  const m = content.match(new RegExp(`metadata:\n\\s+yilin:\n[\\s\\S]*?\\b${field}:\\s*\\[([^\\]]*)\\]`))
+  if (!m) return []
+  return m[1].split(',').map(s => s.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean)
+}
+
 export function buildSkillIndex(character: CharacterRecord): SkillIndex[] {
   const names = character.skills
   if (!names || names.length === 0) return []
@@ -106,10 +112,16 @@ export function buildSkillIndex(character: CharacterRecord): SkillIndex[] {
     const description = fm.description || name
     const attachments = listFiles(dir).filter(f => f !== 'SKILL.md')
 
+    const prereqs = extractYilinArray(content, 'prerequisites')
+    const related = extractYilinArray(content, 'related_skills')
+    let hint = ''
+    if (prereqs.length) hint += ` (requires: ${prereqs.join(', ')})`
+    if (related.length) hint += ` (next: ${related.join(', ')})`
+
     return {
       name,
       description,
-      listing: `- ${name}: ${description}`,
+      listing: `- ${name}: ${description}${hint}`,
       attachments,
     }
   }).filter((s): s is SkillIndex => s !== null)

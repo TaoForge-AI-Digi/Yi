@@ -1,7 +1,7 @@
 import { readFileSync, existsSync, readdirSync, mkdirSync, writeFileSync } from 'fs'
 import { join, resolve } from 'path'
 import type { ToolModule } from '../types.js'
-import { findSkillByName, SKILLS_ROOT } from '../../agent/skill-loader.js'
+import { findSkillByName, stripFrontmatter, SKILLS_ROOT } from '../../agent/skill-loader.js'
 
 function parseFrontmatterField(content: string, field: string): string | null {
   const m = content.match(new RegExp(`^${field}:\\s*(.+)$`, 'm'))
@@ -63,8 +63,8 @@ export const tool: ToolModule = {
       if (!name) return { output: '', error: 'skill_name is required when action="read"' }
       const found = findSkillByName(name)
       if (!found) return { output: '', error: `Skill "${name}" not found` }
-      const content = readFileSync(join(found.dir, 'SKILL.md'), 'utf-8')
-      return { output: content }
+      const raw = readFileSync(join(found.dir, 'SKILL.md'), 'utf-8')
+      return { output: stripFrontmatter(raw) }
     }
 
     if (action === 'create') {

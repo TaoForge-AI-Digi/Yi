@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { readdirSync, readFileSync, statSync, existsSync } from 'fs'
 import { join, resolve, relative, extname } from 'path'
 
-const SKILLS_ROOT = resolve(import.meta.dirname, '../../../../skills')
+const SKILLS_ROOT = resolve(import.meta.dirname, '../../data/skills')
 
 interface SkillMeta {
   name: string

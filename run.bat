@@ -2,6 +2,28 @@
 cd /d "%~dp0"
 title Yi-Lin
 
+:: Check dependencies installed
+if not exist "%~dp0apps\server\node_modules" (
+    echo [ERROR] Server dependencies not found. Run setup.bat first.
+    pause
+    exit /b 1
+)
+if not exist "%~dp0apps\client\node_modules" (
+    echo [ERROR] Client dependencies not found. Run setup.bat first.
+    pause
+    exit /b 1
+)
+if not exist "%~dp0apps\client\dist" (
+    echo [WARNING] Client not built. Build it now...
+    cd /d "%~dp0apps\client"
+    call npx vite build || (
+        echo [ERROR] Client build failed.
+        pause
+        exit /b 1
+    )
+    cd /d "%~dp0"
+)
+
 :: Kill anything on port 3001 (server) and 5173 (client)
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":3001 " ^| findstr "LISTENING"') do taskkill /f /pid %%a >nul 2>&1
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":5173 " ^| findstr "LISTENING"') do taskkill /f /pid %%a >nul 2>&1

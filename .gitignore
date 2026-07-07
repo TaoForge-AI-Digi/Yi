@@ -4,3 +4,4 @@ dist/
 
 apps/server/data/*.db*
 apps/server/data/providers.json
+apps/server/data/debug/

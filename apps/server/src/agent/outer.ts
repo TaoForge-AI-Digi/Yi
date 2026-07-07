@@ -43,58 +43,13 @@ const KEEP_TURNS = 3
 
 // ── Guidance blocks (ported from opencode) ──
 
-const TOOL_USE_ENFORCEMENT_GUIDANCE =
-  "# Tool-use enforcement\n" +
-  "You MUST use your tools to take action. When you call a tool and get a result, " +
-  "that is almost never the end \u2014 analyze the result and decide what to do next. " +
-  "Most tasks require multiple tool calls across several turns.\n" +
-  "Never stop after a single tool call. Keep calling tools until the task is " +
-  "actually complete. If you need more information, call another tool.\n" +
-  "Every response should either (a) contain tool calls that make progress, or " +
-  "(b) deliver a final result with evidence. Responses that only describe intentions " +
-  "are not acceptable."
-
-const TASK_COMPLETION_GUIDANCE =
-  "# Finishing the job\n" +
-  "When the user asks you to build, run, or verify something, the deliverable is " +
-  "a working artifact backed by real tool output \u2014 not a description of one. " +
-  "Do not stop after writing a stub, a plan, or a single command. Keep working " +
-  "until you have actually exercised the code or produced the requested result.\n" +
-  "If a tool fails and blocks the real path, say so directly and try an alternative. " +
-  "NEVER substitute fabricated output for results you couldn\u2019t actually produce."
-
-const PARALLEL_TOOL_CALL_GUIDANCE =
-  "# Parallel tool calls\n" +
-  "When you need several pieces of information that don\u2019t depend on each " +
-  "other, request them together in a single response instead of one tool " +
-  "call per turn. Independent reads, searches, and read-only commands should " +
-  "be batched into the same assistant turn.\n" +
-  "Only serialize calls when a later call genuinely depends on an earlier " +
-  "call\u2019s result (e.g. you must read a file before you can patch it)."
-
-const ACT_DONT_ASK_GUIDANCE =
-  "# Act, don\u2019t ask\n" +
-  "When a question has an obvious default interpretation, act on it immediately " +
-  "instead of asking for clarification. Examples:\n" +
-  "- \u2018What time is it?\u2019 \u2192 run `date` (don\u2019t guess)\n" +
-  "- \u2018Is this port open?\u2019 \u2192 check the machine directly\n" +
-  "Only ask for clarification when the ambiguity genuinely changes what tool " +
-  "you would call."
-
-const VERIFICATION_GUIDANCE =
-  "# Verification\n" +
-  "Before finalizing your response:\n" +
-  "- Correctness: does the output satisfy every stated requirement?\n" +
-  "- Grounding: are factual claims backed by tool outputs or provided context?\n" +
-  "- If required context is missing, use a tool to look it up rather than guessing.\n" +
-  "- If you must proceed with incomplete information, label assumptions explicitly."
-
-const NO_FABRICATION_GUIDANCE =
-  "# No fabrication\n" +
-  "Never invent file contents, command output, API responses, or search results. " +
-  "If a tool returns an error or partial data, report it honestly \u2014 do NOT " +
-  "make up plausible-looking output. A blocker reported honestly is always better " +
-  "than a fabricated result."
+const TOOL_USE_GUIDANCE =`
+- **Continue until done**: Tool calls are intermediate steps. Only stop after producing a verifiable result or explicit answer. If a tool fails, retry up to 2 alternatives, then report the blocker and halt.
+- **Batch reads**: Combine all independent lookups (reads, searches, checks) into one turn. Only sequence calls when B truly needs A's raw output.
+- **Act first**: Execute clear requests immediately (e.g., "check time" -> run "date"). Only pause to ask if the ambiguity changes the tool choice or involves destructive actions.
+- **Ground truth**: All claims must be backed by tool outputs. Never fabricate errors or data. If missing info, retrieve it; if impossible, mark assumptions as [Assumption].
+`;
+  
 
 function estimateTokens(messages: LLMMessage[]): number {
   let total = 0
@@ -285,12 +240,7 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
 
   // Guidance blocks — only when tools are available
   if (toolDefs.length > 0) {
-    systemParts.push(TOOL_USE_ENFORCEMENT_GUIDANCE)
-    systemParts.push(TASK_COMPLETION_GUIDANCE)
-    systemParts.push(PARALLEL_TOOL_CALL_GUIDANCE)
-    systemParts.push(ACT_DONT_ASK_GUIDANCE)
-    systemParts.push(VERIFICATION_GUIDANCE)
-    systemParts.push(NO_FABRICATION_GUIDANCE)
+    systemParts.push(TOOL_USE_GUIDANCE)
   }
 
   // List available tools — only whitelisted ones, same pattern as skills
