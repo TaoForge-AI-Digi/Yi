@@ -22,6 +22,8 @@ extraResources:
     to: client
   - from: resources/icon.png
     to: icon.png
+  - from: resources/data
+    to: data
 
 asar: true
 asarUnpack:

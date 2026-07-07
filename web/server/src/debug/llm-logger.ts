@@ -1,7 +1,7 @@
 import { writeFileSync, mkdirSync } from 'fs'
 import { resolve, dirname } from 'path'
 
-const DATA_DIR = process.env.DATA_DIR || resolve(import.meta.dirname, '../../../data')
+const DATA_DIR = process.env.DATA_DIR || resolve(import.meta.dirname, '../../../../data')
 const DEBUG_DIR = resolve(DATA_DIR, 'debug')
 
 export function logLLMCall(

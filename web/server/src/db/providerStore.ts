@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import { resolve } from 'path'
 
-const DATA_DIR = process.env.DATA_DIR || resolve(import.meta.dirname, '../../../data')
+const DATA_DIR = process.env.DATA_DIR || resolve(import.meta.dirname, '../../../../data')
 const FILE = resolve(DATA_DIR, 'providers.json')
 mkdirSync(DATA_DIR, { recursive: true })
 

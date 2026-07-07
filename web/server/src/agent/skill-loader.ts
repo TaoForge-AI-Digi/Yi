@@ -2,7 +2,7 @@ import { readFileSync, existsSync, readdirSync } from 'fs'
 import { resolve, join } from 'path'
 import type { CharacterRecord } from '../db/characterStore.js'
 
-const DATA_DIR = process.env.DATA_DIR || resolve(import.meta.dirname, '../../../data')
+const DATA_DIR = process.env.DATA_DIR || resolve(import.meta.dirname, '../../../../data')
 export const SKILLS_ROOT = resolve(DATA_DIR, 'skills')
 
 export interface SkillIndex {

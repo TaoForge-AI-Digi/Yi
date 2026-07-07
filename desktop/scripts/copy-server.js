@@ -53,3 +53,12 @@ if (existsSync(iconSrc)) {
   copyFileSync(iconSrc, iconDest)
   console.log('Icon copied to', iconDest)
 }
+
+// Copy baseline data
+const dataSrc = resolve(root, '../data')
+const dataDest = resolve(root, 'resources/data')
+if (existsSync(dataSrc)) {
+  if (existsSync(dataDest)) rmSync(dataDest, { recursive: true })
+  cpSync(dataSrc, dataDest, { recursive: true })
+  console.log('Baseline data copied to', dataDest)
+}
