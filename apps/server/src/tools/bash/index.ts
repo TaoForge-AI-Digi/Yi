@@ -5,6 +5,31 @@ import type { ToolModule } from '../types.js'
 import { assertPathSafe } from '../utils.js'
 
 const WIN_ABS_PATH_RE = /[A-Za-z]:\\[^\s"'|&;<>(){}[\]`~!@#$%^&*=+]+/g
+
+// Match path-like tokens: absolute paths, parent traversal, home dir, or paths containing separator
+// Respects single/double quotes
+const PATH_TOKEN_RE = /(?:^|\s+)((?:~\/|\.\.\/|\/|[A-Za-z]:\\)[\S]*)/g
+const QUOTED_PATH_RE = /["']((?:~\/|\.\.\/|\/|[A-Za-z]:\\)[^"']*)["']/g
+
+function scanCommandPaths(cmd: string, workspaces: string[], allowedRoots?: string[]): void {
+  // Check quoted paths first (handles paths with spaces)
+  let m: RegExpExecArray | null
+  QUOTED_PATH_RE.lastIndex = 0
+  while ((m = QUOTED_PATH_RE.exec(cmd)) !== null) {
+    assertPathSafe(m[1], workspaces, allowedRoots)
+  }
+  // Check unquoted path-like tokens
+  PATH_TOKEN_RE.lastIndex = 0
+  while ((m = PATH_TOKEN_RE.exec(cmd)) !== null) {
+    const p = m[1]
+    if (p.includes('=') || p.startsWith('-')) continue  // skip flags and assignments
+    // Skip if inside quotes (already handled above)
+    const before = cmd.slice(0, m.index)
+    const quotes = (before.match(/["']/g) || []).length
+    if (quotes % 2 !== 0) continue
+    assertPathSafe(p, workspaces, allowedRoots)
+  }
+}
 const MAX_OUTPUT = 1024 * 1024
 const TAIL_SIZE = 50 * 1024
 const TIMEOUT_MS = 60000
@@ -35,12 +60,16 @@ export const tool: ToolModule = {
     required: ['command'],
   },
   dangerous: true,
-  execute: async (args, { workspace, signal, allowedRoots, onOutput }) => {
+  execute: async (args, { workspace, workspaces, signal, allowedRoots, onOutput }) => {
     const cmd = args.command || ''
+    const roots = workspaces ?? [workspace]
+    // Scan for path-like tokens and validate against workspaces
+    scanCommandPaths(cmd, roots, allowedRoots)
+    // Also check Windows absolute paths (legacy)
     const absPaths = cmd.match(WIN_ABS_PATH_RE)
     if (absPaths) {
       for (const raw of absPaths) {
-        assertPathSafe(raw, workspace, allowedRoots)
+        assertPathSafe(raw, roots, allowedRoots)
       }
     }
 

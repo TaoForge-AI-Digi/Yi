@@ -17,9 +17,9 @@ export const tool: ToolModule = {
     required: ['path', 'oldString', 'newString'],
   },
   dangerous: true,
-  execute: async (args, { workspace, allowedRoots }) => {
+  execute: async (args, { workspace, workspaces, allowedRoots }) => {
     const p = args.path || ''
-    assertPathSafe(p, workspace, allowedRoots)
+    assertPathSafe(p, workspaces ?? [workspace], allowedRoots)
     const fullPath = resolve(workspace, p)
     if (!existsSync(fullPath)) return { output: '', error: `File not found: ${p}` }
     const content = readFileSync(fullPath, 'utf-8')

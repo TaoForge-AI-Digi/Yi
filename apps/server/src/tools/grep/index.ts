@@ -38,8 +38,8 @@ export const tool: ToolModule = {
     },
     required: ['pattern'],
   },
-  execute: async (args, { workspace, allowedRoots }) => {
-    const dir = args.path ? (assertPathSafe(args.path, workspace, allowedRoots), args.path) : '.'
+  execute: async (args, { workspace, workspaces, allowedRoots }) => {
+    const dir = args.path ? (assertPathSafe(args.path, workspaces ?? [workspace], allowedRoots), args.path) : '.'
     return { output: grepSync(args.pattern || '', resolve(workspace, dir)) }
   },
 }

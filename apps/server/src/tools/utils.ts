@@ -22,14 +22,20 @@ function resolvedSafe(p: string, root: string): boolean {
   return !relative(base, target).startsWith('..')
 }
 
-export function assertPathSafe(p: string, workspace: string, allowedRoots?: string[]): void {
-  if (resolvedSafe(p, workspace)) return
+export function assertPathSafe(p: string, workspaces: string[], allowedRoots?: string[]): void {
+  for (const ws of workspaces) {
+    if (resolvedSafe(p, ws)) return
+  }
   if (allowedRoots) {
     for (const root of allowedRoots) {
       if (resolvedSafe(p, root)) return
     }
   }
   throw new PathEscapeError(`Path escapes workspace: ${p}`)
+}
+
+export function assertPathSafeLegacy(p: string, workspace: string, allowedRoots?: string[]): void {
+  assertPathSafe(p, [workspace], allowedRoots)
 }
 
 export function findFirstOccurrence(content: string, oldString: string): number {

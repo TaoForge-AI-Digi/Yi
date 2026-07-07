@@ -205,6 +205,7 @@ export async function innerLoop(
   opts: { thinking?: boolean; reasoning_effort?: string } = {},
   turn: number = 0,
   mcpClients?: Map<string, MCPClient>,
+  workspaces?: string[],
 ): Promise<InnerResult> {
   let totalInputTokens = 0
   let totalOutputTokens = 0
@@ -391,7 +392,7 @@ export async function innerLoop(
       try {
         return await executeTool(p.name, p.args, workspace || process.cwd(), signal, mcpClients, allRoots, (chunk) => {
           socket?.emit('tool.output', { session_id: sessionId, tool_call_id: p.tc.id, output: chunk })
-        })
+        }, workspaces)
       } catch (err: any) {
         return { output: '', error: `${p.name}: ${err.message || String(err)}` }
       }

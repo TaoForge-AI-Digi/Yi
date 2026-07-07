@@ -31,6 +31,13 @@ if (!fs.existsSync(DEFAULT_WORKSPACE)) {
 function resolveWorkspace(ws: string | null | undefined): string {
   return ws || DEFAULT_WORKSPACE
 }
+function resolveWorkspaces(session: { workspace?: string | null; workspaces?: string | null }): string[] {
+  if (session.workspaces) {
+    try { return JSON.parse(session.workspaces) }
+    catch { /* fall through */ }
+  }
+  return [resolveWorkspace(session.workspace)]
+}
 const COMPACT_THRESHOLD = 0.75
 const KEEP_TURNS = 3
 
@@ -211,6 +218,9 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
   const contextWindow = modelConfig?.context_window || DEFAULT_CONTEXT_WINDOW
   sessionStore.update(sessionId, { context_window: contextWindow })
 
+  const workspaces = resolveWorkspaces(session)
+  const workspace = resolveWorkspace(session.workspace)
+
   const toolDefs = getCharacterToolDefinitions(charMeta.tools)
 
   const mcpClients = new Map<string, MCPClient>()
@@ -364,8 +374,8 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
 
     const result = await innerLoop(
       messages, tools, provider, model, session.character_id,
-      resolveWorkspace(session.workspace), io, socket, sessionId, signal, opts, turn,
-      mcpClients,
+      workspace, io, socket, sessionId, signal, opts, turn,
+      mcpClients, workspaces,
     )
 
     totalInputTokens += result.totalInputTokens

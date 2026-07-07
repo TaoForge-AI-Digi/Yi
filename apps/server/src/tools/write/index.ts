@@ -15,9 +15,9 @@ export const tool: ToolModule = {
     required: ['path', 'content'],
   },
   dangerous: true,
-  execute: async (args, { workspace, allowedRoots }) => {
+  execute: async (args, { workspace, workspaces, allowedRoots }) => {
     const p = args.path || ''
-    assertPathSafe(p, workspace, allowedRoots)
+    assertPathSafe(p, workspaces ?? [workspace], allowedRoots)
     writeFileSync(resolve(workspace, p), args.content || '', 'utf-8')
     return { output: `Written ${(args.content || '').length} bytes to ${p}` }
   },

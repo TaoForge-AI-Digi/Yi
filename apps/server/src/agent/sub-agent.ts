@@ -64,7 +64,7 @@ export function summarizeAndMerge(results: SubResult[], maxTokens = 2000): SubSu
 export async function spawnAndRunSubAgent(
   task: string,
   targetCharacterId: string,
-  parentSession: { id: string; character_id: string; workspace?: string | null; active_group?: string | null },
+  parentSession: { id: string; character_id: string; workspace?: string | null; workspaces?: string | null; active_group?: string | null },
   provider: { base_url: string; api_key: string },
   model: string,
   strategyOverride?: 'Plan' | 'Ask' | 'Bypass',
@@ -86,6 +86,7 @@ export async function spawnAndRunSubAgent(
   const subStrategy = strategyOverride || targetChar.default_strategy || 'Plan'
 
   const subSessionId = `sub_${parentSession.id}_${targetCharacterId}_${Date.now()}`
+  const parentWorkspaces = parentSession.workspaces || (parentSession.workspace ? JSON.stringify([parentSession.workspace]) : null)
   sessionStore.create({
     id: subSessionId,
     character_id: targetCharacterId,
@@ -93,6 +94,7 @@ export async function spawnAndRunSubAgent(
     model,
     provider_id: provider.base_url,
     workspace: parentSession.workspace || undefined,
+    workspaces: parentWorkspaces,
     parent_id: parentSession.id,
     active_group: parentSession.active_group || undefined,
   })
@@ -160,6 +162,7 @@ export async function spawnAndRunSubAgent(
     effectiveTools = toolDefs.filter(t => t.function.name !== 'delegate_task')
   }
 
+  const subWorkspaces = parentSession.workspaces ? (() => { try { return JSON.parse(parentSession.workspaces) as string[] } catch { return undefined } })() : undefined
   const innerResult: InnerResult = await innerLoop(
     messages,
     effectiveTools.length > 0 ? effectiveTools : undefined,
@@ -172,13 +175,16 @@ export async function spawnAndRunSubAgent(
     subSessionId,
     signal,
     {},
+    0,
+    undefined,
+    subWorkspaces,
   )
 
   if (innerResult.type === 'sub_agent_request') {
-    const subSubResult = await spawnAndRunSubAgent(
-      innerResult.subAgentRequest!.task,
-      innerResult.subAgentRequest!.target_character_id,
-      { id: subSessionId, character_id: targetCharacterId, workspace: parentSession.workspace },
+      const subSubResult = await spawnAndRunSubAgent(
+        innerResult.subAgentRequest!.task,
+        innerResult.subAgentRequest!.target_character_id,
+        { id: subSessionId, character_id: targetCharacterId, workspace: parentSession.workspace, workspaces: parentSession.workspaces },
       provider,
       model,
       innerResult.subAgentRequest!.sub_strategy,
