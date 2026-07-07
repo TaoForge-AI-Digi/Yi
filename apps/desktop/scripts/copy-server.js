@@ -27,10 +27,17 @@ execSync('npx @electron/rebuild -f -w better-sqlite3', { cwd: serverDest, stdio:
 
 console.log('Server resources copied to', serverDest)
 
-// Copy client dist
+// Build client with API URL for Electron
+console.log('Building client for Electron...')
+execSync('npx vite build --mode production', {
+  cwd: clientRoot,
+  stdio: 'inherit',
+  env: { ...process.env, VITE_API_URL: 'http://localhost:3001' },
+})
+
 const clientDist = resolve(clientRoot, 'dist')
 if (!existsSync(clientDist)) {
-  console.error('Client dist not found. Build client first: cd apps/client && npm run build')
+  console.error('Client build failed')
   process.exit(1)
 }
 
