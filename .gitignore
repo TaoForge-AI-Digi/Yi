@@ -5,6 +5,4 @@ dist/
 web/server/data/*.db*
 web/server/data/providers.json
 web/server/data/debug/
-data/*.db*
-data/providers.json
-data/debug/
+web/data/
