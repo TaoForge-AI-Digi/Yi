@@ -6,3 +6,4 @@ web/server/data/*.db*
 web/server/data/providers.json
 web/server/data/debug/
 web/data/
+data/providers.json
