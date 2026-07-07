@@ -44,7 +44,7 @@ echo.
 
 :: ---------- Install server dependencies ----------
 echo [2/5] Installing server dependencies...
-cd /d "%~dp0apps\server"
+cd /d "%~dp0web\server"
 call npm install
 if %errorlevel% neq 0 (
     echo [ERROR] Server dependencies installation failed.
@@ -62,7 +62,7 @@ echo.
 
 :: ---------- Install client dependencies ----------
 echo [3/5] Installing client dependencies...
-cd /d "%~dp0apps\client"
+cd /d "%~dp0web\client"
 call npm install
 if %errorlevel% neq 0 (
     echo [ERROR] Client dependencies installation failed.
@@ -73,7 +73,7 @@ echo.
 
 :: ---------- Build client ----------
 echo [4/5] Building client...
-cd /d "%~dp0apps\client"
+cd /d "%~dp0web\client"
 call npx vite build
 if %errorlevel% neq 0 (
     echo [ERROR] Client build failed.

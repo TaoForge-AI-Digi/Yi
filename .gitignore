@@ -2,6 +2,9 @@ node_modules/
 dist/
 *.db
 
-apps/server/data/*.db*
-apps/server/data/providers.json
-apps/server/data/debug/
+web/server/data/*.db*
+web/server/data/providers.json
+web/server/data/debug/
+data/*.db*
+data/providers.json
+data/debug/

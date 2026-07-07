@@ -10,7 +10,7 @@ timeout /t 1 /nobreak >nul
 
 :: Build server
 echo Building Server ...
-cd /d %~dp0apps\server
+cd /d %~dp0web\server
 call npx tsc
 if %errorlevel% neq 0 (
     echo Server build failed!
@@ -20,7 +20,7 @@ if %errorlevel% neq 0 (
 
 :: Build client
 echo Building Client ...
-cd /d %~dp0apps\client
+cd /d %~dp0web\client
 call npx vite build
 if %errorlevel% neq 0 (
     echo Client build failed!
@@ -30,12 +30,12 @@ if %errorlevel% neq 0 (
 
 :: Run
 echo Starting Yi-Lin Server on :3001 ...
-start "Yi-Lin Server" cmd /k "cd /d %~dp0apps\server && npx tsx src\index.ts"
+start "Yi-Lin Server" cmd /k "cd /d %~dp0web\server && npx tsx src\index.ts"
 
 timeout /t 2 /nobreak >nul
 
 echo Starting Yi-Lin Client on :5173 ...
-start "Yi-Lin Client" cmd /k "cd /d %~dp0apps\client && npx vite"
+start "Yi-Lin Client" cmd /k "cd /d %~dp0web\client && npx vite"
 
 echo.
 echo Server :3001  | Client :5173
