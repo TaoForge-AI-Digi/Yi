@@ -1,7 +1,6 @@
 import { app, BrowserWindow, Menu } from 'electron'
 import { spawn, ChildProcess } from 'child_process'
 import path from 'path'
-import fs from 'fs'
 import { checkForUpdates } from './updater'
 
 let serverProcess: ChildProcess | null = null
@@ -19,15 +18,9 @@ function startServer(): Promise<void> {
     const serverEntry = path.join(process.resourcesPath, 'server', 'dist', 'index.js')
     const electronPath = process.execPath
 
-    // Copy baseline data to user data directory on first run
-    const baseData = path.join(process.resourcesPath, 'data')
-    const userDataDir = path.join(app.getPath('userData'), 'data')
-    if (fs.existsSync(baseData) && !fs.existsSync(userDataDir)) {
-      fs.cpSync(baseData, userDataDir, { recursive: true })
-      console.log('Baseline data copied to', userDataDir)
-    }
+    const dataDir = path.join(process.resourcesPath, 'data')
     serverProcess = spawn(electronPath, [serverEntry], {
-      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', PORT: '3001', DATA_DIR: userDataDir },
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', PORT: '3001', DATA_DIR: dataDir },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
 

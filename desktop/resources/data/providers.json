@@ -1,0 +1,206 @@
+[
+  {
+    "name": "OpenCode Go",
+    "base_url": "https://opencode.ai/zen/go/v1/",
+    "api_key": "sk-lDozT9mtbzIVaKuDQF463EjTY8luIGeQFYE305W8qEIIUPaDM3lAc2vUGd0MDqUF",
+    "models": [
+      {
+        "id": "minimax-m3",
+        "name": "minimax-m3",
+        "context_window": 1000000,
+        "enabled": true
+      },
+      {
+        "id": "minimax-m2.7",
+        "name": "minimax-m2.7",
+        "context_window": 204800,
+        "enabled": true
+      },
+      {
+        "id": "minimax-m2.5",
+        "name": "minimax-m2.5",
+        "context_window": 204800,
+        "enabled": true
+      },
+      {
+        "id": "kimi-k2.7-code",
+        "name": "kimi-k2.7-code",
+        "context_window": 256000,
+        "enabled": true
+      },
+      {
+        "id": "kimi-k2.6",
+        "name": "kimi-k2.6",
+        "context_window": 262144,
+        "enabled": true
+      },
+      {
+        "id": "kimi-k2.5",
+        "name": "kimi-k2.5",
+        "context_window": 262144,
+        "enabled": true
+      },
+      {
+        "id": "glm-5.2",
+        "name": "glm-5.2",
+        "context_window": 1048576,
+        "enabled": true
+      },
+      {
+        "id": "glm-5.1",
+        "name": "glm-5.1",
+        "context_window": 202752,
+        "enabled": true
+      },
+      {
+        "id": "glm-5",
+        "name": "glm-5",
+        "context_window": 202752,
+        "enabled": true
+      },
+      {
+        "id": "deepseek-v4-pro",
+        "name": "deepseek-v4-pro",
+        "context_window": 1000000,
+        "enabled": true
+      },
+      {
+        "id": "deepseek-v4-flash",
+        "name": "deepseek-v4-flash",
+        "context_window": 1000000,
+        "enabled": true
+      },
+      {
+        "id": "qwen3.7-max",
+        "name": "qwen3.7-max",
+        "context_window": 256000,
+        "enabled": true
+      },
+      {
+        "id": "qwen3.7-plus",
+        "name": "qwen3.7-plus",
+        "context_window": 991808,
+        "enabled": true
+      },
+      {
+        "id": "qwen3.6-plus",
+        "name": "qwen3.6-plus",
+        "context_window": 991000,
+        "enabled": true
+      },
+      {
+        "id": "qwen3.5-plus",
+        "name": "qwen3.5-plus",
+        "context_window": 1000000,
+        "enabled": true
+      },
+      {
+        "id": "mimo-v2-pro",
+        "name": "mimo-v2-pro",
+        "context_window": 1048576,
+        "enabled": true
+      },
+      {
+        "id": "mimo-v2-omni",
+        "name": "mimo-v2-omni",
+        "context_window": 262144,
+        "enabled": true
+      },
+      {
+        "id": "mimo-v2.5-pro",
+        "name": "mimo-v2.5-pro",
+        "context_window": 1048576,
+        "enabled": true
+      },
+      {
+        "id": "mimo-v2.5",
+        "name": "mimo-v2.5",
+        "context_window": 1048576,
+        "enabled": true
+      },
+      {
+        "id": "hy3-preview",
+        "name": "hy3-preview",
+        "context_window": 256000,
+        "enabled": true
+      }
+    ],
+    "id": "23c085cc-d468-4248-b033-2b75c9665b71"
+  },
+  {
+    "name": "OpenCode Zen",
+    "base_url": "https://opencode.ai/zen/v1/",
+    "api_key": "sk-lDozT9mtbzIVaKuDQF463EjTY8luIGeQFYE305W8qEIIUPaDM3lAc2vUGd0MDqUF",
+    "models": [
+      {
+        "id": "claude-sonnet-5",
+        "name": "claude-sonnet-5",
+        "context_window": 1000000,
+        "enabled": true
+      },
+      {
+        "id": "minimax-m3",
+        "name": "minimax-m3",
+        "context_window": 1000000,
+        "enabled": true
+      },
+      {
+        "id": "kimi-k2.7-code",
+        "name": "kimi-k2.7-code",
+        "context_window": 256000,
+        "enabled": true
+      },
+      {
+        "id": "big-pickle",
+        "name": "big-pickle",
+        "context_window": 200000,
+        "enabled": true
+      },
+      {
+        "id": "deepseek-v4-flash-free",
+        "name": "deepseek-v4-flash-free",
+        "context_window": 200000,
+        "enabled": true
+      },
+      {
+        "id": "mimo-v2.5-free",
+        "name": "mimo-v2.5-free",
+        "context_window": 200000,
+        "enabled": true
+      },
+      {
+        "id": "nemotron-3-ultra-free",
+        "name": "nemotron-3-ultra-free",
+        "context_window": 1000000,
+        "enabled": true
+      },
+      {
+        "id": "north-mini-code-free",
+        "name": "north-mini-code-free",
+        "context_window": 256000,
+        "enabled": true
+      }
+    ],
+    "id": "df9cf6e6-0029-4d00-8226-ff68d95b57b2"
+  },
+  {
+    "name": "Deepseek",
+    "base_url": "https://api.deepseek.com",
+    "api_key": "sk-3f147f2a4d1347d1b9c4e6e93de159f9",
+    "models": [
+      {
+        "id": "deepseek-v4-flash",
+        "name": "deepseek-v4-flash",
+        "context_window": 1000000,
+        "enabled": true
+      },
+      {
+        "id": "deepseek-v4-pro",
+        "name": "deepseek-v4-pro",
+        "context_window": 1000000,
+        "enabled": true
+      }
+    ],
+    "id": "f727b871-e12d-4d57-a842-c35f5a327669"
+  }
+]

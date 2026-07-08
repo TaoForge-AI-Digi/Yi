@@ -6,4 +6,8 @@ web/server/data/*.db*
 web/server/data/providers.json
 web/server/data/debug/
 web/data/
+data/*.db*
 data/providers.json
+data/debug/
+setup/*.msi
+setup/*.zip
