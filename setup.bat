@@ -14,11 +14,9 @@ echo ========================================
 echo        Yi-Lin Environment Setup
 echo ========================================
 echo.
-
 echo [1/5] Checking Node.js...
 where node >nul 2>&1
 if %errorlevel% equ 0 goto node_ok
-
 if exist setup\*.msi (
     for %%f in (setup\*.msi) do (
         echo Found: %%~nxf
@@ -32,7 +30,6 @@ if exist setup\*.msi (
         )
     )
 )
-
 echo.
 echo ============================================
 echo  Node.js installation failed.
@@ -43,11 +40,9 @@ echo ============================================
 echo.
 pause
 exit /b 1
-
 :node_ok
 node -v
 echo.
-
 echo [2/5] Installing server dependencies...
 cd /d "%~dp0web\server"
 call npm install
@@ -57,7 +52,6 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 echo.
-
 echo [3/5] Installing client dependencies...
 cd /d "%~dp0web\client"
 call npm install
@@ -67,7 +61,6 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 echo.
-
 echo [4/5] Building client...
 cd /d "%~dp0web\client"
 call npx vite build
@@ -77,7 +70,6 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 echo.
-
 echo [5/5] Setup complete!
 echo.
 echo You can now run:  run.bat
