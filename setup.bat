@@ -2,7 +2,6 @@
 cd /d "%~dp0"
 title Yi-Lin Setup
 
-:: ---------- Self-elevate if not admin ----------
 net session >nul 2>&1
 if %errorlevel% neq 0 (
     echo Requesting administrator privileges...
@@ -16,9 +15,7 @@ echo        Yi-Lin Environment Setup
 echo ========================================
 echo.
 
-:: ---------- Step 1: Node.js ----------
 echo [1/5] Checking Node.js...
-
 where node >nul 2>&1
 if %errorlevel% equ 0 goto node_ok
 
@@ -51,7 +48,6 @@ exit /b 1
 node -v
 echo.
 
-:: ---------- Step 2: Server deps ----------
 echo [2/5] Installing server dependencies...
 cd /d "%~dp0web\server"
 call npm install
@@ -62,7 +58,6 @@ if %errorlevel% neq 0 (
 )
 echo.
 
-:: ---------- Step 3: Client deps ----------
 echo [3/5] Installing client dependencies...
 cd /d "%~dp0web\client"
 call npm install
@@ -73,7 +68,6 @@ if %errorlevel% neq 0 (
 )
 echo.
 
-:: ---------- Step 4: Build client ----------
 echo [4/5] Building client...
 cd /d "%~dp0web\client"
 call npx vite build
@@ -84,7 +78,6 @@ if %errorlevel% neq 0 (
 )
 echo.
 
-:: ---------- Done ----------
 echo [5/5] Setup complete!
 echo.
 echo You can now run:  run.bat
