@@ -9,6 +9,7 @@ import { logLLMCall } from '../debug/llm-logger.js'
 import type { Strategy } from './session.js'
 import type { Server, Socket } from 'socket.io'
 import type { MCPClient } from '../tools/mcp-client.js'
+import { resolve as pathResolve } from 'path'
 
 const READ_ONLY_TOOLS = new Set(['read', 'grep', 'glob', 'webfetch', 'websearch'])
 
@@ -402,12 +403,15 @@ export async function innerLoop(
 
     if (result.escaped && sessionId && socket) {
       const escapedPath = result.error?.replace('Path escapes workspace: ', '') || ''
+      // Resolve to absolute path relative to workspace so allowedRoots
+      // work correctly in assertPathSafe (avoid double-resolve bug with relative paths)
+      const absEscapedPath = pathResolve(workspace || process.cwd(), escapedPath)
       const choice = await new Promise<'once' | 'always' | 'reject'>((resolve) => {
         socket.emit('approval.requested', {
           session_id: sessionId,
           tool_call_id: p.tc.id,
           tool_name: `[Workspace] ${p.name}`,
-          tool_input: JSON.stringify({ ...p.args, _escaped_path: escapedPath }),
+          tool_input: JSON.stringify({ ...p.args, _escaped_path: absEscapedPath }),
         })
         const handler = (data: { tool_call_id: string; choice: 'once' | 'always' | 'reject' }) => {
           if (data.tool_call_id === p.tc.id) { socket.off('approval.respond', handler); resolve(data.choice) }
@@ -416,8 +420,8 @@ export async function innerLoop(
         setTimeout(() => { socket.off('approval.respond', handler); resolve('reject') }, 60000)
       })
       if (choice !== 'reject') {
-        if (choice === 'always') addAllowedPath(sessionId, escapedPath)
-        result = await execWithRoots(choice === 'once' ? [escapedPath] : undefined)
+        if (choice === 'always') addAllowedPath(sessionId, absEscapedPath)
+        result = await execWithRoots(choice === 'once' ? [absEscapedPath] : undefined)
       }
     }
 

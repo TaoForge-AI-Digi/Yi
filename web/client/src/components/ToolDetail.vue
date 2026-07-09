@@ -10,13 +10,13 @@ const props = defineProps<{
 }>()
 
 const chatStore = useChatStore()
-const expanded = ref(false)
+const expanded = ref(chatStore.toolExpandAll)
 
 watch(() => chatStore.toolExpandAll, (val) => { expanded.value = val })
 const outputRef = ref<HTMLPreElement | null>(null)
 
 watch(() => props.status, (s) => {
-  if (s === 'running' || s === 'error') {
+  if (s === 'running') {
     expanded.value = true
   }
 }, { immediate: true })

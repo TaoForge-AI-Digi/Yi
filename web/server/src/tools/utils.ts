@@ -23,12 +23,19 @@ function resolvedSafe(p: string, root: string): boolean {
 }
 
 export function assertPathSafe(p: string, workspaces: string[], allowedRoots?: string[]): void {
-  for (const ws of workspaces) {
-    if (resolvedSafe(p, ws)) return
+  // Resolve p relative to the first workspace first so all subsequent
+  // checks (including allowedRoots) use the correct absolute path.
+  // p may be relative to workspace (e.g. "../../outside/file.txt"),
+  // so resolving against allowedRoot would give wrong results.
+  const ws = workspaces[0]
+  const absP = resolve(ws, p)
+
+  for (const w of workspaces) {
+    if (resolvedSafe(absP, w)) return
   }
   if (allowedRoots) {
     for (const root of allowedRoots) {
-      if (resolvedSafe(p, root)) return
+      if (resolvedSafe(absP, root)) return
     }
   }
   throw new PathEscapeError(`Path escapes workspace: ${p}`)
