@@ -8,7 +8,7 @@ let db: Database.Database | null = null
 
 export function getDb(): Database.Database {
   if (db) return db
-  mkdirSync(DATA_DIR, { recursive: true })
+  if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true })
   db = new Database(resolve(DATA_DIR, 'sessions.db'))
   db.pragma('journal_mode = WAL')
   try { db.exec('ALTER TABLE messages ADD COLUMN reasoning_content TEXT') } catch { }

@@ -38,7 +38,7 @@ if %errorlevel% neq 0 (
 
 :: Run
 echo Starting Yi-Lin Server on :3001 ...
-start "Yi-Lin Server" cmd /k "set DATA_DIR=%~dp0data && cd /d %~dp0web\server && npx tsx src\index.ts"
+start "Yi-Lin Server" cmd /k "set "DATA_DIR=%~dp0data" && cd /d %~dp0web\server && npx tsx src\index.ts"
 
 timeout /t 2 /nobreak >nul
 

@@ -32,7 +32,7 @@ for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":3001 " ^| findstr "LISTENIN
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":5173 " ^| findstr "LISTENING"') do taskkill /f /pid %%a >nul 2>&1
 timeout /t 1 /nobreak >nul
 echo Starting Yi-Lin Server on :3001 ...
-start "Yi-Lin Server" cmd /k "set DATA_DIR=%~dp0data && cd /d %~dp0web\server && npx tsx src\index.ts"
+start "Yi-Lin Server" cmd /k "set "DATA_DIR=%~dp0data" && cd /d %~dp0web\server && npx tsx src\index.ts"
 timeout /t 2 /nobreak >nul
 echo Starting Yi-Lin Client on :5173 ...
 start "Yi-Lin Client" cmd /k "cd /d %~dp0web\client && npx vite"

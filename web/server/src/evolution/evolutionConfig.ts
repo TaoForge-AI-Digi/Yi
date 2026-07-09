@@ -3,7 +3,7 @@ import { resolve } from 'path'
 
 const DATA_DIR = process.env.DATA_DIR || resolve(import.meta.dirname, '../../../../data')
 const FILE = resolve(DATA_DIR, 'evolution-config.json')
-mkdirSync(DATA_DIR, { recursive: true })
+if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true })
 
 export interface EvolutionConfig {
   character_id: string
