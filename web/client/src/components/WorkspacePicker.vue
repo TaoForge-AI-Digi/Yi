@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted } from 'vue'
 import { browseDirectory, type DirEntry } from '@/api/workspace'
 
-const emit = defineEmits<{ select: [path: string]; close: [] }>()
+const props = defineProps<{ selected?: string[] }>()
+const emit = defineEmits<{ select: [paths: string[]]; close: [] }>()
 
 const currentPath = ref('')
 const parentPath = ref<string | null>(null)
 const entries = ref<DirEntry[]>([])
 const loading = ref(false)
 const error = ref('')
-const selectedPath = ref('')
+const checked = ref(new Set<string>())
 
 async function load(path?: string) {
   loading.value = true
@@ -34,8 +35,24 @@ function enterDir(entry: DirEntry) {
   load(entry.path)
 }
 
+function toggleCheck(path: string) {
+  if (checked.value.has(path)) {
+    checked.value.delete(path)
+  } else {
+    checked.value.add(path)
+  }
+}
+
 function confirmSelection() {
-  if (currentPath.value) emit('select', currentPath.value)
+  const paths = Array.from(checked.value)
+  if (paths.length > 0) emit('select', paths)
+}
+
+function selectCurrentDir() {
+  if (currentPath.value) {
+    checked.value.add(currentPath.value)
+    emit('select', [currentPath.value])
+  }
 }
 
 onMounted(() => load())
@@ -45,13 +62,18 @@ onMounted(() => load())
   <div class="picker-overlay" @click.self="$emit('close')">
     <div class="picker-dialog">
       <div class="picker-header">
-        <h3>选择工作区</h3>
+        <h3>选择工作区目录</h3>
         <button class="close-btn" @click="$emit('close')">&times;</button>
       </div>
 
       <div class="picker-nav">
         <button class="nav-btn" :disabled="!parentPath" @click="goUp">.. 上级</button>
         <span class="current-path">{{ currentPath || '快捷入口' }}</span>
+        <button class="nav-btn add-current" :disabled="!currentPath" @click="selectCurrentDir">+ 添加当前</button>
+      </div>
+
+      <div class="picker-hint" v-if="props.selected && props.selected.length > 0">
+        已有工作区: {{ props.selected.join(', ') }}
       </div>
 
       <div v-if="loading" class="picker-loading">加载中...</div>
@@ -61,12 +83,13 @@ onMounted(() => load())
           v-for="entry in entries"
           :key="entry.path"
           class="picker-item"
-          :class="{ selected: selectedPath === entry.path }"
-          @click="selectedPath = entry.path"
-          @dblclick="enterDir(entry)"
+          :class="{ checked: checked.has(entry.path) }"
+          @click="toggleCheck(entry.path)"
         >
+          <input type="checkbox" :checked="checked.has(entry.path)" class="item-checkbox" />
           <span class="item-icon">📁</span>
           <span class="item-name">{{ entry.name }}</span>
+          <span class="item-path">{{ entry.path }}</span>
           <button class="enter-btn" @click.stop="enterDir(entry)" title="进入">▸</button>
         </div>
         <div v-if="entries.length === 0" class="picker-empty">空目录</div>
@@ -74,8 +97,9 @@ onMounted(() => load())
 
       <div class="picker-footer">
         <button class="btn btn-cancel" @click="$emit('close')">取消</button>
-        <button class="btn btn-confirm" :disabled="!currentPath" @click="confirmSelection">
-          选择此目录
+        <span class="footer-count" v-if="checked.size > 0">已选 {{ checked.size }} 个目录</span>
+        <button class="btn btn-confirm" :disabled="checked.size === 0" @click="confirmSelection">
+          添加选中目录 ({{ checked.size }})
         </button>
       </div>
     </div>
@@ -95,7 +119,7 @@ onMounted(() => load())
 .picker-dialog {
   background: white;
   border-radius: 12px;
-  width: 520px;
+  width: 560px;
   max-height: 70vh;
   display: flex;
   flex-direction: column;
@@ -126,9 +150,16 @@ onMounted(() => load())
 }
 .nav-btn:disabled { opacity: 0.4; cursor: default; }
 .nav-btn:hover:not(:disabled) { background: #e0e0e0; }
+.add-current { background: #e3f2fd; border-color: #90caf9; color: #1976d2; }
+.add-current:hover:not(:disabled) { background: #bbdefb; }
 .current-path {
   font-size: 12px; color: #666; overflow: hidden;
-  text-overflow: ellipsis; white-space: nowrap;
+  text-overflow: ellipsis; white-space: nowrap; flex: 1;
+}
+.picker-hint {
+  padding: 4px 20px; font-size: 11px; color: #888;
+  background: #fafafa; border-bottom: 1px solid #eee;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .picker-loading, .picker-error, .picker-empty {
   padding: 40px 20px; text-align: center; color: #888; font-size: 13px;
@@ -148,13 +179,20 @@ onMounted(() => load())
   font-size: 13px;
 }
 .picker-item:hover { background: #f5f5f5; }
-.picker-item.selected { background: #e3f2fd; }
+.picker-item.checked { background: #e3f2fd; }
+.item-checkbox { margin: 0; flex-shrink: 0; }
 .item-icon { font-size: 16px; flex-shrink: 0; }
 .item-name {
-  flex: 1;
+  font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 160px;
+}
+.item-path {
+  font-size: 11px; color: #999;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  flex: 1;
 }
 .enter-btn {
   background: none; border: 1px solid #ccc; border-radius: 3px;
@@ -164,11 +202,13 @@ onMounted(() => load())
 .enter-btn:hover { background: #e0e0e0; color: #333; }
 .picker-footer {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 8px;
   padding: 12px 20px;
   border-top: 1px solid #eee;
 }
+.footer-count { font-size: 12px; color: #888; margin-right: auto; }
 .btn {
   padding: 7px 16px;
   border: none;

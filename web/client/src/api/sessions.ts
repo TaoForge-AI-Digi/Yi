@@ -3,6 +3,7 @@ import { apiGet, apiPost, apiPut, apiDelete } from './client'
 export interface SessionSummary {
   id: string; character_id: string; title: string
   model: string | null; provider_id: string | null; workspace: string | null
+  workspaces: string | null
   parent_id: string | null; active_group: string | null
   session_type?: 'chat' | 'event'; event_id?: string | null
   current_strategy?: 'Plan' | 'Ask' | 'Bypass'
@@ -13,6 +14,7 @@ export interface SessionSummary {
 export interface SessionDetail {
   id: string; character_id: string; title: string
   model: string | null; provider_id: string | null; workspace: string | null
+  workspaces: string | null
   parent_id: string | null; active_group: string | null
   session_type?: 'chat' | 'event'; event_id?: string | null
   input_tokens: number; output_tokens: number

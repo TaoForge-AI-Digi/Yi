@@ -236,7 +236,11 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
   if (charContent.soul) systemParts.push(`## Character\n${charContent.soul}`)
   if (charContent.user) systemParts.push(`## User Info\n${charContent.user}`)
   if (charContent.memory) systemParts.push(`## Memory\n${charContent.memory}`)
-  systemParts.push(`## Workspace\nYour working directory is: ${resolveWorkspace(session.workspace)}\nAll file operations (read/write/edit/glob/bash) use this directory as root. Use paths relative to this directory, or use absolute paths within it.`)
+  const wsList = workspaces.length > 1 ? workspaces : [resolveWorkspace(session.workspace)]
+  const wsDisplay = wsList.length === 1
+    ? `Your working directory is: ${wsList[0]}`
+    : `Your working directories are:\n${wsList.map(w => `- ${w}`).join('\n')}`
+  systemParts.push(`## Workspace\n${wsDisplay}\nAll file operations (read/write/edit/glob/bash) use these directories as roots. Use paths relative to a workspace root, or use absolute paths within them.`)
 
   // Guidance blocks — only when tools are available
   if (toolDefs.length > 0) {

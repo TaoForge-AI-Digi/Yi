@@ -175,7 +175,7 @@ textarea:disabled { background: #f5f5f5; cursor: not-allowed; }
 }
 .resize-handle:hover { color: #666; }
 .actions { display: flex; gap: 4px; }
-.btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; white-space: nowrap; }
+.btn { padding: 10px 18px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; white-space: nowrap; }
 .btn.send { background: #007aff; color: white; }
 .btn.send:disabled { opacity: 0.5; cursor: default; }
 .btn.abort { background: #ff3b30; color: white; }

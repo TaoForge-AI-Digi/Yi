@@ -33,7 +33,8 @@ export interface Message {
 
 export interface Session {
   id: string; character_id: string; title: string; messages: Message[]
-  model?: string; provider_id?: string; workspace?: string; pinned?: boolean
+  model?: string; provider_id?: string; workspace?: string; workspaces?: string[]
+  pinned?: boolean
   thinking?: boolean
   reasoning_effort?: string
   current_strategy?: Strategy
@@ -127,11 +128,15 @@ export const useChatStore = defineStore('chat', () => {
     const groups = new Map<string, Session[]>()
     const parentSessions = sessions.value.filter(s => !s.parent_id)
     parentSessions.forEach(session => {
-      const workspace = session.workspace || 'default'
-      if (!groups.has(workspace)) {
-        groups.set(workspace, [])
+      const workspaces = session.workspaces && session.workspaces.length > 0
+        ? session.workspaces
+        : session.workspace ? [session.workspace] : ['default']
+      for (const ws of workspaces) {
+        if (!groups.has(ws)) groups.set(ws, [])
+        if (!groups.get(ws)!.find(s => s.id === session.id)) {
+          groups.get(ws)!.push(session)
+        }
       }
-      groups.get(workspace)!.push(session)
     })
     return Array.from(groups.entries()).map(([name, sessions]) => ({
       name,
@@ -191,6 +196,7 @@ export const useChatStore = defineStore('chat', () => {
         messages: [],
         parent_id: data.session_id,
         workspace: parent?.workspace,
+        workspaces: parent?.workspaces,
         created_at: Date.now(),
         updated_at: Date.now(),
       }
@@ -327,6 +333,7 @@ export const useChatStore = defineStore('chat', () => {
       model: s.model ?? undefined,
       provider_id: s.provider_id ?? undefined,
       workspace: s.workspace ?? undefined,
+      workspaces: s.workspaces ? JSON.parse(s.workspaces) : undefined,
       parent_id: s.parent_id ?? undefined,
       active_group: s.active_group ?? undefined,
       current_strategy: s.current_strategy,
@@ -344,6 +351,7 @@ export const useChatStore = defineStore('chat', () => {
               model: c.model ?? undefined,
               provider_id: c.provider_id ?? undefined,
               workspace: c.workspace ?? undefined,
+              workspaces: c.workspaces ? JSON.parse(c.workspaces) : undefined,
               parent_id: c.parent_id ?? undefined,
               active_group: c.active_group ?? undefined,
               context_window: c.context_window ?? undefined,
@@ -369,7 +377,7 @@ export const useChatStore = defineStore('chat', () => {
     if (id) savePersistedDefaults({ activeSessionId: id })
   })
 
-  async function createSession(opts: { character_id?: string; model?: string; provider_id?: string; workspace?: string; parent_id?: string; active_group?: string; session_type?: 'chat' | 'event'; event_id?: string | null; title?: string } = {}): Promise<Session> {
+  async function createSession(opts: { character_id?: string; model?: string; provider_id?: string; workspace?: string; workspaces?: string[]; parent_id?: string; active_group?: string; session_type?: 'chat' | 'event'; event_id?: string | null; title?: string } = {}): Promise<Session> {
     const defs = loadPersistedDefaults()
     const characterId = opts.character_id || defs.character_id || 'general'
     let current_strategy: Strategy | undefined
@@ -385,6 +393,7 @@ export const useChatStore = defineStore('chat', () => {
       title: opts.title || '',
       model: opts.model || defs.model, provider_id: opts.provider_id || defs.provider_id,
       workspace: opts.workspace || defs.workspace,
+      workspaces: opts.workspaces || (opts.workspace || defs.workspace ? [opts.workspace || defs.workspace!] : undefined),
       parent_id: opts.parent_id,
       active_group: opts.active_group,
       session_type: opts.session_type,
@@ -395,7 +404,7 @@ export const useChatStore = defineStore('chat', () => {
     }
     sessions.value.unshift(session)
     try {
-      await sessionsApi.createSession({ id: session.id, character_id: session.character_id, title: session.title, model: session.model, provider_id: session.provider_id, workspace: session.workspace, parent_id: session.parent_id, active_group: session.active_group, session_type: session.session_type, event_id: session.event_id, current_strategy })
+      await sessionsApi.createSession({ id: session.id, character_id: session.character_id, title: session.title, model: session.model, provider_id: session.provider_id, workspace: session.workspace, workspaces: session.workspaces ? JSON.stringify(session.workspaces) : null, parent_id: session.parent_id, active_group: session.active_group, session_type: session.session_type, event_id: session.event_id, current_strategy })
     } catch { /* will be created on first message if needed */ }
     return session
   }
@@ -457,6 +466,7 @@ export const useChatStore = defineStore('chat', () => {
       model: session.model || undefined,
       provider_id: session.provider_id || undefined,
       workspace: session.workspace || undefined,
+      workspaces: session.workspaces || undefined,
       active_group: session.active_group || undefined,
       session_type: session.session_type || undefined,
       event_id: session.event_id || undefined,
@@ -629,6 +639,33 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  function addWorkspace(path: string) {
+    const session = activeSession.value
+    if (!session) return
+    if (!session.workspaces) {
+      session.workspaces = [session.workspace || path]
+    }
+    if (!session.workspaces.includes(path)) {
+      session.workspaces.push(path)
+      sessionsApi.updateSession(session.id, {
+        workspace: session.workspace || path,
+        workspaces: JSON.stringify(session.workspaces),
+      }).catch(() => {})
+    }
+  }
+
+  function removeWorkspace(path: string) {
+    const session = activeSession.value
+    if (!session || !session.workspaces) return
+    session.workspaces = session.workspaces.filter(w => w !== path)
+    if (session.workspaces.length === 0) {
+      session.workspaces = undefined
+    }
+    sessionsApi.updateSession(session.id, {
+      workspaces: session.workspaces ? JSON.stringify(session.workspaces) : null,
+    }).catch(() => {})
+  }
+
   async function batchDeleteSessions() {
     const ids = Array.from(selectedSessionIds.value)
     const allIds = new Set<string>()
@@ -662,6 +699,7 @@ export const useChatStore = defineStore('chat', () => {
     loadSessions, createSession, switchSession, sendMessage, setStrategy, respondApproval, abortRun,
     renameSession, deleteSingleSession, resetToMessage,
     toggleSessionStar, getChildSessions,
+    addWorkspace, removeWorkspace,
     toggleWorkspaceCollapse, toggleBatchMode, toggleSessionSelection, selectAllSessions, batchDeleteSessions,
   }
 })

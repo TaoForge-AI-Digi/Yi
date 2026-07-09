@@ -14,13 +14,37 @@ const session = computed(() => chatStore.activeSession)
 const fileInput = ref<HTMLInputElement>()
 const showWorkspacePicker = ref(false)
 
-function onWorkspaceChange(e: Event) {
+const workspaceList = computed(() => {
   const s = session.value
-  if (s) s.workspace = (e.target as HTMLSelectElement).value
+  if (!s) return []
+  return s.workspaces && s.workspaces.length > 0
+    ? s.workspaces
+    : s.workspace ? [s.workspace] : []
+})
+
+function shortenPath(p: string, maxLen = 30): string {
+  if (p.length <= maxLen) return p
+  const parts = p.split(/[/\\]/)
+  const last = parts.pop() || ''
+  const prefix = '.../'
+  let result = last
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const candidate = parts[i] + '/' + result
+    if (prefix.length + candidate.length > maxLen) break
+    result = candidate
+  }
+  return prefix + result
 }
-function onWorkspacePick(path: string) {
+
+function onWorkspacePicked(paths: string[]) {
   const s = session.value
-  if (s) s.workspace = path
+  if (!s) return
+  for (const p of paths) {
+    chatStore.addWorkspace(p)
+  }
+  if (!s.workspace && paths.length > 0) {
+    s.workspace = paths[0]
+  }
   showWorkspacePicker.value = false
 }
 function toggleThinking() {
@@ -56,22 +80,59 @@ function onFilePicked(e: Event) {
 
 <template>
   <div v-if="session" class="input-toolbar">
-    <div class="toolbar-left">
-      <CharacterSelector />
-      <ModelSelector />
-      <StrategyToggle />
-      <label class="toolbar-item workspace">
-        <span class="label">{{ t('chat.workspace') }}</span>
-        <input type="text" :value="session.workspace || ''" @change="onWorkspaceChange" :placeholder="`/${t('chat.workspace').toLowerCase()}/project`" />
-        <button class="browse-btn" @click="showWorkspacePicker = true" title="浏览...">📁</button>
-      </label>
-      <WorkspacePicker v-if="showWorkspacePicker" @select="onWorkspacePick" @close="showWorkspacePicker = false" />
-      <button class="attach-btn" @click="triggerFilePicker" title="Attach files">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-        </svg>
+    <div class="toolbar-row top-row">
+      <div class="config-group">
+        <CharacterSelector />
+        <span class="sep" />
+        <ModelSelector />
+      </div>
+      <div class="config-group">
+        <StrategyToggle />
+      </div>
+
+      <span class="spacer" />
+
+      <div class="action-group">
+        <label v-if="session.thinking" class="effort-select">
+          <span class="effort-label">{{ t('chat.reasoningEffort') }}</span>
+          <select :value="session.reasoning_effort || ''" @change="onReasoningEffortChange">
+            <option value="">{{ t('chat.default') }}</option>
+            <option value="low">低</option>
+            <option value="medium">中</option>
+            <option value="high">高</option>
+            <option value="max">最高</option>
+          </select>
+        </label>
+        <button class="icon-btn thinking-btn" :class="{ active: session.thinking }" @click="toggleThinking" title="思考模式">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 0-7 7c0 2.4 1.2 4.5 3 5.7V18a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3.3c1.8-1.2 3-3.3 3-5.7a7 7 0 0 0-7-7z"/><path d="M9 22h6"/></svg>
+          {{ t('chat.thinking') }}
+        </button>
+        <button class="icon-btn tool-toggle-btn" @click="chatStore.toggleAllTools()" :title="chatStore.toolExpandAll ? '折叠全部工具' : '展开全部工具'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          {{ chatStore.toolExpandAll ? '折叠' : '展开' }}
+        </button>
+      </div>
+    </div>
+
+    <div class="toolbar-row bottom-row">
+      <div class="workspace-group">
+        <span class="group-label">工作区</span>
+        <div class="ws-chips">
+          <span v-for="ws in workspaceList" :key="ws" class="ws-chip" :title="ws">
+            <span class="ws-chip-name">{{ shortenPath(ws) }}</span>
+            <span class="ws-chip-remove" @click="chatStore.removeWorkspace(ws)">&times;</span>
+          </span>
+          <button class="ws-add-btn" @click="showWorkspacePicker = true" title="添加工作区">+</button>
+          <WorkspacePicker v-if="showWorkspacePicker" :selected="workspaceList" @select="onWorkspacePicked" @close="showWorkspacePicker = false" />
+        </div>
+      </div>
+
+      <button class="icon-btn attach-btn" @click="triggerFilePicker" title="附加文件">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+        附加
       </button>
       <input ref="fileInput" type="file" multiple hidden @change="onFilePicked" />
+
       <div v-if="chatStore.attachments.length > 0" class="attach-chips">
         <span v-for="(a, i) in chatStore.attachments" :key="i" class="attach-chip">
           <img v-if="a.type === 'image'" :src="a.content" class="attach-chip-thumb" />
@@ -80,163 +141,201 @@ function onFilePicked(e: Event) {
         </span>
       </div>
     </div>
-    <div class="toolbar-right">
-      <button class="thinking-toggle" :class="{ active: session.thinking }" @click="toggleThinking">
-        🧠 {{ t('chat.thinking') }}
-      </button>
-      <button class="tool-toggle-btn" @click="chatStore.toggleAllTools()" :title="chatStore.toolExpandAll ? '折叠全部工具' : '展开全部工具'">
-        {{ chatStore.toolExpandAll ? '⊟ 折叠全部' : '⊞ 展开全部' }}
-      </button>
-      <label v-if="session.thinking" class="toolbar-item">
-        <span class="label">{{ t('chat.reasoningEffort') }}</span>
-        <select :value="session.reasoning_effort || ''" @change="onReasoningEffortChange">
-          <option value="">{{ t('chat.default') }}</option>
-          <option value="low">低</option>
-          <option value="medium">中</option>
-          <option value="high">高</option>
-          <option value="max">最高</option>
-        </select>
-      </label>
-    </div>
   </div>
 </template>
 
 <style scoped>
 .input-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 12px;
   border-bottom: 1px solid #e0e0e0;
   background: #fafafa;
+  padding: 4px 12px;
+}
+.toolbar-row {
+  display: flex;
+  align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  min-height: 28px;
 }
-.toolbar-left {
+.top-row {
+  border-bottom: 1px solid #eee;
+  padding-bottom: 4px;
+  margin-bottom: 4px;
+}
+.config-group {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 6px;
 }
-.toolbar-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #666;
-}
-.toolbar-item .label {
-  white-space: nowrap;
-}
-.toolbar-item select,
-.toolbar-item input {
-  font-size: 12px;
-  padding: 3px 6px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  background: white;
-  max-width: 140px;
-}
-.toolbar-item.workspace input {
-  min-width: 120px;
-}
-.browse-btn {
-  background: none; border: 1px solid #ccc; border-radius: 4px;
-  padding: 2px 5px; cursor: pointer; font-size: 12px; line-height: 1;
+.sep {
+  width: 1px;
+  height: 16px;
+  background: #ddd;
   flex-shrink: 0;
 }
-.browse-btn:hover { border-color: #1976d2; }
-.toolbar-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.thinking-toggle {
+.spacer { flex: 1; }
+.action-group {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+}
+
+/* Icon buttons */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border: 1px solid #d0d0d0;
+  border-radius: 5px;
   background: white;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;
   color: #666;
   white-space: nowrap;
+  transition: all 0.15s;
 }
-.thinking-toggle.active {
+.icon-btn:hover {
+  border-color: #1976d2;
+  color: #1976d2;
+  background: #f5f9ff;
+}
+.icon-btn.active {
   background: #e8f4ff;
   border-color: #007aff;
   color: #007aff;
 }
-.tool-toggle-btn {
+
+/* Effort select */
+.effort-select {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 10px;
-  border: 1px solid #ccc;
+  font-size: 11px;
+  color: #888;
+}
+.effort-label { white-space: nowrap; }
+.effort-select select {
+  font-size: 11px;
+  padding: 2px 4px;
+  border: 1px solid #d0d0d0;
   border-radius: 4px;
   background: white;
-  cursor: pointer;
-  font-size: 12px;
-  color: #666;
-  white-space: nowrap;
-}
-.tool-toggle-btn:hover {
-  border-color: #1976d2;
-  color: #1976d2;
+  color: #555;
 }
 
-.attach-btn {
+/* Workspace group */
+.workspace-group {
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 4px 6px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  background: white;
-  cursor: pointer;
-  color: #888;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+.group-label {
+  font-size: 11px;
+  color: #999;
+  white-space: nowrap;
   flex-shrink: 0;
 }
-.attach-btn:hover { color: #1976d2; border-color: #1976d2; }
+.ws-chips {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  overflow-x: auto;
+  min-width: 0;
+}
+.ws-chips::-webkit-scrollbar { height: 2px; }
+.ws-chips::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
+.ws-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 5px 1px 6px;
+  font-size: 11px;
+  background: #eef2ff;
+  color: #4f46e5;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: default;
+  border: 1px solid #e0e7ff;
+}
+.ws-chip-name {
+  white-space: nowrap;
+}
+.ws-chip-remove {
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  color: #a5b4fc;
+  flex-shrink: 0;
+  margin-left: 1px;
+}
+.ws-chip-remove:hover { color: #ef4444; }
+.ws-add-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px dashed #d0d0d0;
+  border-radius: 4px;
+  padding: 1px 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #aaa;
+  flex-shrink: 0;
+  line-height: 1.3;
+}
+.ws-add-btn:hover {
+  border-color: #4f46e5;
+  color: #4f46e5;
+}
 
+/* Attach button & chips */
+.attach-btn {
+  flex-shrink: 0;
+}
 .attach-chips {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+  flex-wrap: nowrap;
+  gap: 3px;
   align-items: center;
+  overflow-x: auto;
+  min-width: 0;
 }
 .attach-chip {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  padding: 1px 6px 1px 3px;
+  gap: 2px;
+  padding: 1px 5px 1px 3px;
   font-size: 11px;
-  background: #e3f2fd;
-  color: #1976d2;
-  border-radius: 10px;
+  background: #f0fdf4;
+  color: #16a34a;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  border: 1px solid #dcfce7;
 }
 .attach-chip-thumb {
-  width: 20px;
-  height: 20px;
-  border-radius: 4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
   object-fit: cover;
   flex-shrink: 0;
 }
 .attach-chip-name {
-  max-width: 120px;
+  max-width: 100px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .attach-chip-remove {
   cursor: pointer;
-  font-size: 16px;
+  font-size: 13px;
   line-height: 1;
-  color: #888;
+  color: #86efac;
   flex-shrink: 0;
-  margin-left: 2px;
+  margin-left: 1px;
 }
-.attach-chip-remove:hover { color: #d32f2f; }
+.attach-chip-remove:hover { color: #dc2626; }
 </style>
