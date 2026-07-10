@@ -13,12 +13,19 @@ export interface ToolCall {
   function: { name: string; arguments: string }
 }
 
+export interface LLMUsage {
+  input_tokens: number
+  output_tokens: number
+  cache_hit_tokens?: number
+  cache_miss_tokens?: number
+}
+
 export interface LLMChunk {
   type: 'delta' | 'done' | 'error'
   text?: string
   reasoning?: string
   finish_reason?: string
-  usage?: { input_tokens: number; output_tokens: number }
+  usage?: LLMUsage
   tool_calls?: ToolCall[]
 }
 
@@ -114,14 +121,24 @@ export async function* streamChatCompletion(opts: LLMOptions): AsyncGenerator<LL
             }))}
           }
           if (finish) {
-            yield {
-              type: 'done',
-              finish_reason: finish,
-              usage: parsed.usage ? {
-                input_tokens: parsed.usage.prompt_tokens || parsed.usage.input_tokens || 0,
-                output_tokens: parsed.usage.completion_tokens || parsed.usage.output_tokens || 0,
-              } : undefined,
+            const u = parsed.usage
+            let usage: LLMUsage | undefined
+            if (u) {
+              usage = {
+                input_tokens: u.prompt_tokens || u.input_tokens || 0,
+                output_tokens: u.completion_tokens || u.output_tokens || 0,
+              }
+              if (typeof u.prompt_cache_hit_tokens === 'number') {
+                usage.cache_hit_tokens = u.prompt_cache_hit_tokens
+              }
+              if (typeof u.prompt_cache_miss_tokens === 'number') {
+                usage.cache_miss_tokens = u.prompt_cache_miss_tokens
+              }
+              if (u.prompt_tokens_details?.cached_tokens != null) {
+                usage.cache_hit_tokens = u.prompt_tokens_details.cached_tokens
+              }
             }
+            yield { type: 'done', finish_reason: finish, usage }
             return
           }
         } catch { /* skip malformed SSE lines */ }

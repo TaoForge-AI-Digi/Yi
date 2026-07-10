@@ -1,0 +1,13 @@
+PID: 8148
+CWD: C:\Users\dmql\Documents\Yi\Yi-Lin
+Node: v24.18.0
+Platform: win32
+Arch: x64
+ComSpec: C:\WINDOWS\system32\cmd.exe
+
+  ✅ ComSpec (C:\WINDOWS\system32\cmd.exe): ok
+  ✅ cmd.exe (PATH) (cmd.exe): ok
+  ✅ System32\cmd.exe (C:\Windows\System32\cmd.exe): ok
+  ❌ Sysnative\cmd.exe (C:\Windows\Sysnative\cmd.exe): spawn C:\Windows\Sysnative\cmd.exe ENOENT
+  ✅ powershell.exe (PATH) (powershell.exe): ok
+  ✅ PowerShell absolute (C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe): ok

@@ -135,7 +135,9 @@
   },
   "session": {
     "title": "会话设置",
-    "desc": "配置聊天会话的消息显示和行为。"
+    "desc": "配置聊天会话的消息显示和行为。",
+    "defaultWorkspace": "默认路径",
+    "defaultWorkspaceHint": "新建会话时使用的默认工作目录"
   },
   "event": {
     "title": "事件设置",

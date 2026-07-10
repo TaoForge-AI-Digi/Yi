@@ -4,13 +4,18 @@ import { connectSocket, getSocket, type RunEvent, type Strategy } from '@/api/so
 import * as sessionsApi from '@/api/sessions'
 
 const PERSIST_KEY = 'yi-lin-chat-defaults'
+const DEFAULT_DEFAULT_WORKSPACE = 'C:\\.Yi'
 
 function loadPersistedDefaults() {
   try {
     const raw = localStorage.getItem(PERSIST_KEY)
-    if (!raw) return {}
-    return JSON.parse(raw) as Record<string, string>
-  } catch { return {} }
+    if (!raw) return { defaultWorkspace: DEFAULT_DEFAULT_WORKSPACE }
+    const parsed = JSON.parse(raw) as Record<string, string>
+    if (!parsed.defaultWorkspace) {
+      parsed.defaultWorkspace = DEFAULT_DEFAULT_WORKSPACE
+    }
+    return parsed
+  } catch { return { defaultWorkspace: DEFAULT_DEFAULT_WORKSPACE } }
 }
 
 function savePersistedDefaults(data: Record<string, string | undefined>) {
@@ -392,8 +397,8 @@ export const useChatStore = defineStore('chat', () => {
       id: uid(), character_id: characterId,
       title: opts.title || '',
       model: opts.model || defs.model, provider_id: opts.provider_id || defs.provider_id,
-      workspace: opts.workspace || defs.workspace,
-      workspaces: opts.workspaces || (opts.workspace || defs.workspace ? [opts.workspace || defs.workspace!] : undefined),
+      workspace: opts.workspace || defs.defaultWorkspace,
+      workspaces: opts.workspaces || (opts.workspace || defs.defaultWorkspace ? [opts.workspace || defs.defaultWorkspace!] : undefined),
       parent_id: opts.parent_id,
       active_group: opts.active_group,
       session_type: opts.session_type,

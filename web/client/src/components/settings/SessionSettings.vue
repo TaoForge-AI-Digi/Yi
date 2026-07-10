@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SettingRow from './SettingRow.vue'
 
@@ -9,12 +9,42 @@ const streaming = ref(true)
 const compact = ref(false)
 const showReasoning = ref(true)
 const showCost = ref(false)
+
+const DEFAULT_DEFAULT_WORKSPACE = 'C:\\.Yi'
+const PERSIST_KEY = 'yi-lin-chat-defaults'
+
+const defaultWorkspace = ref(DEFAULT_DEFAULT_WORKSPACE)
+
+onMounted(() => {
+  try {
+    const raw = localStorage.getItem(PERSIST_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (parsed.defaultWorkspace) defaultWorkspace.value = parsed.defaultWorkspace
+    }
+  } catch { /* ignore */ }
+})
+
+function saveDefaultWorkspace() {
+  try {
+    const raw = localStorage.getItem(PERSIST_KEY)
+    const existing = raw ? JSON.parse(raw) : {}
+    existing.defaultWorkspace = defaultWorkspace.value || DEFAULT_DEFAULT_WORKSPACE
+    localStorage.setItem(PERSIST_KEY, JSON.stringify(existing))
+  } catch { /* ignore */ }
+}
 </script>
 
 <template>
   <section class="settings-section">
     <h3 class="section-title">{{ t('session.title') }}</h3>
     <p class="section-desc">{{ t('session.desc') }}</p>
+
+    <SettingRow :label="t('session.defaultWorkspace')" :hint="t('session.defaultWorkspaceHint')">
+      <div class="path-input-wrap">
+        <input v-model="defaultWorkspace" type="text" class="path-input" @change="saveDefaultWorkspace" />
+      </div>
+    </SettingRow>
 
     <SettingRow :label="t('display.streaming')" :hint="t('display.streamingHint')">
       <label class="switch">
@@ -112,5 +142,19 @@ const showCost = ref(false)
   border-radius: 6px;
   font-size: 13px;
   text-align: center;
+}
+
+.path-input-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.path-input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 13px;
+  box-sizing: border-box;
 }
 </style>

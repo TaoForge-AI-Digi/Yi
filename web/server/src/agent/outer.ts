@@ -1,6 +1,6 @@
 import { sessionStore } from '../db/sessionStore.js'
 import { messageStore } from '../db/messageStore.js'
-import { characterMetaStore } from '../db/characterStore.js'
+import { characterMetaStore, type CharacterRecord } from '../db/characterStore.js'
 import { providerStore } from '../db/providerStore.js'
 import { characterContentStore } from '../character/store.js'
 import { innerLoop, detectDoomLoop, truncateToolOutput, type ToolCallRecord } from './inner.js'
@@ -8,6 +8,7 @@ import { detectInsight } from '../evolution/index.js'
 import { spawnAndRunSubAgent, summarizeAndMerge } from './sub-agent.js'
 import { buildSkillIndex } from './skill-loader.js'
 import { getCharacterToolDefinitions } from '../tools/definitions.js'
+import { stableKey, getCached, setCached, normalizeTools } from './system-cache.js'
 import { connectMCPServer, disconnectMCPServer } from '../tools/mcp-client.js'
 import { mcpServerStore } from '../db/toolStore.js'
 import { setMCPStatus } from '../tools/mcp-status.js'
@@ -24,7 +25,7 @@ import type { MCPClient } from '../tools/mcp-client.js'
 const MAX_TURNS = 20
 const DEFAULT_CONTEXT_WINDOW = 200000
 
-const DEFAULT_WORKSPACE = path.resolve(process.cwd(), '..', 'default-workspace')
+const DEFAULT_WORKSPACE = 'C:\\.Yi'
 if (!fs.existsSync(DEFAULT_WORKSPACE)) {
   try { fs.mkdirSync(DEFAULT_WORKSPACE, { recursive: true }) } catch {}
 }
@@ -40,6 +41,49 @@ function resolveWorkspaces(session: { workspace?: string | null; workspaces?: st
 }
 const COMPACT_THRESHOLD = 0.75
 const KEEP_TURNS = 3
+
+function assembleStaticPrompt(
+  charMeta: CharacterRecord,
+  charContent: { soul: string; user: string },
+  toolDefs: any[],
+  workspace: string,
+): string {
+  const parts: string[] = []
+
+  if (charContent.soul) parts.push(`## Character\n${charContent.soul}`)
+  if (charContent.user) parts.push(`## User Info\n${charContent.user}`)
+
+  // Guidance blocks — only when tools are available
+  if (toolDefs.length > 0) {
+    parts.push(TOOL_USE_GUIDANCE)
+  }
+
+  // List available tools — sorted for deterministic ordering (Reasonix #6)
+  if (toolDefs.length > 0) {
+    const sorted = normalizeTools(toolDefs)
+    const toolListings = sorted.map((t: any) =>
+      `- ${t.function.name}: ${t.function.description}`
+    )
+    parts.push(`## Available Tools\n${toolListings.join('\n')}`)
+  }
+
+  // Skills: index only (names + descriptions, no bodies — Reasonix #3)
+  // buildSkillIndex is called here and will be cached via the system prompt key
+  const skillIndex = buildSkillIndex(charMeta)
+  if (skillIndex.length > 0) {
+    const skillList = skillIndex.map(s => s.listing).join('\n')
+    parts.push(`## Available Skills\n${skillList}\nUse \`skill_manager\` with action="read" to view a skill's full SKILL.md content.`)
+    const hints = skillIndex.filter(s => s.attachments.length > 0)
+      .map(s => `  ${s.name}: ${s.attachments.join(', ')}`)
+    if (hints.length) {
+      parts.push(`## Skill Attachments\n${hints.join('\n')}`)
+    }
+  }
+
+  parts.push(`## Workspace\nYour working directory is: ${workspace}\nAll file operations use this directory as root.`)
+
+  return parts.join('\n\n')
+}
 
 // ── Guidance blocks (ported from opencode) ──
 
@@ -149,25 +193,27 @@ export interface RunResult {
   sessionId: string
   totalInputTokens: number
   totalOutputTokens: number
+  totalCacheHitTokens: number
+  totalCacheMissTokens: number
 }
 
 export async function sessionLoop(io: Server, socket: Socket, sessionId: string, signal?: AbortSignal, opts: { thinking?: boolean; reasoning_effort?: string } = {}): Promise<RunResult> {
   const session = sessionStore.getById(sessionId)
-  if (!session) { socket.emit('run.failed', { session_id: sessionId, error: 'Session not found' }); return { status: 'stop', sessionId, totalInputTokens: 0, totalOutputTokens: 0 } }
+  if (!session) { socket.emit('run.failed', { session_id: sessionId, error: 'Session not found' }); return { status: 'stop', sessionId, totalInputTokens: 0, totalOutputTokens: 0, totalCacheHitTokens: 0, totalCacheMissTokens: 0 } }
 
   const charMeta = characterMetaStore.getById(session.character_id)
-  if (!charMeta) { socket.emit('run.failed', { session_id: sessionId, error: 'Character not found' }); return { status: 'stop', sessionId, totalInputTokens: 0, totalOutputTokens: 0 } }
+  if (!charMeta) { socket.emit('run.failed', { session_id: sessionId, error: 'Character not found' }); return { status: 'stop', sessionId, totalInputTokens: 0, totalOutputTokens: 0, totalCacheHitTokens: 0, totalCacheMissTokens: 0 } }
 
   const charContent = characterContentStore.get(session.character_id)
 
   const providerId = session.provider_id
-  if (!providerId) { socket.emit('run.failed', { session_id: sessionId, error: 'No provider configured' }); return { status: 'stop', sessionId, totalInputTokens: 0, totalOutputTokens: 0 } }
+  if (!providerId) { socket.emit('run.failed', { session_id: sessionId, error: 'No provider configured' }); return { status: 'stop', sessionId, totalInputTokens: 0, totalOutputTokens: 0, totalCacheHitTokens: 0, totalCacheMissTokens: 0 } }
 
   const provider = providerStore.getById(providerId)
-  if (!provider) { socket.emit('run.failed', { session_id: sessionId, error: 'Provider not found' }); return { status: 'stop', sessionId, totalInputTokens: 0, totalOutputTokens: 0 } }
+  if (!provider) { socket.emit('run.failed', { session_id: sessionId, error: 'Provider not found' }); return { status: 'stop', sessionId, totalInputTokens: 0, totalOutputTokens: 0, totalCacheHitTokens: 0, totalCacheMissTokens: 0 } }
 
   const model = session.model || provider.models[0]?.id
-  if (!model) { socket.emit('run.failed', { session_id: sessionId, error: 'No model configured' }); return { status: 'stop', sessionId, totalInputTokens: 0, totalOutputTokens: 0 } }
+  if (!model) { socket.emit('run.failed', { session_id: sessionId, error: 'No model configured' }); return { status: 'stop', sessionId, totalInputTokens: 0, totalOutputTokens: 0, totalCacheHitTokens: 0, totalCacheMissTokens: 0 } }
 
   const modelConfig = provider.models.find(m => m.id === model)
   const contextWindow = modelConfig?.context_window || DEFAULT_CONTEXT_WINDOW
@@ -232,67 +278,27 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
 
   const tools = toolDefs.length > 0 ? toolDefs : undefined
 
-  const systemParts: string[] = []
-  if (charContent.soul) systemParts.push(`## Character\n${charContent.soul}`)
-  if (charContent.user) systemParts.push(`## User Info\n${charContent.user}`)
-  if (charContent.memory) systemParts.push(`## Memory\n${charContent.memory}`)
-  const wsList = workspaces.length > 1 ? workspaces : [resolveWorkspace(session.workspace)]
-  const wsDisplay = wsList.length === 1
-    ? `Your working directory is: ${wsList[0]}`
-    : `Your working directories are:\n${wsList.map(w => `- ${w}`).join('\n')}`
-  systemParts.push(`## Workspace\n${wsDisplay}\nAll file operations (read/write/edit/glob/bash) use these directories as roots. Use paths relative to a workspace root, or use absolute paths within them.`)
-
-  // Guidance blocks — only when tools are available
-  if (toolDefs.length > 0) {
-    systemParts.push(TOOL_USE_GUIDANCE)
+  // Build system prompt — cached by fingerprint
+  const key = stableKey(
+    charMeta.id,
+    normalizeTools(toolDefs),
+    charMeta.skills,
+    charContent.soul,
+    charContent.user,
+  )
+  let systemPrompt = getCached(key)
+  if (!systemPrompt) {
+    systemPrompt = assembleStaticPrompt(charMeta, charContent, toolDefs, resolveWorkspace(session.workspace))
+    setCached(key, systemPrompt)
   }
 
-  // List available tools — only whitelisted ones, same pattern as skills
-  if (tools) {
-    const allChars = characterMetaStore.getAll()
-    const activeGroup = session.active_group
-    const delegateTargets = allChars.filter(c => {
-      if (c.role !== 'sub' && c.role !== 'both') return false
-      if (c.id === session.character_id) return true
-      if (!activeGroup) return false
-      if (!c.groups || c.groups.length === 0) return false
-      return c.groups.includes(activeGroup)
-    })
-    const toolListings = tools.map(t => {
-      let desc = t.function.description
-      if (t.function.name === 'delegate_task' && delegateTargets.length > 0) {
-        desc += ` | targets: ${delegateTargets.map(c => `${c.id}(${c.name})`).join(', ')}`
-      }
-      return `- ${t.function.name}: ${desc}`
-    })
-    systemParts.push(`## Available Tools\n${toolListings.join('\n')}`)
+  // Memory is always a separate system message (msg[1]) so it never invalidates the prefix cache
+  const messages: LLMMessage[] = [{ role: 'system', content: systemPrompt }]
+  if (charContent.memory) {
+    messages.push({ role: 'system', content: `## Memory\n${charContent.memory}` })
   }
-
-  // Unavailable MCP servers — configured but failed to connect
-  if (mcpFailedServers.length > 0) {
-    const notes = mcpFailedServers.map(name =>
-      `- mcp:${name}: configured but could not connect. This MCP server is NOT available in this session.`
-    )
-    systemParts.push(`## Unavailable Tools\n${notes.join('\n')}`)
-  }
-
-  // Skills: index in system prompt only (no pre-injection of full content)
-  const skillIndex = buildSkillIndex(charMeta)
-  if (skillIndex.length > 0) {
-    const skillList = skillIndex.map(s => s.listing).join('\n')
-    systemParts.push(`## Available Skills\n${skillList}\nUse \`skill_manager\` with action="read" to view a skill's full SKILL.md content.`)    
-    const hints = skillIndex.filter(s => s.attachments.length > 0)
-      .map(s => `  ${s.name}: ${s.attachments.join(', ')}`)
-    if (hints.length) {
-      systemParts.push(`## Skill Attachments\n${hints.join('\n')}`)
-    }
-  }
-
-  const systemPrompt = systemParts.join('\n\n')
 
   const rows = messageStore.getMessages(sessionId)
-  const messages: LLMMessage[] = []
-  if (systemPrompt) messages.push({ role: 'system', content: systemPrompt })
   for (const row of rows) {
     let m = rowToLLMMessage(row)
     if (m && m.role === 'user' && m.content && /@(file|folder|url):/.test(m.content)) {
@@ -308,6 +314,8 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
   let turn = 0
   let totalInputTokens = 0
   let totalOutputTokens = 0
+  let totalCacheHitTokens = 0
+  let totalCacheMissTokens = 0
   let consecutiveErrors = 0
   const toolCallHistory: ToolCallRecord[] = []
   let insightDispatched = false
@@ -334,6 +342,8 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
 
     totalInputTokens += result.totalInputTokens
     totalOutputTokens += result.totalOutputTokens
+    if (result.totalCacheHitTokens) totalCacheHitTokens += result.totalCacheHitTokens
+    if (result.totalCacheMissTokens) totalCacheMissTokens += result.totalCacheMissTokens
 
     if (result.type === 'error') {
       const errMsg = result.error?.toLowerCase() || ''
@@ -344,7 +354,7 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
         for (const [, client] of mcpClients) {
           await disconnectMCPServer(client).catch(() => {})
         }
-        return { status: 'stop', sessionId, totalInputTokens, totalOutputTokens }
+        return { status: 'stop', sessionId, totalInputTokens, totalOutputTokens, totalCacheHitTokens, totalCacheMissTokens }
       }
 
       consecutiveErrors++
@@ -354,7 +364,7 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
         for (const [, client] of mcpClients) {
           await disconnectMCPServer(client).catch(() => {})
         }
-        return { status: 'stop', sessionId, totalInputTokens, totalOutputTokens }
+        return { status: 'stop', sessionId, totalInputTokens, totalOutputTokens, totalCacheHitTokens, totalCacheMissTokens }
       }
       // First non-context error — report and let the model try again
       const guidance = `[System: An API error occurred (${result.error}). This may be transient. Please retry your last action with a simpler approach or different strategy.]`
@@ -450,7 +460,7 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
       for (const [, client] of mcpClients) {
         await disconnectMCPServer(client).catch(() => {})
       }
-      return { status: 'task_complete', sessionId, totalInputTokens, totalOutputTokens }
+      return { status: 'task_complete', sessionId, totalInputTokens, totalOutputTokens, totalCacheHitTokens, totalCacheMissTokens }
     }
 
     if (result.toolCallRecords?.length && detectDoomLoop(toolCallHistory)) {
@@ -538,7 +548,7 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
     await disconnectMCPServer(client).catch(() => {})
   }
 
-  return { status: completedStatus, sessionId, totalInputTokens, totalOutputTokens }
+  return { status: completedStatus, sessionId, totalInputTokens, totalOutputTokens, totalCacheHitTokens, totalCacheMissTokens }
 }
 
 

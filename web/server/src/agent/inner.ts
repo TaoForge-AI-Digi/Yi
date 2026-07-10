@@ -109,6 +109,8 @@ export interface InnerResult {
   toolCalls: ToolCall[]
   totalInputTokens: number
   totalOutputTokens: number
+  totalCacheHitTokens?: number
+  totalCacheMissTokens?: number
   error?: string
   toolCallRecords?: ToolCallRecord[]
   subAgentRequest?: SubAgentRequestData
@@ -123,11 +125,11 @@ async function streamWithRetry(
   signal?: AbortSignal,
   opts: { thinking?: boolean; reasoning_effort?: string } = {},
   onDelta?: (chunk: any) => void,
-): Promise<{ text: string; reasoning: string; toolCalls: ToolCall[]; usage: { input: number; output: number } | null }> {
+): Promise<{ text: string; reasoning: string; toolCalls: ToolCall[]; usage: { input: number; output: number; cacheHit?: number; cacheMiss?: number } | null }> {
   let fullText = ''
   let reasoningText = ''
   let toolCallsAcc: ToolCall[] = []
-  let usage: { input: number; output: number } | null = null
+  let usage: { input: number; output: number; cacheHit?: number; cacheMiss?: number } | null = null
 
   for (let attempt = 0; attempt < 3; attempt++) {
     if (signal?.aborted) break
@@ -174,6 +176,8 @@ async function streamWithRetry(
         usage = {
           input: chunk.usage.input_tokens,
           output: chunk.usage.output_tokens,
+          cacheHit: chunk.usage.cache_hit_tokens,
+          cacheMiss: chunk.usage.cache_miss_tokens,
         }
       }
     }
@@ -210,6 +214,8 @@ export async function innerLoop(
 ): Promise<InnerResult> {
   let totalInputTokens = 0
   let totalOutputTokens = 0
+  let totalCacheHitTokens = 0
+  let totalCacheMissTokens = 0
 
   let result
   try {
@@ -228,17 +234,19 @@ export async function innerLoop(
     const errorText = err.message || 'LLM error'
     logLLMCall(sessionId, turn, { model, messages: messages.map(m => ({ role: m.role, content: m.content, tool_calls: m.tool_calls, tool_call_id: m.tool_call_id })), tools }, { text: '', reasoning: '', toolCalls: [], usage: null }, errorText)
     socket?.emit('run.failed', { session_id: sessionId, error: errorText })
-    return { type: 'error', messages: [], fullText: '', reasoningText: '', toolCalls: [], totalInputTokens, totalOutputTokens, error: errorText }
+    return { type: 'error', messages: [], fullText: '', reasoningText: '', toolCalls: [], totalInputTokens, totalOutputTokens, totalCacheHitTokens, totalCacheMissTokens, error: errorText }
   }
 
   if (signal?.aborted) {
     logLLMCall(sessionId, turn, { model, messages: messages.map(m => ({ role: m.role, content: m.content, tool_calls: m.tool_calls, tool_call_id: m.tool_call_id })), tools }, { text: result.text, reasoning: result.reasoning, toolCalls: result.toolCalls, usage: result.usage }, 'aborted')
-    return { type: 'aborted', messages: [], fullText: result.text, reasoningText: result.reasoning, toolCalls: [], totalInputTokens, totalOutputTokens }
+    return { type: 'aborted', messages: [], fullText: result.text, reasoningText: result.reasoning, toolCalls: [], totalInputTokens, totalOutputTokens, totalCacheHitTokens, totalCacheMissTokens }
   }
 
   if (result.usage) {
     totalInputTokens += result.usage.input
     totalOutputTokens += result.usage.output
+    if (result.usage.cacheHit) totalCacheHitTokens += result.usage.cacheHit
+    if (result.usage.cacheMiss) totalCacheMissTokens += result.usage.cacheMiss
   }
 
   logLLMCall(sessionId, turn, { model, messages: messages.map(m => ({ role: m.role, content: m.content, tool_calls: m.tool_calls, tool_call_id: m.tool_call_id })), tools }, { text: result.text, reasoning: result.reasoning, toolCalls: result.toolCalls, usage: result.usage })
@@ -261,7 +269,7 @@ export async function innerLoop(
   }
 
   if (toolCallsAcc.length === 0) {
-    return { type: 'final_answer', messages: newMessages, fullText, reasoningText, toolCalls: [], totalInputTokens, totalOutputTokens }
+    return { type: 'final_answer', messages: newMessages, fullText, reasoningText, toolCalls: [], totalInputTokens, totalOutputTokens, totalCacheHitTokens, totalCacheMissTokens }
   }
 
   const delegateCall = toolCallsAcc.find(tc => tc.function.name === 'delegate_task')
@@ -276,7 +284,7 @@ export async function innerLoop(
     return {
       type: 'sub_agent_request',
       messages: newMessages, fullText, reasoningText,
-      toolCalls: toolCallsAcc, totalInputTokens, totalOutputTokens,
+      toolCalls: toolCallsAcc, totalInputTokens, totalOutputTokens, totalCacheHitTokens, totalCacheMissTokens,
       subAgentRequest: {
         task: args.task || '',
         target_character_id: args.target_character_id || '',
@@ -299,7 +307,7 @@ export async function innerLoop(
     return {
       type: 'task_complete',
       messages: newMessages, fullText, reasoningText,
-      toolCalls: toolCallsAcc, totalInputTokens, totalOutputTokens,
+      toolCalls: toolCallsAcc, totalInputTokens, totalOutputTokens, totalCacheHitTokens, totalCacheMissTokens,
       toolCallRecords: [],
       taskCompleteSummary: summary,
     }
@@ -450,8 +458,8 @@ export async function innerLoop(
   }
 
   if (signal?.aborted) {
-    return { type: 'aborted', messages: newMessages, fullText, reasoningText, toolCalls: toolCallsAcc, totalInputTokens, totalOutputTokens }
+    return { type: 'aborted', messages: newMessages, fullText, reasoningText, toolCalls: toolCallsAcc, totalInputTokens, totalOutputTokens, totalCacheHitTokens, totalCacheMissTokens }
   }
 
-  return { type: 'tool_calls_executed', messages: newMessages, fullText, reasoningText, toolCalls: toolCallsAcc, totalInputTokens, totalOutputTokens, toolCallRecords }
+  return { type: 'tool_calls_executed', messages: newMessages, fullText, reasoningText, toolCalls: toolCallsAcc, totalInputTokens, totalOutputTokens, totalCacheHitTokens, totalCacheMissTokens, toolCallRecords }
 }

@@ -135,7 +135,9 @@
   },
   "session": {
     "title": "Session Settings",
-    "desc": "Configure message display and behavior for chat sessions."
+    "desc": "Configure message display and behavior for chat sessions.",
+    "defaultWorkspace": "Default Path",
+    "defaultWorkspaceHint": "Default working directory for new sessions"
   },
   "event": {
     "title": "Event Settings",
