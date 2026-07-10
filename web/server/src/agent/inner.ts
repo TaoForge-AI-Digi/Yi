@@ -228,6 +228,14 @@ export async function innerLoop(
         if (chunk.text && socket) {
           socket.emit('message.delta', { session_id: sessionId, delta: chunk.text })
         }
+        if (chunk.type === 'usage' && socket && sessionId) {
+          socket.emit('usage', {
+            session_id: sessionId,
+            input_tokens: chunk.usage?.input_tokens || 0,
+            output_tokens: chunk.usage?.output_tokens || 0,
+            usage_type: chunk.usage_type || 'stream',
+          })
+        }
       },
     )
   } catch (err: any) {

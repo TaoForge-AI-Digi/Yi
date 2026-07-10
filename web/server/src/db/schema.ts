@@ -19,6 +19,8 @@ export function getDb(): Database.Database {
   try { db.exec("ALTER TABLE sessions ADD COLUMN current_strategy TEXT DEFAULT 'Plan'") } catch { }
   try { db.exec('ALTER TABLE sessions ADD COLUMN context_window INTEGER') } catch { }
   try { db.exec("ALTER TABLE sessions ADD COLUMN workspaces TEXT") } catch { }
+  try { db.exec('ALTER TABLE sessions ADD COLUMN compaction_summary TEXT') } catch { }
+  try { db.exec('ALTER TABLE sessions ADD COLUMN compaction_until_id INTEGER DEFAULT 0') } catch { }
   try { db.exec('ALTER TABLE events ADD COLUMN model TEXT') } catch { }
   try { db.exec('ALTER TABLE events ADD COLUMN provider_id TEXT') } catch { }
   try { db.exec('ALTER TABLE events ADD COLUMN workspace TEXT') } catch { }

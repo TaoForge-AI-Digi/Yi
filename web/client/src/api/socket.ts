@@ -30,4 +30,5 @@ export interface RunEvent {
   usage?: { input_tokens: number; output_tokens: number }
   strategy?: Strategy
   status?: string
+  cache?: { hitTokens: number; missTokens: number; hitRatio: string }
 }

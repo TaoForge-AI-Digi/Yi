@@ -4,10 +4,10 @@ import MessageList from './MessageList.vue'
 import ChatInput from './ChatInput.vue'
 import ApprovalDialog from './ApprovalDialog.vue'
 import StrategyIndicator from './Chat/StrategyIndicator.vue'
+import TokenBar from './TokenBar.vue'
 import { useChatStore } from '@/stores/chat'
 
 const chatStore = useChatStore()
-
 const isEventSession = computed(() => chatStore.activeSession?.session_type === 'event')
 </script>
 
@@ -19,6 +19,7 @@ const isEventSession = computed(() => chatStore.activeSession?.session_type === 
     </div>
     <StrategyIndicator />
     <MessageList />
+    <TokenBar />
     <ChatInput />
     <ApprovalDialog
       v-if="chatStore.pendingApproval"

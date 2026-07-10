@@ -6,7 +6,7 @@
   "color": "#6366f1",
   "memory": {
     "enabled": true,
-    "selfEvolution": false,
+    "selfEvolution": true,
     "charLimit": 2200
   },
   "maxSteps": 10,
@@ -23,7 +23,7 @@
   ],
   "enabled": true,
   "createdAt": 1782738601774,
-  "updatedAt": 1783310119289,
+  "updatedAt": 1783672485093,
   "tools": [
     {
       "name": "read"

@@ -21,11 +21,12 @@ export interface LLMUsage {
 }
 
 export interface LLMChunk {
-  type: 'delta' | 'done' | 'error'
+  type: 'delta' | 'done' | 'error' | 'usage'
   text?: string
   reasoning?: string
   finish_reason?: string
   usage?: LLMUsage
+  usage_type?: 'stream' | 'final'
   tool_calls?: ToolCall[]
 }
 
@@ -103,9 +104,24 @@ export async function* streamChatCompletion(opts: LLMOptions): AsyncGenerator<LL
 
         try {
           const parsed = JSON.parse(data)
-          const delta = parsed.choices?.[0]?.delta || {}
-          const finish = parsed.choices?.[0]?.finish_reason
+          const choices = parsed.choices
+          const hasDelta = choices?.[0]?.delta
+          const finish = choices?.[0]?.finish_reason
 
+          // Usage-only chunks (streaming intermediate usage info)
+          if (parsed.usage && !hasDelta) {
+            const u = parsed.usage
+            const usage: LLMUsage = {
+              input_tokens: u.prompt_tokens || u.input_tokens || 0,
+              output_tokens: u.completion_tokens || u.output_tokens || 0,
+            }
+            if (typeof u.prompt_cache_hit_tokens === 'number') usage.cache_hit_tokens = u.prompt_cache_hit_tokens
+            if (typeof u.prompt_cache_miss_tokens === 'number') usage.cache_miss_tokens = u.prompt_cache_miss_tokens
+            if (u.prompt_tokens_details?.cached_tokens != null) usage.cache_hit_tokens = u.prompt_tokens_details.cached_tokens
+            yield { type: 'usage', usage, usage_type: finish ? 'final' : 'stream' }
+          }
+
+          const delta = hasDelta || {}
           if (delta.reasoning_content) {
             yield { type: 'delta', reasoning: delta.reasoning_content }
           }

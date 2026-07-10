@@ -8,7 +8,7 @@ import { detectInsight } from '../evolution/index.js'
 import { spawnAndRunSubAgent, summarizeAndMerge } from './sub-agent.js'
 import { buildSkillIndex } from './skill-loader.js'
 import { getCharacterToolDefinitions } from '../tools/definitions.js'
-import { stableKey, getCached, setCached, normalizeTools } from './system-cache.js'
+import { stableKey, getCached, setCached, normalizeTools, extractComponents, diagnoseMiss } from './system-cache.js'
 import { connectMCPServer, disconnectMCPServer } from '../tools/mcp-client.js'
 import { mcpServerStore } from '../db/toolStore.js'
 import { setMCPStatus } from '../tools/mcp-status.js'
@@ -17,7 +17,7 @@ import { eventService } from '../event/eventService.js'
 import { evolutionConfig } from '../evolution/evolutionConfig.js'
 import * as fs from 'fs'
 import * as path from 'path'
-import type { LLMMessage } from '../llm/client.js'
+import { streamChatCompletion, type LLMMessage } from '../llm/client.js'
 import type { Server, Socket } from 'socket.io'
 import type { MessageRow } from '../db/messageStore.js'
 import type { MCPClient } from '../tools/mcp-client.js'
@@ -39,8 +39,42 @@ function resolveWorkspaces(session: { workspace?: string | null; workspaces?: st
   }
   return [resolveWorkspace(session.workspace)]
 }
+const SOFT_COMPACT_RATIO = 0.5
 const COMPACT_THRESHOLD = 0.75
-const KEEP_TURNS = 3
+const COLD_RESUME_MS = 24 * 60 * 60 * 1000
+const KEEP_TOKENS = 8000
+const SUMMARY_OUTPUT_TOKENS = 2048
+
+const SUMMARY_TEMPLATE = `Output exactly the structure below and keep section order. Do not include <template> tags.
+<template>
+## Goal
+- [single-sentence task summary]
+
+## Progress
+### Done
+- [completed work or "(none)"]
+
+### In Progress
+- [current work or "(none)"]
+
+### Blocked
+- [blockers or "(none)"]
+
+## Key Decisions
+- [decision and why, or "(none)"]
+
+## Next Steps
+- [ordered next actions or "(none)"]
+
+## Relevant Context
+- [important facts, errors, questions, or "(none)"]
+</template>
+
+Rules:
+- Keep every section, even when empty.
+- Use terse bullets.
+- Preserve exact file paths, commands, error strings, and identifiers when known.
+- Do not mention the summary process or that context was compacted.`
 
 function assembleStaticPrompt(
   charMeta: CharacterRecord,
@@ -114,51 +148,156 @@ function shouldCompact(messages: LLMMessage[], contextWindow = DEFAULT_CONTEXT_W
   return estimateTokens(messages) > contextWindow * COMPACT_THRESHOLD
 }
 
-function truncate(s: string, max: number): string {
-  return s.length <= max ? s : s.slice(0, max) + '...'
+function systemMessageEnd(messages: LLMMessage[]): number {
+  let i = 0
+  while (i < messages.length && messages[i].role === 'system') i++
+  return i
+}
+
+function extractPreviousSummary(messages: LLMMessage[]): string | undefined {
+  const sysEnd = systemMessageEnd(messages)
+  if (sysEnd < messages.length && messages[sysEnd].role === 'system' && messages[sysEnd].content?.startsWith('[Compacted History]')) {
+    return messages[sysEnd].content!.replace('[Compacted History]\n', '')
+  }
+}
+
+function selectEntries(
+  msgs: LLMMessage[],
+  tokenBudget: number,
+): { head: LLMMessage[]; recent: LLMMessage[] } | undefined {
+  type SerEntry = { text: string; msg: LLMMessage }
+  const serialized: SerEntry[] = []
+  for (const m of msgs) {
+    if (m.role === 'user' && m.content) {
+      serialized.push({ text: `[User]: ${m.content}`, msg: m })
+    } else if (m.role === 'assistant') {
+      const parts: string[] = []
+      if (m.content) parts.push(`[Assistant]: ${m.content}`)
+      if (m.tool_calls) {
+        for (const tc of m.tool_calls) parts.push(`[Tool call]: ${tc.function.name}`)
+      }
+      if (parts.length) serialized.push({ text: parts.join('\n'), msg: m })
+    } else if (m.role === 'tool') {
+      const content = m.content || ''
+      const status = content.includes('error') ? content.slice(0, 100) : 'success'
+      serialized.push({ text: `[Tool result]: ${status}`, msg: m })
+    } else if (m.role === 'system' && m.content) {
+      serialized.push({ text: `[System]: ${m.content.slice(0, 200)}`, msg: m })
+    }
+  }
+  if (serialized.length === 0) return
+
+  let total = 0
+  let split = serialized.length
+  for (let i = serialized.length - 1; i >= 0; i--) {
+    total += Math.ceil(serialized[i].text.length / 4)
+    if (total > tokenBudget) { split = i + 1; break }
+    split = i
+  }
+
+  if (split === 0) return
+  return {
+    head: serialized.slice(0, split).map(e => e.msg),
+    recent: serialized.slice(split).map(e => e.msg),
+  }
 }
 
 function buildCompactionSummary(msgs: LLMMessage[]): string {
   const parts: string[] = []
   for (const m of msgs) {
     if (m.role === 'user' && m.content) {
-      parts.push(`User: ${truncate(m.content, 200)}`)
+      parts.push(`User: ${m.content.length > 200 ? m.content.slice(0, 200) + '...' : m.content}`)
     } else if (m.role === 'assistant') {
-      if (m.content) parts.push(`Assistant: ${truncate(m.content, 200)}`)
+      if (m.content) parts.push(`Assistant: ${m.content.length > 200 ? m.content.slice(0, 200) + '...' : m.content}`)
       if (m.tool_calls) {
-        for (const tc of m.tool_calls) {
-          parts.push(`Tool Call: ${tc.function.name}`)
-        }
+        for (const tc of m.tool_calls) parts.push(`Tool Call: ${tc.function.name}`)
       }
     } else if (m.role === 'tool') {
       const c = m.content || ''
-      parts.push(`Tool Result: ${c.includes('error') ? truncate(c, 100) : 'success'}`)
+      parts.push(`Tool Result: ${c.includes('error') ? c.slice(0, 100) + '...' : 'success'}`)
     }
   }
   return parts.join('\n')
 }
 
-function compactHistory(messages: LLMMessage[]): { messages: LLMMessage[]; compacted: boolean } {
-  if (messages.length <= 2) return { messages, compacted: false }
+function serializeForSummary(msgs: LLMMessage[]): string {
+  const lines: string[] = []
+  for (const m of msgs) {
+    if (m.role === 'user' && m.content) {
+      lines.push(m.content.length > 800 ? `[User]: ${m.content.slice(0, 800)}...` : `[User]: ${m.content}`)
+    } else if (m.role === 'assistant') {
+      if (m.content) lines.push(m.content.length > 400 ? `[Assistant]: ${m.content.slice(0, 400)}...` : `[Assistant]: ${m.content}`)
+      if (m.tool_calls) {
+        for (const tc of m.tool_calls) lines.push(`[Tool call]: ${tc.function.name}`)
+      }
+    }
+  }
+  return lines.join('\n')
+}
 
-  const systemMsg = messages[0]
-  let keepEnd = messages.length
-  let turnsFound = 0
-  for (let i = messages.length - 1; i >= 1 && turnsFound < KEEP_TURNS; i--) {
-    if (messages[i].role === 'user') turnsFound++
-    keepEnd = i
+async function llmSummarize(
+  head: LLMMessage[],
+  provider: { base_url: string; api_key: string },
+  model: string,
+  previousSummary?: string,
+): Promise<string> {
+  const convo = serializeForSummary(head)
+  const prompt = previousSummary
+    ? `Update the anchored summary below using the conversation history above. Preserve still-true details, remove stale details, and merge in new facts.\n<previous-summary>\n${previousSummary}\n</previous-summary>\n\n${SUMMARY_TEMPLATE}\n\n${convo}`
+    : `Create a new anchored summary from the conversation history.\n\n${SUMMARY_TEMPLATE}\n\n${convo}`
+
+  let summary = ''
+  try {
+    for await (const chunk of streamChatCompletion({
+      baseUrl: provider.base_url, apiKey: provider.api_key, model,
+      messages: [{ role: 'user', content: prompt }],
+    })) {
+      if (chunk.type === 'delta' && chunk.text) summary += chunk.text
+      if (chunk.type === 'error') throw new Error(chunk.text)
+    }
+  } catch (err: any) {
+    console.warn('[summarize] LLM failed, fallback to truncation:', err.message)
+    return buildCompactionSummary(head)
+  }
+  return summary || buildCompactionSummary(head)
+}
+
+function compactHistory(
+  messages: LLMMessage[],
+  summary: string,
+  recent: LLMMessage[],
+): LLMMessage[] {
+  const sysEnd = systemMessageEnd(messages)
+  const systemMsgs = messages.slice(0, sysEnd)
+  const compacted: LLMMessage[] = [...systemMsgs]
+  compacted.push({ role: 'system', content: `[Compacted History]\n${summary}` })
+  compacted.push(...recent)
+  return compacted
+}
+
+async function selectAndSummarize(
+  messages: LLMMessage[],
+  provider: { base_url: string; api_key: string },
+  model: string,
+): Promise<{ messages: LLMMessage[]; didCompact: boolean; summary?: string; recent?: LLMMessage[]; compactedUntilId?: number }> {
+  const sysEnd = systemMessageEnd(messages)
+  if (sysEnd >= messages.length) return { messages, didCompact: false }
+
+  const conversation = messages.slice(sysEnd)
+  const previousSummary = extractPreviousSummary(messages)
+  const selected = selectEntries(conversation, KEEP_TOKENS)
+  if (!selected || selected.head.length === 0) return { messages, didCompact: false }
+
+  const summary = await llmSummarize(selected.head, provider, model, previousSummary)
+  const compacted = compactHistory(messages, summary, selected.recent)
+
+  let compactedUntilId = 0
+  for (const m of selected.head) {
+    const dbId = (m as any).__dbId
+    if (typeof dbId === 'number' && dbId > compactedUntilId) compactedUntilId = dbId
   }
 
-  if (keepEnd <= 1) return { messages, compacted: false }
-
-  const toCompact = messages.slice(1, keepEnd)
-  const summary = buildCompactionSummary(toCompact)
-
-  const compacted: LLMMessage[] = [systemMsg]
-  compacted.push({ role: 'system', content: `[Compacted History]\n${summary}` })
-  compacted.push(...messages.slice(keepEnd))
-
-  return { messages: compacted, compacted: true }
+  return { messages: compacted, didCompact: true, summary, recent: selected.recent, compactedUntilId }
 }
 
 function rowToLLMMessage(row: MessageRow): LLMMessage | null {
@@ -276,6 +415,25 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
     }
   }
 
+  // ── #2 delegate_targets → inject into tool schema (not system text) ──
+  const allChars = characterMetaStore.getAll()
+  const activeGroup = session.active_group
+  const delegateTargets = allChars.filter(c => {
+    if (c.role !== 'sub' && c.role !== 'both') return false
+    if (c.id === session.character_id) return true
+    if (!activeGroup) return false
+    if (!c.groups || c.groups.length === 0) return false
+    return c.groups.includes(activeGroup)
+  })
+  if (delegateTargets.length > 0) {
+    for (const t of toolDefs) {
+      if (t.function.name === 'delegate_task') {
+        const targetStr = delegateTargets.map(c => `${c.id}(${c.name})`).join(', ')
+        t.function.description += ` | targets: ${targetStr}`
+      }
+    }
+  }
+
   const tools = toolDefs.length > 0 ? toolDefs : undefined
 
   // Build system prompt — cached by fingerprint
@@ -288,6 +446,9 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
   )
   let systemPrompt = getCached(key)
   if (!systemPrompt) {
+    const comp = extractComponents(charMeta.id, normalizeTools(toolDefs), charMeta.skills, charContent.soul, charContent.user)
+    const reasons = diagnoseMiss(charMeta.id, comp)
+    console.log(`[system-cache] miss ${key}: ${reasons.join(', ')} (${toolDefs.length} tools, ${(charMeta.skills || []).length} skills)`)
     systemPrompt = assembleStaticPrompt(charMeta, charContent, toolDefs, resolveWorkspace(session.workspace))
     setCached(key, systemPrompt)
   }
@@ -299,7 +460,16 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
   }
 
   const rows = messageStore.getMessages(sessionId)
+  const compactUntilId = session.compaction_until_id || 0
+  let summaryInserted = false
   for (const row of rows) {
+    if (compactUntilId > 0 && row.id <= compactUntilId) {
+      if (!summaryInserted && session.compaction_summary) {
+        messages.push({ role: 'system', content: `[Compacted History]\n${session.compaction_summary}` })
+        summaryInserted = true
+      }
+      continue
+    }
     let m = rowToLLMMessage(row)
     if (m && m.role === 'user' && m.content && /@(file|folder|url):/.test(m.content)) {
       const refResult = await preprocessContextReferences(m.content, resolveWorkspace(session.workspace))
@@ -308,7 +478,33 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
         for (const w of refResult.warnings) console.warn(`[context-ref] ${w}`)
       }
     }
-    if (m) messages.push(m)
+    if (m) {
+      ;(m as any).__dbId = row.id
+      messages.push(m)
+    }
+  }
+
+  // ── #4 Cold resume: session untouched > 24h → compact ──
+  const isColdResume = Date.now() - (session.updated_at || 0) > COLD_RESUME_MS
+  if (isColdResume && messages.length > systemMessageEnd(messages) + 1) {
+    const result = await selectAndSummarize(messages, provider, model)
+    if (result.didCompact) {
+      messages.length = 0
+      messages.push(...result.messages)
+      sessionStore.update(sessionId, {
+        compaction_summary: result.summary!,
+        compaction_until_id: result.compactedUntilId || null,
+      })
+      console.log(`[session] ${sessionId} cold resume (>24h): compacted to ${result.messages.length} msgs`)
+    }
+  }
+
+  // ── #4 Soft compaction warning at 50% ──
+  const estTokens = estimateTokens(messages)
+  if (estTokens > contextWindow * SOFT_COMPACT_RATIO && estTokens < contextWindow * COMPACT_THRESHOLD) {
+    const pct = ((estTokens / contextWindow) * 100).toFixed(0)
+    console.log(`[session] ${sessionId} context at ${pct}% (soft threshold 50%)`)
+    // warn only; no compaction until hard threshold
   }
 
   let turn = 0
@@ -317,6 +513,7 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
   let totalCacheHitTokens = 0
   let totalCacheMissTokens = 0
   let consecutiveErrors = 0
+  let overflowCompacted = false
   const toolCallHistory: ToolCallRecord[] = []
   let insightDispatched = false
 
@@ -349,6 +546,21 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
       const errMsg = result.error?.toLowerCase() || ''
 
       if (errMsg.includes('context length') || errMsg.includes('maximum context') || errMsg.includes('context_length') || errMsg.includes('too many tokens')) {
+        if (!overflowCompacted) {
+          console.log(`[session] ${sessionId} overflow, force compacting and retrying...`)
+          const result = await selectAndSummarize(messages, provider, model)
+          if (result.didCompact) {
+            messages.length = 0
+            messages.push(...result.messages)
+            overflowCompacted = true
+            sessionStore.update(sessionId, {
+              compaction_summary: result.summary!,
+              compaction_until_id: result.compactedUntilId || null,
+            })
+            socket.emit('run.compacted', { session_id: sessionId, message: 'Context overflow recovered via compaction' })
+            continue
+          }
+        }
         console.log(`[session] ${sessionId} failed: context overflow (${turn} turns)`)
         socket.emit('run.failed', { session_id: sessionId, error: `Context overflow: ${result.error}` })
         for (const [, client] of mcpClients) {
@@ -473,10 +685,14 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
     }
 
     if (shouldCompact(messages, contextWindow)) {
-      const { messages: compacted, compacted: didCompact } = compactHistory(messages)
-      if (didCompact) {
+      const result = await selectAndSummarize(messages, provider, model)
+      if (result.didCompact) {
         messages.length = 0
-        messages.push(...compacted)
+        messages.push(...result.messages)
+        sessionStore.update(sessionId, {
+          compaction_summary: result.summary!,
+          compaction_until_id: result.compactedUntilId || null,
+        })
         socket.emit('run.compacted', { session_id: sessionId, message: 'Context compacted to manage token usage' })
       }
     }
@@ -494,10 +710,19 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
     }
   }
 
+  // ── #1 Cache diagnostics ──
   const completedStatus: 'cancelled' | 'max_turns' | 'stop' = signal?.aborted ? 'cancelled' : turn >= MAX_TURNS ? 'max_turns' : 'stop'
   const detail = toolCallHistory.length === 0 ? 'stop (no tools used)' : completedStatus
+  const totalTokens = totalCacheHitTokens + totalCacheMissTokens
+  const hitRatio = totalTokens > 0 ? ((totalCacheHitTokens / totalTokens) * 100).toFixed(1) : 'N/A'
   console.log(`[session] ${sessionId} completed: ${detail} (${turn} turns, ${toolCallHistory.length} tool calls)`)
-  socket.emit('run.completed', { session_id: sessionId, status: completedStatus })
+  console.log(`[cache] ${sessionId}: hit=${totalCacheHitTokens} miss=${totalCacheMissTokens} ratio=${hitRatio}%`)
+  socket.emit('run.completed', {
+    session_id: sessionId,
+    status: completedStatus,
+    usage: { input_tokens: totalInputTokens, output_tokens: totalOutputTokens },
+    cache: { hitTokens: totalCacheHitTokens, missTokens: totalCacheMissTokens, hitRatio },
+  })
 
   if (totalInputTokens > 0 || totalOutputTokens > 0) {
     sessionStore.update(sessionId, {

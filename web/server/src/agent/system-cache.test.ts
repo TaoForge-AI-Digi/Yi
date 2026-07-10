@@ -3,7 +3,7 @@
  * Run: npx tsx src/agent/system-cache.test.ts
  */
 
-import { stableKey, normalizeTools, getCached, setCached } from './system-cache.js'
+import { stableKey, normalizeTools, getCached, setCached, extractComponents, diagnoseMiss } from './system-cache.js'
 
 let passed = 0
 let failed = 0
@@ -57,6 +57,20 @@ assert(retrieved === testPrompt, 'setCached/getCached round-trip preserves conte
 
 // ── Cache miss returns null ──
 assert(getCached('nonexistent-key') === null, 'getCached returns null for miss')
+
+// ── #3 extractComponents returns stable output ──
+const comp1 = extractComponents('1', [{ function: { name: 'read' } }], ['skill-a'], 'soul', 'user')
+const comp2 = extractComponents('1', [{ function: { name: 'read' } }], ['skill-a'], 'soul', 'user')
+assert(comp1.tools === comp2.tools, 'extractComponents tools is deterministic')
+assert(comp1.soulHash === comp2.soulHash, 'extractComponents soulHash is deterministic')
+
+// ── #3 diagnoseMiss returns changes ──
+const cur = extractComponents('miss-test', [{ function: { name: 'read' } }], ['skill-a'], 'soul', 'user')
+const reasons1 = diagnoseMiss('miss-test', cur)
+assert(reasons1.length === 1 && reasons1[0] === 'first_seen (cold start)', 'diagnoseMiss first call reports cold start')
+const cur2 = extractComponents('miss-test', [{ function: { name: 'read' } }, { function: { name: 'write' } }], ['skill-a'], 'soul', 'user')
+const reasons2 = diagnoseMiss('miss-test', cur2)
+assert(reasons2.includes('tools'), 'diagnoseMiss detects tool changes')
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) process.exit(1)

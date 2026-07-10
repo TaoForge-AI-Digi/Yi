@@ -99,6 +99,45 @@ export function cacheStats() {
   }
 }
 
+// ── Fingerprint diff diagnostics (#3) ──
+
+export interface FingerprintComponents {
+  tools: string
+  skills: string
+  soulHash: string
+  userHash: string
+}
+
+const prevComponents = new Map<string, FingerprintComponents>()
+
+export function extractComponents(
+  id: string,
+  tools: unknown[],
+  skills: string[] | undefined,
+  soul: string,
+  user: string,
+): FingerprintComponents {
+  const t = normalizeTools(tools)
+  return {
+    tools: t.map(x => x.function.name).join(','),
+    skills: (skills ?? []).sort().join(','),
+    soulHash: shortHash(soul || ''),
+    userHash: shortHash(user || ''),
+  }
+}
+
+export function diagnoseMiss(id: string, cur: FingerprintComponents): string[] {
+  const prev = prevComponents.get(id)
+  prevComponents.set(id, cur)
+  if (!prev) return ['first_seen (cold start)']
+  const changes: string[] = []
+  if (prev.tools !== cur.tools) changes.push('tools')
+  if (prev.skills !== cur.skills) changes.push('skills')
+  if (prev.soulHash !== cur.soulHash) changes.push('soul')
+  if (prev.userHash !== cur.userHash) changes.push('user')
+  return changes
+}
+
 export function pruneOldCache(maxAgeMs: number = 7 * 24 * 60 * 60 * 1000): void {
   try {
     const now = Date.now()

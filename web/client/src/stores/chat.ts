@@ -50,6 +50,7 @@ export interface Session {
   context_window?: number | null
   compacted?: boolean
   created_at: number; updated_at: number
+  cacheStats?: { hitTokens: number; missTokens: number; hitRatio: string }
 }
 
 export interface EventStatusChange {
@@ -83,6 +84,8 @@ export const useChatStore = defineStore('chat', () => {
   const selectedSessionIds = ref<Set<string>>(new Set())
   const evolutionNotification = ref<{ session_id: string; insight_type: string; description: string } | null>(null)
   let notificationTimer: ReturnType<typeof setTimeout> | null = null
+
+  const tokenUsage = ref({ input: 0, output: 0, total: 0 })
 
   const toolExpandAll = ref(false)
   const defaultContextWindow = 200000
@@ -490,6 +493,7 @@ export const useChatStore = defineStore('chat', () => {
       if (data.strategy) s.current_strategy = data.strategy
     }
     const onRunStarted = (data: RunEvent & { context_window?: number }) => {
+      tokenUsage.value = { input: 0, output: 0, total: 0 }
       if (data.context_window) {
         const s = findSession(data.session_id)
         if (s) s.context_window = data.context_window
@@ -548,8 +552,18 @@ export const useChatStore = defineStore('chat', () => {
       if (!s) return
       const last = s.messages[s.messages.length - 1]
       if (last?.is_streaming) last.is_streaming = false
+      if (data.cache) s.cacheStats = data.cache
       if (data.session_id === session!.id) isStreaming.value = false
       if (data.session_id === session!.id) cleanup()
+    }
+    const onUsage = (data: { session_id: string; input_tokens: number; output_tokens: number; usage_type: string }) => {
+      if (data.session_id === session!.id) {
+        tokenUsage.value = {
+          input: data.input_tokens,
+          output: data.output_tokens,
+          total: data.input_tokens + data.output_tokens,
+        }
+      }
     }
     const onCompacted = (data: RunEvent) => {
       const s = findSession(data.session_id)
@@ -574,6 +588,7 @@ export const useChatStore = defineStore('chat', () => {
       socket.off('approval.requested', onApprovalRequested)
       socket.off('run.started', onRunStarted)
       socket.off('run.completed', onCompleted)
+      socket.off('usage', onUsage)
       socket.off('run.compacted', onCompacted)
       socket.off('run.failed', onFailed)
     }
@@ -586,6 +601,7 @@ export const useChatStore = defineStore('chat', () => {
     socket.on('approval.requested', onApprovalRequested)
     socket.on('run.started', onRunStarted)
     socket.on('run.completed', onCompleted)
+    socket.on('usage', onUsage)
     socket.on('run.compacted', onCompacted)
     socket.on('run.failed', onFailed)
   }
@@ -698,6 +714,7 @@ export const useChatStore = defineStore('chat', () => {
     sessions, activeSessionId, activeSession, isStreaming, pendingApproval, currentStrategy,
     collapsedWorkspaces, workspaceGroups, isBatchMode, selectedSessionIds,
     evolutionNotification,
+    tokenUsage,
     toolExpandAll, toggleAllTools,
     contextUsage,
     attachments, addAttachment, removeAttachment, clearAttachments,
