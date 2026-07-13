@@ -73,6 +73,11 @@ export function getCached(key: string): string | null {
 }
 
 export function setCached(key: string, prompt: string): void {
+  const hash = shortHash(prompt)
+  // Check if cached content already matches — skip write if identical
+  const existing = memCache.get(key)
+  if (existing && existing.hash === hash) return
+
   if (memCache.size >= MAX_MEMORY) {
     let oldest = Infinity
     let oldestKey: string | undefined
@@ -83,13 +88,15 @@ export function setCached(key: string, prompt: string): void {
   }
   memCache.set(key, {
     prompt,
-    hash: shortHash(prompt),
+    hash,
     size: prompt.length,
     hitCount: 0,
     createdAt: Date.now(),
   })
-  writeFileSync(cachePath(key), JSON.stringify({ prompt, createdAt: Date.now() }), 'utf-8')
+  writeFileSync(cachePath(key), JSON.stringify({ prompt, hash, createdAt: Date.now() }), 'utf-8')
 }
+
+
 
 export function cacheStats() {
   return {

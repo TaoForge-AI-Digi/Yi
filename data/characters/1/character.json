@@ -19,8 +19,7 @@
     "session-management",
     "skill-authoring",
     "tool-constraint",
-    "character-creation",
-    "daily-ai-news"
+    "character-creation"
   ],
   "enabled": true,
   "createdAt": 1782738601774,

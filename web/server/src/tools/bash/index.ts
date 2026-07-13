@@ -3,6 +3,9 @@ import { writeFileSync, appendFileSync, mkdirSync, existsSync } from 'fs'
 import { resolve as pathResolve } from 'path'
 import type { ToolModule } from '../types.js'
 import { assertPathSafe } from '../utils.js'
+import { z } from 'zod'
+import { validate } from '../validate.js'
+import { getOutputDir } from '../truncate.js'
 
 const WIN_ABS_PATH_RE = /[A-Za-z]:\\[^\s"'|&;<>(){}[\]`~!@#$%^&*=+]+/g
 
@@ -31,11 +34,7 @@ const TAIL_SIZE = 50 * 1024
 const TIMEOUT_MS = 60000
 const FORCE_KILL_MS = 3000
 
-const TEMP_DIR = pathResolve(process.cwd(), '.bash-output')
-
-function ensureTempDir() {
-  if (!existsSync(TEMP_DIR)) mkdirSync(TEMP_DIR, { recursive: true })
-}
+const TEMP_DIR = getOutputDir()
 
 interface ShellInfo {
   path: string
@@ -105,7 +104,11 @@ export const tool: ToolModule = {
   },
   dangerous: true,
   execute: async (args, { workspace, workspaces, signal, allowedRoots, onOutput }) => {
-    const cmd = args.command || ''
+    const input = validate(
+      z.object({ command: z.string().min(1, 'command 不能为空') }),
+      args, 'bash',
+    )
+    const cmd = input.command
     const roots = workspaces ?? [workspace]
     scanCommandPaths(cmd, roots, allowedRoots)
     const absPaths = cmd.match(WIN_ABS_PATH_RE)
@@ -149,7 +152,7 @@ export const tool: ToolModule = {
           if (signal?.aborted) abortHandler()
 
           function ensureOutputFile(stdoutFull: string, stderrFull: string): string | null {
-            ensureTempDir()
+            if (!existsSync(TEMP_DIR)) mkdirSync(TEMP_DIR, { recursive: true })
             const name = `bash_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.log`
             const filePath = pathResolve(TEMP_DIR, name)
             try {

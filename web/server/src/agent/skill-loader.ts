@@ -1,4 +1,4 @@
-import { readFileSync, existsSync, readdirSync } from 'fs'
+import { readFileSync, existsSync, readdirSync, writeFileSync } from 'fs'
 import { resolve, join } from 'path'
 import type { CharacterRecord } from '../db/characterStore.js'
 
@@ -102,12 +102,32 @@ export function buildSkillIndex(character: CharacterRecord): SkillIndex[] {
   const names = character.skills
   if (!names || names.length === 0) return []
 
-  return names.map(name => {
+  const valid = names.filter(name => {
     const dir = findSkillDir(name)
-    if (!dir) return null
+    if (!dir) {
+      console.warn(`[skill-loader] Skill "${name}" listed in character "${character.name}" (${character.id}) but not found on disk. Auto-removing.`)
+      return false
+    }
+    return true
+  })
 
+  // Sync back if stale skills were removed
+  if (valid.length < names.length) {
+    try {
+      const charFile = resolve(DATA_DIR, 'characters', character.id, 'character.json')
+      const raw = readFileSync(charFile, 'utf-8')
+      const json = JSON.parse(raw)
+      json.skills = valid
+      writeFileSync(charFile, JSON.stringify(json, null, 2) + '\n', 'utf-8')
+      console.log(`[skill-loader] Cleaned up skills for character "${character.name}" (${character.id}): removed ${names.length - valid.length} stale entries`)
+    } catch (e: any) {
+      console.error(`[skill-loader] Failed to sync skills for character "${character.name}": ${e.message}`)
+    }
+  }
+
+  return valid.map(name => {
+    const dir = findSkillDir(name)!
     const skillFile = join(dir, 'SKILL.md')
-    if (!existsSync(skillFile)) return null
     const content = readFileSync(skillFile, 'utf-8')
     const fm = parseFrontmatter(content)
     const description = fm.description || name
@@ -125,5 +145,5 @@ export function buildSkillIndex(character: CharacterRecord): SkillIndex[] {
       listing: `- ${name}: ${description}${hint}`,
       attachments,
     }
-  }).filter((s): s is SkillIndex => s !== null)
+  })
 }

@@ -3,7 +3,8 @@ import { messageStore } from '../db/messageStore.js'
 import { characterMetaStore, type CharacterRecord } from '../db/characterStore.js'
 import { providerStore } from '../db/providerStore.js'
 import { characterContentStore } from '../character/store.js'
-import { innerLoop, detectDoomLoop, truncateToolOutput, type ToolCallRecord } from './inner.js'
+import { innerLoop, detectDoomLoop, type ToolCallRecord } from './inner.js'
+import { truncateToolOutput } from '../tools/truncate.js'
 import { detectInsight } from '../evolution/index.js'
 import { spawnAndRunSubAgent, summarizeAndMerge } from './sub-agent.js'
 import { buildSkillIndex } from './skill-loader.js'
@@ -530,6 +531,16 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
       const ctxPct = ((estimateTokens(messages) / contextWindow) * 100).toFixed(0)
       console.log(`[session] ${sessionId} turn ${turn}: heap ${heapMB}/${totalMB}MB, ${messages.length} msgs, ctx ${ctxPct}%`)
     }
+
+    // Inject current timestamp before each turn so LLM knows the real time
+    const now = new Date()
+    const offset = -now.getTimezoneOffset()
+    const tz = `UTC${offset >= 0 ? '+' : ''}${Math.floor(offset / 60)}:${String(offset % 60).padStart(2, '0')}`
+    const timeMsg: LLMMessage = { role: 'system', content: `[Current time: ${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')} (${tz})]` }
+    // Replace previous timestamp if exists, otherwise append
+    const timeIdx = messages.findIndex(m => (m as any).__isTimestamp)
+    if (timeIdx >= 0) messages[timeIdx] = { ...timeMsg, __isTimestamp: true } as any
+    else messages.push({ ...timeMsg, __isTimestamp: true } as any)
 
     const result = await innerLoop(
       messages, tools, provider, model, session.character_id,

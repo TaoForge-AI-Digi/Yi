@@ -11,15 +11,9 @@ import type { Server, Socket } from 'socket.io'
 import type { MCPClient } from '../tools/mcp-client.js'
 import { resolve as pathResolve } from 'path'
 
+import { truncateToolOutput as truncate, truncateError } from '../tools/truncate.js'
+
 const READ_ONLY_TOOLS = new Set(['read', 'grep', 'glob', 'webfetch', 'websearch'])
-
-const MAX_TOOL_OUTPUT_CHARS = 64000
-
-export function truncateToolOutput(output: string): string {
-  if (output.length <= MAX_TOOL_OUTPUT_CHARS) return output
-  const head = output.slice(0, MAX_TOOL_OUTPUT_CHARS)
-  return `${head}\n\n... (${(output.length / 1024).toFixed(0)}KB total, showing first ${MAX_TOOL_OUTPUT_CHARS / 1024}KB)`
-}
 
 export interface ToolCallRecord {
   toolName: string
@@ -450,8 +444,8 @@ export async function innerLoop(
     if (sessionId) {
       messageStore.addMessage(sessionId, { role: 'tool', content: JSON.stringify({ output: result.output, error: result.error }), tool_name: p.name, tool_input: JSON.stringify({ call_id: p.tc.id, args: p.argsStr }), tool_output: result.error || result.output, tool_status: toolStatus })
     }
-    const llmOutput = truncateToolOutput(result.output || '')
-    const llmError = truncateToolOutput(result.error || '')
+    const llmOutput = truncate(result.output || '')
+    const llmError = truncateError(result.error || '')
     newMessages.push({ role: 'tool', content: JSON.stringify({ output: llmOutput, error: llmError }), tool_call_id: p.tc.id })
     socket?.emit('tool.completed', { session_id: sessionId, tool_call_id: p.tc.id, tool_name: p.name, tool_output: result.error || result.output, tool_status: toolStatus, duration_ms: duration })
   }

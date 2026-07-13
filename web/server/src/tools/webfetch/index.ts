@@ -3,6 +3,8 @@ import { Parser } from 'htmlparser2'
 import TurndownService from 'turndown'
 import { JSDOM } from 'jsdom'
 import { Readability } from '@mozilla/readability'
+import { z } from 'zod'
+import { validate } from '../validate.js'
 
 const turndown = new TurndownService({
   headingStyle: 'atx',
@@ -88,16 +90,25 @@ Use this when you need to retrieve content from a specific URL.`,
     required: ['url'],
   },
   execute: async (args, ctx) => {
-    const url = args.url || ''
-    if (!url) return { output: '', error: 'URL is required' }
+    const input = validate(
+      z.object({
+        url: z.string().min(1, 'URL 不能为空'),
+        format: z.enum(['text', 'markdown', 'html']).default('markdown'),
+        readable: z.enum(['true', 'false']).default('false').transform(v => v === 'true'),
+        timeout: z.string().optional(),
+      }),
+      args, 'webfetch',
+    )
+
+    const url = input.url
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       return { output: '', error: 'URL must start with http:// or https://' }
     }
 
-    const format = (args.format || 'markdown') as 'text' | 'markdown' | 'html'
-    const readable = args.readable === 'true'
+    const format = input.format
+    const readable = input.readable
     const timeout = Math.min(
-      (args.timeout ? Number(args.timeout) : DEFAULT_TIMEOUT_SECONDS) * 1000,
+      (input.timeout ? Number(input.timeout) : DEFAULT_TIMEOUT_SECONDS) * 1000,
       MAX_TIMEOUT_SECONDS * 1000,
     )
 
