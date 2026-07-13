@@ -6,24 +6,17 @@
   "color": "#6366f1",
   "memory": {
     "enabled": true,
-    "selfEvolution": true,
+    "selfEvolution": false,
     "charLimit": 2200
   },
   "maxSteps": 10,
   "role": "both",
   "groups": [],
   "default_strategy": "Bypass",
-  "skills": [
-    "mcp-setup",
-    "model-provider-setup",
-    "session-management",
-    "skill-authoring",
-    "tool-constraint",
-    "character-creation"
-  ],
+  "skills": [],
   "enabled": true,
   "createdAt": 1782738601774,
-  "updatedAt": 1783676883120,
+  "updatedAt": 1783927680337,
   "tools": [
     {
       "name": "read"
@@ -53,6 +46,9 @@
       "name": "skill_manager"
     },
     {
+      "name": "mcp_manager"
+    },
+    {
       "name": "task_complete"
     },
     {
@@ -62,7 +58,16 @@
       "name": "mcp:playwright"
     },
     {
+      "name": "provider_manager"
+    },
+    {
+      "name": "mcp_manager"
+    },
+    {
       "name": "character_manager"
+    },
+    {
+      "name": "mcp:tab-bridge"
     }
   ]
 }

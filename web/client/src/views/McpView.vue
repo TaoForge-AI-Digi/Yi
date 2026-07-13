@@ -17,6 +17,8 @@ const editingMCP = ref<{
   command: string
   args: string
   env: string
+  cwd: string
+  timeout: number
 } | null>(null)
 
 const testingMap = ref<Record<string, boolean>>({})
@@ -55,7 +57,7 @@ async function testConnection(id: string) {
 }
 
 function newMCP() {
-  editingMCP.value = { name: '', command: '', args: '', env: '' }
+  editingMCP.value = { name: '', command: '', args: '', env: '', cwd: '', timeout: 60 }
 }
 
 function editMCP(s: MCPServer) {
@@ -65,6 +67,8 @@ function editMCP(s: MCPServer) {
     command: s.command,
     args: (s.args || []).join(' '),
     env: Object.entries(s.env || {}).map(([k, v]) => `${k}=${v}`).join('\n'),
+    cwd: s.cwd || '',
+    timeout: s.timeout || 60,
   }
 }
 
@@ -81,13 +85,16 @@ async function saveMCP() {
     const eq = line.indexOf('=')
     if (eq > 0) env[line.slice(0, eq).trim()] = line.slice(eq + 1).trim()
   }
-  const data = { name: e.name, command: e.command, args, env }
+  const data: Record<string, any> = { name: e.name, command: e.command, args, env }
+  if (e.cwd) data.cwd = e.cwd
+  if (e.timeout) data.timeout = e.timeout
   if (e.id) {
     await store.updateMCP(e.id, data)
   } else {
     await store.createMCP(data)
   }
   editingMCP.value = null
+  store.load()
 }
 
 async function removeMCP(id: string) {
@@ -110,8 +117,11 @@ async function doImport() {
       command: data.command,
       args: data.args || [],
       env: data.env || {},
+      cwd: data.cwd,
+      timeout: data.timeout,
     })
     showImportModal.value = false
+    store.load()
   } catch {
     importError.value = t('toolSetting.importInvalidJson')
   }
@@ -191,6 +201,16 @@ onMounted(() => { store.load() })
           <label>{{ t('toolSetting.envLabel') }}</label>
           <textarea v-model="editingMCP.env" :placeholder="t('toolSetting.envPlaceholder')" rows="3" />
         </div>
+        <div class="form-row">
+          <div class="form-group form-group-half">
+            <label>工作目录 (cwd)</label>
+            <input v-model="editingMCP.cwd" placeholder="可选，留空用项目根目录" />
+          </div>
+          <div class="form-group form-group-half">
+            <label>超时 (秒)</label>
+            <input v-model.number="editingMCP.timeout" type="number" placeholder="默认 60" />
+          </div>
+        </div>
         <div class="form-actions">
           <button class="btn-primary" @click="saveMCP">{{ t('toolSetting.save') }}</button>
           <button class="btn-cancel" @click="cancelEdit">{{ t('toolSetting.cancel') }}</button>
@@ -266,6 +286,8 @@ onMounted(() => { store.load() })
 .form-group input, .form-group textarea { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; outline: none; font-family: inherit; box-sizing: border-box; }
 .form-group input:focus, .form-group textarea:focus { border-color: #1976d2; }
 .form-group textarea { resize: vertical; }
+.form-row { display: flex; gap: 12px; }
+.form-group-half { flex: 1; }
 .form-actions { display: flex; gap: 8px; margin-top: 16px; }
 .btn-primary { padding: 7px 16px; background: #1976d2; color: #fff; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; }
 .btn-primary:hover { background: #1565c0; }

@@ -3,7 +3,7 @@ import { sessionStore } from '../db/sessionStore.js'
 import { messageStore } from '../db/messageStore.js'
 import { providerStore } from '../db/providerStore.js'
 import { sessionLoop } from '../agent/loop.js'
-import { setSessionStrategy, removeSessionState, getSessionState } from '../agent/session.js'
+import { setSessionStrategy, removeSessionState, getSessionState, addAllowedPath, getAllowedPaths, removeAllowedPath } from '../agent/session.js'
 import { enqueueRun, abortSession, getRunState, getQueueLength } from '../agent/session-runner.js'
 import type { Strategy } from '../agent/session.js'
 
@@ -71,5 +71,11 @@ export function registerChatSocket(io: Server, socket: Socket) {
 
   socket.on('abort', (data: { session_id?: string }) => {
     if (data.session_id) abortSession(data.session_id)
+  })
+
+  socket.on('workspace.remove_allowed', (data: { session_id: string; path: string }) => {
+    if (!data.session_id || !data.path) return
+    removeAllowedPath(data.session_id, data.path)
+    socket.emit('workspace.paths.updated', { session_id: data.session_id, allowed_paths: getAllowedPaths(data.session_id) })
   })
 }

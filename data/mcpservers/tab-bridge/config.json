@@ -1,0 +1,11 @@
+{
+  "id": "b923d4c8-0c59-4b93-ae5d-1104d66bdcd6",
+  "name": "tab-bridge",
+  "command": "node",
+  "args": [
+    "C:\\.Yi\\agent-tab-bridge\\mcp\\index.js"
+  ],
+  "env": {
+    "AGENT_NAME": "codex"
+  }
+}

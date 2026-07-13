@@ -23,7 +23,7 @@ import type { Server, Socket } from 'socket.io'
 import type { MessageRow } from '../db/messageStore.js'
 import type { MCPClient } from '../tools/mcp-client.js'
 
-const MAX_TURNS = 20
+const DEFAULT_MAX_TURNS = 20
 const DEFAULT_CONTEXT_WINDOW = 200000
 
 const DEFAULT_WORKSPACE = 'C:\\.Yi'
@@ -362,6 +362,8 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
   const workspaces = resolveWorkspaces(session)
   const workspace = resolveWorkspace(session.workspace)
 
+  const maxTurns = charMeta.maxSteps || DEFAULT_MAX_TURNS
+
   const toolDefs = getCharacterToolDefinitions(charMeta.tools)
 
   const mcpClients = new Map<string, MCPClient>()
@@ -520,7 +522,7 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
 
   socket.emit('run.started', { session_id: sessionId, context_window: contextWindow })
 
-  while (turn < MAX_TURNS && !signal?.aborted) {
+  while (turn < maxTurns && !signal?.aborted) {
     turn++
 
     // Log memory every 5 turns
@@ -691,7 +693,7 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
       const lastTool = recent[recent.length - 1]?.toolName || 'unknown'
       messages.push({
         role: 'system',
-        content: `[System Alert] You have encountered repeated failures (last: ${lastTool}). This is a Doom Loop. Stop your current approach and try a completely different strategy. Consider: (a) read the file structure first, (b) use a different tool, (c) break the task into smaller steps.`
+        content: `[System Alert] Repeated failures detected (last: ${lastTool}). Two strikes with the same tool type — do NOT retry with minor changes. Switch to a completely different tool category.`
       })
     }
 
@@ -710,7 +712,7 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
 
     if (result.type === 'aborted') break
     if (result.type === 'final_answer') {
-      if (toolCallHistory.length > 0 && turn < 3) {
+      if (toolCallHistory.length > 0) {
         messages.push({
           role: 'system',
           content: '[Continue] The task is not complete. Review what you have so far and continue working. Use tools as needed.'
@@ -722,7 +724,7 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
   }
 
   // ── #1 Cache diagnostics ──
-  const completedStatus: 'cancelled' | 'max_turns' | 'stop' = signal?.aborted ? 'cancelled' : turn >= MAX_TURNS ? 'max_turns' : 'stop'
+  const completedStatus: 'cancelled' | 'max_turns' | 'stop' = signal?.aborted ? 'cancelled' : turn >= maxTurns ? 'max_turns' : 'stop'
   const detail = toolCallHistory.length === 0 ? 'stop (no tools used)' : completedStatus
   const totalTokens = totalCacheHitTokens + totalCacheMissTokens
   const hitRatio = totalTokens > 0 ? ((totalCacheHitTokens / totalTokens) * 100).toFixed(1) : 'N/A'

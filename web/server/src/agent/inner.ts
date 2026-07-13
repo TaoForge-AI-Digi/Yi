@@ -430,7 +430,10 @@ export async function innerLoop(
         setTimeout(() => { socket.off('approval.respond', handler); resolve('reject') }, 60000)
       })
       if (choice !== 'reject') {
-        if (choice === 'always') addAllowedPath(sessionId, absEscapedPath)
+        if (choice === 'always') {
+          addAllowedPath(sessionId, absEscapedPath)
+          socket.emit('workspace.paths.updated', { session_id: sessionId, allowed_paths: getAllowedPaths(sessionId) })
+        }
         result = await execWithRoots(choice === 'once' ? [absEscapedPath] : undefined)
       }
     }

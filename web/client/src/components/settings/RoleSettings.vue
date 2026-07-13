@@ -382,6 +382,13 @@ function saveEdit() {
                   </select>
                 </div>
                 <div class="field">
+                  <label class="field-label">最大运行轮数</label>
+                  <div class="field-slider-group">
+                    <input :value="form.maxSteps" @input="form.maxSteps = Number(($event.target as HTMLInputElement).value)" type="range" min="1" max="999" class="field-slider" />
+                    <input :value="form.maxSteps" @input="form.maxSteps = Number(($event.target as HTMLInputElement).value)" type="number" min="1" max="999" class="field-number" />
+                  </div>
+                </div>
+                <div class="field">
                   <label class="field-label">Groups</label>
                   <div class="group-chips">
                     <span v-for="grp in displayGroups" :key="grp" :class="['group-chip', { active: form.groups?.includes(grp) }]" @click="toggleGroup(grp)">{{ grp }}</span>
@@ -919,6 +926,10 @@ function saveEdit() {
   background: #fff;
 }
 .field-input:focus { border-color: #1976d2; }
+.field-slider-group { display: flex; align-items: center; gap: 8px; }
+.field-slider { flex: 1; max-width: 180px; }
+.field-number { width: 70px; padding: 4px 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; text-align: center; }
+.field-number:focus { border-color: #1976d2; outline: none; }
 
 .field-textarea {
   width: 100%;

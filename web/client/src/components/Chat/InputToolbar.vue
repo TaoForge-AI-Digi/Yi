@@ -22,6 +22,12 @@ const workspaceList = computed(() => {
     : s.workspace ? [s.workspace] : []
 })
 
+const allowedPathList = computed(() => {
+  const s = session.value
+  if (!s || !s.allowed_paths || s.allowed_paths.length === 0) return []
+  return s.allowed_paths
+})
+
 function shortenPath(p: string, maxLen = 30): string {
   if (p.length <= maxLen) return p
   const parts = p.split(/[/\\]/)
@@ -118,9 +124,13 @@ function onFilePicked(e: Event) {
       <div class="workspace-group">
         <span class="group-label">工作区</span>
         <div class="ws-chips">
-          <span v-for="ws in workspaceList" :key="ws" class="ws-chip" :title="ws">
+          <span v-for="ws in workspaceList" :key="ws" class="ws-chip" :class="{ 'ws-chip-default': ws === session?.workspace }" :title="ws">
             <span class="ws-chip-name">{{ shortenPath(ws) }}</span>
-            <span class="ws-chip-remove" @click="chatStore.removeWorkspace(ws)">&times;</span>
+            <span v-if="ws !== session?.workspace" class="ws-chip-remove" @click="chatStore.removeWorkspace(ws)">&times;</span>
+          </span>
+          <span v-for="ap in allowedPathList" :key="ap" class="ws-chip ws-chip-allowed" :title="ap">
+            <span class="ws-chip-name">{{ shortenPath(ap) }}</span>
+            <span class="ws-chip-remove" @click="chatStore.removeAllowedPath(ap)">&times;</span>
           </span>
           <button class="ws-add-btn" @click="showWorkspacePicker = true" title="添加工作区">+</button>
           <WorkspacePicker v-if="showWorkspacePicker" :selected="workspaceList" @select="onWorkspacePicked" @close="showWorkspacePicker = false" />
@@ -272,6 +282,8 @@ function onFilePicked(e: Event) {
   margin-left: 1px;
 }
 .ws-chip-remove:hover { color: #ef4444; }
+.ws-chip-default { background: #e8f5e9; color: #2e7d32; border-color: #c8e6c9; cursor: default; }
+.ws-chip-allowed { background: #fff3e0; color: #e65100; border-color: #ffe0b2; cursor: default; }
 .ws-add-btn {
   display: inline-flex;
   align-items: center;

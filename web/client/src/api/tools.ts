@@ -26,6 +26,8 @@ export interface MCPServer {
   command: string
   args: string[]
   env: Record<string, string>
+  cwd?: string
+  timeout?: number
   status?: MCPConnectionStatus | null
 }
 

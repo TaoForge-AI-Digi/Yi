@@ -39,6 +39,7 @@ export interface Message {
 export interface Session {
   id: string; character_id: string; title: string; messages: Message[]
   model?: string; provider_id?: string; workspace?: string; workspaces?: string[]
+  allowed_paths?: string[]
   pinned?: boolean
   thinking?: boolean
   reasoning_effort?: string
@@ -257,6 +258,11 @@ export const useChatStore = defineStore('chat', () => {
     socket.on('run.completed', onPersistentCompleted)
     socket.off('run.compacted', onPersistentCompacted)
     socket.on('run.compacted', onPersistentCompacted)
+    socket.off('workspace.paths.updated')
+    socket.on('workspace.paths.updated', (data: { session_id: string; allowed_paths: string[] }) => {
+      const s = sessions.value.find(x => x.id === data.session_id)
+      if (s) s.allowed_paths = data.allowed_paths
+    })
     socket.off('run.started')
     socket.on('run.started', (data: RunEvent & { context_window?: number }) => {
       if (data.session_id === activeSessionId.value) {
@@ -583,6 +589,7 @@ export const useChatStore = defineStore('chat', () => {
       socket.off('tool.completed', onToolCompleted)
       socket.off('tool.output', onToolOutput)
       socket.off('approval.requested', onApprovalRequested)
+      socket.off('workspace.paths.updated')
       socket.off('run.started', onRunStarted)
       socket.off('run.completed', onCompleted)
       socket.off('usage', onUsage)
@@ -657,6 +664,13 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  function removeAllowedPath(path: string) {
+    const socket = getSocket()
+    if (socket && activeSessionId.value) {
+      socket.emit('workspace.remove_allowed', { session_id: activeSessionId.value, path })
+    }
+  }
+
   function addWorkspace(path: string) {
     const session = activeSession.value
     if (!session) return
@@ -675,6 +689,8 @@ export const useChatStore = defineStore('chat', () => {
   function removeWorkspace(path: string) {
     const session = activeSession.value
     if (!session || !session.workspaces) return
+    // Default workspace cannot be deleted
+    if (path === session.workspace) return
     session.workspaces = session.workspaces.filter(w => w !== path)
     if (session.workspaces.length === 0) {
       session.workspaces = undefined
@@ -718,7 +734,7 @@ export const useChatStore = defineStore('chat', () => {
     loadSessions, createSession, switchSession, sendMessage, setStrategy, respondApproval, abortRun,
     renameSession, deleteSingleSession, resetToMessage,
     toggleSessionStar, getChildSessions,
-    addWorkspace, removeWorkspace,
+    addWorkspace, removeWorkspace, removeAllowedPath,
     toggleWorkspaceCollapse, toggleBatchMode, toggleSessionSelection, selectAllSessions, batchDeleteSessions,
   }
 })

@@ -35,6 +35,11 @@ export function getAllowedPaths(sessionId: string): string[] {
   return getSessionState(sessionId).allowed_paths
 }
 
+export function removeAllowedPath(sessionId: string, p: string): void {
+  const state = getSessionState(sessionId)
+  state.allowed_paths = state.allowed_paths.filter(x => x !== p)
+}
+
 export function setSessionStrategy(sessionId: string, strategy: Strategy, modifiedBy: 'user' | 'system'): SessionState {
   const state = getSessionState(sessionId)
   state.current_strategy = strategy

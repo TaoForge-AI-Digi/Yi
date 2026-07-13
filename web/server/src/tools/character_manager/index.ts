@@ -4,22 +4,26 @@ import { characterContentStore } from '../../character/store.js'
 
 export const tool: ToolModule = {
   name: 'character_manager',
-  description: 'Create a character with soul.md + character.json + user.md + memory.md. All files are written server-side to data/characters/<id>/ — workspace-independent. Returns the new character ID.',
+  description: 'Manage characters (list/read/create/update/delete). All server-side, workspace-independent.',
   parameters: {
     type: 'object',
     properties: {
       action: {
         type: 'string',
-        enum: ['create'],
-        description: 'Create a new character with all required files.',
+        enum: ['list', 'read', 'create', 'update', 'delete'],
+        description: '"list" returns all characters; "read" returns a character\'s config + content; "create" creates a new character; "update" modifies an existing one; "delete" removes a character.',
+      },
+      character_id: {
+        type: 'string',
+        description: 'Required for read/update/delete. The character ID.',
       },
       name: {
         type: 'string',
-        description: 'Character display name (required).',
+        description: 'Character display name (required for create).',
       },
       soul: {
         type: 'string',
-        description: 'SOUL.md content — the character\'s personality definition (required).',
+        description: 'SOUL.md content — the character\'s personality definition.',
       },
       description: {
         type: 'string',
@@ -44,7 +48,7 @@ export const tool: ToolModule = {
       },
       skills: {
         type: 'string',
-        description: 'Comma-separated skill names to attach (e.g. "character-creation,session-management").',
+        description: 'Comma-separated skill names to attach.',
       },
       color: {
         type: 'string',
@@ -64,56 +68,118 @@ export const tool: ToolModule = {
         description: 'Maximum turns per session (default: "10").',
       },
     },
-    required: ['action', 'name', 'soul'],
+    required: ['action'],
   },
   execute: async (args) => {
     const action = args.action
-    if (action !== 'create') {
-      return { output: '', error: `Invalid action: ${action}` }
+
+    if (action === 'list') {
+      const all = characterMetaStore.getAll()
+      if (all.length === 0) return { output: 'No characters' }
+      const lines = all.map(c => {
+        const parts = [`- ${c.id} (${c.name})`]
+        if (c.description) parts[0] += `: ${c.description}`
+        if (c.role) parts.push(`  role: ${c.role}`)
+        if (c.tools?.length) parts.push(`  tools: ${c.tools.map(t => t.name).join(', ')}`)
+        if (c.skills?.length) parts.push(`  skills: ${c.skills.join(', ')}`)
+        return parts.join('\n')
+      })
+      return { output: `Characters:\n${lines.join('\n\n')}` }
     }
 
-    const tools = args.tools
-      ? args.tools.split(',').map(t => t.trim()).filter(Boolean).map(name => ({ name }))
-      : undefined
-    const skills = args.skills
-      ? args.skills.split(',').map(s => s.trim()).filter(Boolean)
-      : undefined
-    const groups = args.groups
-      ? args.groups.split(',').map(g => g.trim()).filter(Boolean)
-      : undefined
-    const maxSteps = args.maxSteps ? parseInt(args.maxSteps, 10) || 10 : 10
+    if (action === 'read') {
+      const id = args.character_id
+      if (!id) return { output: '', error: 'character_id is required when action="read"' }
+      const record = characterMetaStore.getById(id)
+      if (!record) return { output: '', error: `Character "${id}" not found` }
+      const content = characterContentStore.get(id)
+      return { output: JSON.stringify({ ...record, ...content }, null, 2) }
+    }
 
-    const record = characterMetaStore.create({
-      name: args.name,
-      description: args.description || undefined,
-      color: args.color || '#6366f1',
-      role: (args.role as 'main' | 'sub' | 'both') || 'both',
-      tools,
-      skills,
-      groups,
-      maxSteps,
-      default_strategy: (args.default_strategy as 'Plan' | 'Ask' | 'Bypass') || 'Ask',
-      enabled: true,
-    })
+    if (action === 'create') {
+      if (!args.name) return { output: '', error: 'name is required when action="create"' }
 
-    characterContentStore.save(record.id, {
-      soul: args.soul,
-      user: args.user_profile,
-      memory: args.memory,
-    })
+      const tools = args.tools
+        ? args.tools.split(',').map(t => t.trim()).filter(Boolean).map(name => ({ name }))
+        : undefined
+      const skills = args.skills
+        ? args.skills.split(',').map(s => s.trim()).filter(Boolean)
+        : undefined
+      const groups = args.groups
+        ? args.groups.split(',').map(g => g.trim()).filter(Boolean)
+        : undefined
+      const maxSteps = args.maxSteps ? parseInt(args.maxSteps, 10) || 10 : 10
 
-    const summary = [
-      `Character "${record.name}" created (id: ${record.id})`,
-      `  Files: data/characters/${record.id}/`,
-      `    - character.json (metadata)`,
-      `    - soul.md`,
-      `    - user.md`,
-      `    - memory.md`,
-    ]
-    if (tools?.length) summary.push(`  Tools: ${tools.map(t => t.name).join(', ')}`)
-    if (skills?.length) summary.push(`  Skills: ${skills.join(', ')}`)
-    if (record.role) summary.push(`  Role: ${record.role}`)
+      const record = characterMetaStore.create({
+        name: args.name,
+        description: args.description || undefined,
+        color: args.color || '#6366f1',
+        role: (args.role as 'main' | 'sub' | 'both') || 'both',
+        tools,
+        skills,
+        groups,
+        maxSteps,
+        default_strategy: (args.default_strategy as 'Plan' | 'Ask' | 'Bypass') || 'Ask',
+        enabled: true,
+      })
 
-    return { output: summary.join('\n') }
+      characterContentStore.save(record.id, {
+        soul: args.soul,
+        user: args.user_profile,
+        memory: args.memory,
+      })
+
+      const summary = [
+        `Character "${record.name}" created (id: ${record.id})`,
+        `  Files: data/characters/${record.id}/`,
+      ]
+      if (tools?.length) summary.push(`  Tools: ${tools.map(t => t.name).join(', ')}`)
+      if (skills?.length) summary.push(`  Skills: ${skills.join(', ')}`)
+      return { output: summary.join('\n') }
+    }
+
+    if (action === 'update') {
+      const id = args.character_id
+      if (!id) return { output: '', error: 'character_id is required when action="update"' }
+      const existing = characterMetaStore.getById(id)
+      if (!existing) return { output: '', error: `Character "${id}" not found` }
+
+      const patch: Record<string, any> = {}
+      if (args.name !== undefined) patch.name = args.name
+      if (args.description !== undefined) patch.description = args.description || undefined
+      if (args.color !== undefined) patch.color = args.color || undefined
+      if (args.role !== undefined) patch.role = args.role
+      if (args.default_strategy !== undefined) patch.default_strategy = args.default_strategy
+      if (args.maxSteps !== undefined) patch.maxSteps = parseInt(args.maxSteps) || 10
+      if (args.tools !== undefined) {
+        patch.tools = args.tools.split(',').map((t: string) => t.trim()).filter(Boolean).map((name: string) => ({ name }))
+      }
+      if (args.skills !== undefined) {
+        patch.skills = args.skills.split(',').map((s: string) => s.trim()).filter(Boolean)
+      }
+      if (args.groups !== undefined) {
+        patch.groups = args.groups.split(',').map((g: string) => g.trim()).filter(Boolean)
+      }
+
+      characterMetaStore.update(id, patch)
+      if (args.soul !== undefined || args.user_profile !== undefined || args.memory !== undefined) {
+        characterContentStore.save(id, {
+          soul: args.soul,
+          user: args.user_profile,
+          memory: args.memory,
+        })
+      }
+      return { output: `Character "${id}" updated` }
+    }
+
+    if (action === 'delete') {
+      const id = args.character_id
+      if (!id) return { output: '', error: 'character_id is required when action="delete"' }
+      if (!characterMetaStore.getById(id)) return { output: '', error: `Character "${id}" not found` }
+      characterMetaStore.delete(id)
+      return { output: `Character "${id}" deleted` }
+    }
+
+    return { output: '', error: `Invalid action: ${action}` }
   },
 }

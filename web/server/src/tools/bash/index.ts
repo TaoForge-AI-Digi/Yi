@@ -7,6 +7,27 @@ import { z } from 'zod'
 import { validate } from '../validate.js'
 import { getOutputDir } from '../truncate.js'
 
+const LOG_DIR = pathResolve(process.cwd(), 'data', 'bash-logs')
+function logBash(sessionId: string | undefined, cmd: string, stdout: string, stderr: string, exitCode: number | null, duration: number) {
+  try {
+    if (!existsSync(LOG_DIR)) mkdirSync(LOG_DIR, { recursive: true })
+    const name = `bash_${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}_${Math.random().toString(36).slice(2, 6)}.log`
+    const filePath = pathResolve(LOG_DIR, name)
+    const lines = [
+      `# bash log — ${new Date().toLocaleString()}`,
+      `# session: ${sessionId || '(none)'}`,
+      `# exit: ${exitCode ?? '(null)'}  duration: ${duration}ms`,
+      `# command:`,
+      cmd,
+      stdout ? `\n# stdout (${stdout.length} chars):` : '',
+      stdout,
+      stderr ? `\n# stderr (${stderr.length} chars):` : '',
+      stderr,
+    ].join('\n')
+    writeFileSync(filePath, lines, 'utf-8')
+  } catch { /* best effort */ }
+}
+
 const WIN_ABS_PATH_RE = /[A-Za-z]:\\[^\s"'|&;<>(){}[\]`~!@#$%^&*=+]+/g
 
 const PATH_TOKEN_RE = /(?:^|\s+)((?:~\/|\.\.\/|\/|[A-Za-z]:\\)[\S]*)/g
@@ -23,6 +44,8 @@ function scanCommandPaths(cmd: string, workspaces: string[], allowedRoots?: stri
     const p = m[1]
     if (p.includes('=') || p.startsWith('-')) continue
     if (process.platform === 'win32' && /^\/[A-Za-z?](?:[:=][^\\/]*)?$/i.test(p)) continue
+    // Skip Windows cmd flags like /f, /im, /t — these are not file paths
+    if (process.platform === 'win32' && /^\/[A-Za-z][A-Za-z0-9]*$/.test(p)) continue
     const before = cmd.slice(0, m.index)
     const quotes = (before.match(/["']/g) || []).length
     if (quotes % 2 !== 0) continue
@@ -131,8 +154,11 @@ export const tool: ToolModule = {
         return new Promise((resolvePromise) => {
           let stdout = ''
           let stderr = ''
+          let fullStdout = ''
+          let fullStderr = ''
           let truncated = false
           let writtenOnce = false
+          const startTime = Date.now()
 
           const timeoutId = setTimeout(() => {
             const msg = '\n[Timeout: command exceeded 60000ms]'
@@ -168,6 +194,9 @@ export const tool: ToolModule = {
           function appendOutput(buf: Buffer, isStdout: boolean) {
             const chunk = buf.toString()
             const target = isStdout ? stdout : stderr
+
+            if (isStdout) fullStdout += chunk
+            else fullStderr += chunk
 
             if (truncated) {
               onOutput?.(chunk)
@@ -209,12 +238,15 @@ export const tool: ToolModule = {
           child.on('error', (err: Error) => {
             clearTimeout(timeoutId)
             signal?.removeEventListener('abort', abortHandler)
+            logBash('', cmd, fullStdout, fullStderr, null, Date.now() - startTime)
             resolvePromise({ output: stdout, error: err.message })
           })
 
           child.on('close', (code) => {
             clearTimeout(timeoutId)
             signal?.removeEventListener('abort', abortHandler)
+            const duration = Date.now() - startTime
+            logBash('', cmd, fullStdout, fullStderr, code, duration)
             const combined = stdout + (stderr ? `\n${stderr}` : '')
             if (code === 0 || (code === null && stdout)) {
               resolvePromise({ output: combined.trim() })
