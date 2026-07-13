@@ -96,14 +96,16 @@ export const useChatStore = defineStore('chat', () => {
     let total = 0
     for (const m of s.messages) {
       if (m.content) total += m.content.length
-      if (m.tool_output) total += m.tool_output.length
+      else if (m.tool_output) total += m.tool_output.length
+      if (m.reasoning) total += m.reasoning.length
+      total += 16
     }
     const tokenEst = Math.ceil(total / 4)
     return {
       pct: Math.min(100, Math.round((tokenEst / cw) * 100)),
       used: tokenEst,
       total: cw,
-      show: total > 0,
+      show: tokenEst > 0,
     }
   })
 
@@ -499,9 +501,7 @@ export const useChatStore = defineStore('chat', () => {
         if (s) s.context_window = data.context_window
       }
     }
-    const isEventSession = session!.session_type === 'event'
     const onDelta = (data: RunEvent) => {
-      if (isEventSession) return
       const s = findSession(data.session_id)
       if (!s) return
       const last = s.messages[s.messages.length - 1]
@@ -517,7 +517,6 @@ export const useChatStore = defineStore('chat', () => {
       }
     }
     const onToolStarted = (data: RunEvent) => {
-      if (isEventSession) return
       const s = findSession(data.session_id)
       if (!s) return
       s.messages.push({
@@ -528,14 +527,12 @@ export const useChatStore = defineStore('chat', () => {
       })
     }
     const onToolCompleted = (data: RunEvent) => {
-      if (isEventSession) return
       const s = findSession(data.session_id)
       if (!s) return
       const tool = s.messages.find(m => m.role === 'tool' && m.tool_call_id === data.tool_call_id)
       if (tool) { tool.tool_status = (data.tool_status as any) || 'success'; tool.tool_output = data.tool_output }
     }
     const onToolOutput = (data: RunEvent) => {
-      if (isEventSession) return
       const s = findSession(data.session_id)
       if (!s) return
       const tool = s.messages.find(m => m.role === 'tool' && m.tool_call_id === data.tool_call_id)

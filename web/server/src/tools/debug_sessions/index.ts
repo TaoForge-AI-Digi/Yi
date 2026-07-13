@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, existsSync } from 'fs'
+import { readdirSync, readFileSync } from 'fs'
 import { resolve } from 'path'
 import type { ToolModule } from '../types.js'
 import { mergeOldDebugTurns } from '../../debug/merge-turns.js'
@@ -82,22 +82,22 @@ export const tool: ToolModule = {
             }
           }
         }
+        continue
       }
 
-      // Also read unmerged turn files for this session
+      // No merged file — merge inline then render once
       const turnFiles = readdirSync(dir)
         .filter(f => f.includes('_turn') && f.endsWith('.json'))
         .sort()
 
       if (turnFiles.length > 0) {
-        result.push(`=== Session: ${sessionId} (${turnFiles.length} turns) ===`)
-        for (const f of turnFiles) {
-          try {
-            const raw = readFileSync(resolve(dir, f), 'utf-8')
-            const turn = JSON.parse(raw)
-            result.push(`--- ${f} ---`)
-            result.push(...renderTurn(turn))
-          } catch {}
+        const turns = turnFiles.map(f => {
+          const raw = readFileSync(resolve(dir, f), 'utf-8')
+          return JSON.parse(raw)
+        })
+        result.push(`=== Session: ${sessionId} (${turns.length} turns, inline merged) ===`)
+        for (const turn of turns) {
+          result.push(...renderTurn(turn))
         }
       }
     }

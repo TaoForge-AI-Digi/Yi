@@ -78,11 +78,12 @@ onUnmounted(() => {
   getSocket().off('event:status_changed', onEventStatusChanged)
 })
 
-function onEventStatusChanged(data: { eventId: string; status: string; result_summary?: string }) {
+function onEventStatusChanged(data: { eventId: string; status: string; result_summary?: string; error_log?: string }) {
   const evt = events.value.find(e => e.id === data.eventId)
   if (evt) {
     evt.status = data.status as EventRecord['status']
     if (data.result_summary) evt.result_summary = data.result_summary
+    if (data.error_log) evt.error_log = data.error_log
   }
 }
 
@@ -232,6 +233,15 @@ function payloadPreview(payload: string): string {
   }
 }
 
+function fullPayload(payload: string): string {
+  try {
+    const p = JSON.parse(payload)
+    return p.instruction || payload
+  } catch {
+    return payload
+  }
+}
+
 function timeAgo(ts: number | null): string {
   if (!ts) return '-'
   const diff = Date.now() - ts
@@ -253,6 +263,20 @@ const statusColumns = [
   { key: 'failed', label: '失败' },
   { key: 'archived', label: '已归档' },
 ]
+
+const expandedCards = ref<Set<string>>(new Set())
+
+function copyId(id: string) {
+  navigator.clipboard.writeText(id)
+}
+
+function toggleExpand(id: string) {
+  if (expandedCards.value.has(id)) {
+    expandedCards.value.delete(id)
+  } else {
+    expandedCards.value.add(id)
+  }
+}
 
 const groupedByStatus = computed(() => {
   const map: Record<string, EventRecord[]> = {}
@@ -297,22 +321,27 @@ const groupedByStatus = computed(() => {
           <span class="event-column-count">{{ groupedByStatus[col.key]?.length || 0 }}</span>
         </div>
         <div class="event-column-body">
-          <div v-for="evt in groupedByStatus[col.key]" :key="evt.id" class="event-card">
+          <div v-for="evt in groupedByStatus[col.key]" :key="evt.id" class="event-card" :class="{ expanded: expandedCards.has(evt.id) }">
             <div class="card-header">
               <span class="source-tag" :style="{ background: sourceColors[evt.source_type] || '#999' }">
                 {{ sourceLabels[evt.source_type] || evt.source_type }}
               </span>
               <span class="type-tag">{{ typeLabels[evt.type] || evt.type }}</span>
+              <button class="btn-expand" @click="toggleExpand(evt.id)">{{ expandedCards.has(evt.id) ? '收起' : '展开' }}</button>
             </div>
-            <div class="card-payload" :title="JSON.parse(evt.payload || '{}').instruction || ''">
-              {{ payloadPreview(evt.payload) }}
+            <div :class="['card-payload', { 'card-payload-expanded': expandedCards.has(evt.id) }]">
+              {{ expandedCards.has(evt.id) ? fullPayload(evt.payload) : payloadPreview(evt.payload) }}
             </div>
             <div class="card-meta">
               <span class="agent-cell">{{ evt.assigned_agent_id }}</span>
               <span class="time-cell">{{ timeAgo(evt.created_at) }}</span>
+              <button class="btn-copy-id" @click="copyId(evt.id)" title="复制事件 ID">复制 ID</button>
             </div>
-            <div v-if="evt.result_summary" class="card-summary">
-              {{ evt.result_summary.slice(0, 60) }}
+            <div v-if="evt.result_summary && evt.status !== 'failed'" class="card-summary">
+              {{ expandedCards.has(evt.id) ? evt.result_summary : evt.result_summary.slice(0, 60) }}
+            </div>
+            <div v-if="evt.status === 'failed' && evt.error_log" class="card-error">
+              {{ expandedCards.has(evt.id) ? evt.error_log : evt.error_log.slice(0, 120) }}
             </div>
             <div class="card-actions">
               <button
@@ -486,7 +515,10 @@ const groupedByStatus = computed(() => {
   background: #fff; font-size: 13px; display: flex; flex-direction: column; gap: 6px;
 }
 .event-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.event-card.expanded { border-color: #b0b0b0; background: #fcfcfc; }
 .card-header { display: flex; align-items: center; gap: 6px; }
+.btn-expand { margin-left: auto; font-size: 11px; color: #007aff; background: none; border: none; cursor: pointer; padding: 2px 4px; }
+.btn-expand:hover { text-decoration: underline; }
 .source-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; color: #fff; font-size: 11px; font-weight: 500; }
 .type-tag { font-size: 11px; color: #666; background: #f0f0f0; padding: 2px 6px; border-radius: 4px; }
 .card-payload {
@@ -494,10 +526,16 @@ const groupedByStatus = computed(() => {
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.card-payload-expanded {
+  -webkit-line-clamp: unset; display: block; overflow: visible;
+}
 .card-meta { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #888; }
+.btn-copy-id { margin-left: auto; font-size: 11px; color: #888; background: none; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; padding: 1px 6px; line-height: 1.5; }
+.btn-copy-id:hover { color: #333; border-color: #999; }
 .agent-cell { font-family: monospace; font-size: 11px; }
 .time-cell { font-size: 11px; }
 .card-summary { font-size: 11px; color: #666; background: #f9f9f9; padding: 4px 6px; border-radius: 4px; line-height: 1.3; }
+.card-error { font-size: 11px; color: #b71c1c; background: #ffebee; padding: 4px 6px; border-radius: 4px; line-height: 1.3; word-break: break-all; border: 1px solid #ffcdd2; }
 .card-actions { display: flex; gap: 4px; flex-wrap: wrap; padding-top: 4px; border-top: 1px solid #f0f0f0; }
 .card-actions .btn { font-size: 11px; padding: 3px 6px; }
 .event-empty { text-align: center; padding: 24px 0; font-size: 13px; color: #ccc; }

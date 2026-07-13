@@ -13,12 +13,12 @@ import { resolve as pathResolve } from 'path'
 
 const READ_ONLY_TOOLS = new Set(['read', 'grep', 'glob', 'webfetch', 'websearch'])
 
-const MAX_TOOL_OUTPUT_CHARS = 8000
+const MAX_TOOL_OUTPUT_CHARS = 64000
 
 export function truncateToolOutput(output: string): string {
   if (output.length <= MAX_TOOL_OUTPUT_CHARS) return output
-  const tail = output.slice(-MAX_TOOL_OUTPUT_CHARS)
-  return `... (${(output.length / 1024).toFixed(0)}KB total, showing last ${MAX_TOOL_OUTPUT_CHARS / 1024}KB)\n${tail}`
+  const head = output.slice(0, MAX_TOOL_OUTPUT_CHARS)
+  return `${head}\n\n... (${(output.length / 1024).toFixed(0)}KB total, showing first ${MAX_TOOL_OUTPUT_CHARS / 1024}KB)`
 }
 
 export interface ToolCallRecord {
