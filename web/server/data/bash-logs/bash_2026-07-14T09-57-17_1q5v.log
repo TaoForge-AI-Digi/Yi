@@ -1,0 +1,153 @@
+# bash log — 2026/7/14 17:57:17
+# session: (none)
+# exit: 0  duration: 136ms
+# command:
+python read_2510_2511_exact.py
+
+# stdout (10022 chars):
+
+================================================================================
+FILE: 2510-��Ӧ��ϵͳ������AI�Ӿ�Ӧ�ÿ�������.docx
+================================================================================
+
+--- ALL PARAGRAPHS ---
+[0] style=Normal, align=CENTER (1), runs=['font=None, bold=None, size=None', 'font=None, bold=True, size=203200']
+    text='�����Ҫ'
+[1] style=Normal, align=None, runs=['font=None, bold=None, size=114300', 'font=None, bold=None, size=114300', 'font=None, bold=None, size=114300', 'font=None, bold=None, size=114300', 'font=None, bold=None, size=114300', 'font=None, bold=None, size=114300', 'font=None, bold=None, size=114300', 'font=None, bold=None, size=114300']
+    text='�������ޣ�5��                                   �汾�ţ�1.0                          �����ţ� DZ-HY-2510001 '
+[2] style=Normal, align=None, runs=[]
+    text=''
+[3] style=Normal, align=None, runs=[]
+    text=''
+
+--- TABLES (with cell merging info) ---
+
+Table 0: 6 rows x 7 cols
+
+  Row 0:
+    Col 0: [gridSpan=1, vMerge=none] '�������⣺'
+    Col 1: [gridSpan=4, vMerge=none] '��Ӧ��ϵͳ������AI�Ӿ�Ӧ�ÿ�������'
+    Col 2: [gridSpan=4, vMerge=none] '��Ӧ��ϵͳ������AI�Ӿ�Ӧ�ÿ�������'
+    Col 3: [gridSpan=4, vMerge=none] '��Ӧ��ϵͳ������AI�Ӿ�Ӧ�ÿ�������'
+    Col 4: [gridSpan=4, vMerge=none] '��Ӧ��ϵͳ������AI�Ӿ�Ӧ�ÿ�������'
+    Col 5: [gridSpan=1, vMerge=none] 'ʱ�䣺'
+    Col 6: [gridSpan=1, vMerge=none] '2025��10��31��\n����10:30-11:30'
+
+  Row 1:
+    Col 0: [gridSpan=1, vMerge=none] '�����ˣ�'
+    Col 1: [gridSpan=2, vMerge=none] '������'
+    Col 2: [gridSpan=2, vMerge=none] '������'
+    Col 3: [gridSpan=1, vMerge=none] '��¼��'
+    Col 4: [gridSpan=1, vMerge=none] '������'
+    Col 5: [gridSpan=1, vMerge=none] '�ص㣺'
+    Col 6: [gridSpan=1, vMerge=none] '��˾������'
+
+  Row 2:
+    Col 0: [gridSpan=2, vMerge=none] '������Ա�����'
+    Col 1: [gridSpan=2, vMerge=none] '������Ա�����'
+    Col 2: [gridSpan=5, vMerge=none] '��ľǧ�֡�������������̹�������ԡ���С�ݡ���ΰ�ܡ�������������'
+    Col 3: [gridSpan=5, vMerge=none] '��ľǧ�֡�������������̹�������ԡ���С�ݡ���ΰ�ܡ�������������'
+    Col 4: [gridSpan=5, vMerge=none] '��ľǧ�֡�������������̹�������ԡ���С�ݡ���ΰ�ܡ�������������'
+    Col 5: [gridSpan=5, vMerge=none] '��ľǧ�֡�������������̹�������ԡ���С�ݡ���ΰ�ܡ�������������'
+    Col 6: [gridSpan=5, vMerge=none] '��ľǧ�֡�������������̹�������ԡ���С�ݡ���ΰ�ܡ�������������'
+
+  Row 3:
+    Col 0: [gridSpan=7, vMerge=none] '��Ҫ���ݣ�\n���AI�Ӿ�ƽ̨�㷨���桢�Ӿ��ɼ�����ģ�鿪�������乤ҵ�����������������Ӳ����\n2.����ȱ�ݼ�⡢��������������ʶ��Ԥѵ���㷨ģ�Ϳ���������ͨ��ģ'
+    Col 1: [gridSpan=7, vMerge=none] '��Ҫ���ݣ�\n���AI�Ӿ�ƽ̨�㷨���桢�Ӿ��ɼ�����ģ�鿪�������乤ҵ�����������������Ӳ����\n2.����ȱ�ݼ�⡢��������������ʶ��Ԥѵ���㷨ģ�Ϳ���������ͨ��ģ'
+    Col 2: [gridSpan=7, vMerge=none] '��Ҫ���ݣ�\n���AI�Ӿ�ƽ̨�㷨���桢�Ӿ��ɼ�����ģ�鿪�������乤ҵ�����������������Ӳ����\n2.����ȱ�ݼ�⡢��������������ʶ��Ԥѵ���㷨ģ�Ϳ���������ͨ��ģ'
+    Col 3: [gridSpan=7, vMerge=none] '��Ҫ���ݣ�\n���AI�Ӿ�ƽ̨�㷨���桢�Ӿ��ɼ�����ģ�鿪�������乤ҵ�����������������Ӳ����\n2.����ȱ�ݼ�⡢��������������ʶ��Ԥѵ���㷨ģ�Ϳ���������ͨ��ģ'
+    Col 4: [gridSpan=7, vMerge=none] '��Ҫ���ݣ�\n���AI�Ӿ�ƽ̨�㷨���桢�Ӿ��ɼ�����ģ�鿪�������乤ҵ�����������������Ӳ����\n2.����ȱ�ݼ�⡢��������������ʶ��Ԥѵ���㷨ģ�Ϳ���������ͨ��ģ'
+    Col 5: [gridSpan=7, vMerge=none] '��Ҫ���ݣ�\n���AI�Ӿ�ƽ̨�㷨���桢�Ӿ��ɼ�����ģ�鿪�������乤ҵ�����������������Ӳ����\n2.����ȱ�ݼ�⡢��������������ʶ��Ԥѵ���㷨ģ�Ϳ���������ͨ��ģ'
+    Col 6: [gridSpan=7, vMerge=none] '��Ҫ���ݣ�\n���AI�Ӿ�ƽ̨�㷨���桢�Ӿ��ɼ�����ģ�鿪�������乤ҵ�����������������Ӳ����\n2.����ȱ�ݼ�⡢��������������ʶ��Ԥѵ���㷨ģ�Ϳ���������ͨ��ģ'
+
+  Row 4:
+    Col 0: [gridSpan=7, vMerge=none] '������飺\n1.������ƣ���С�����ƽ̨���ӻ���ά������ƣ�֧�������ء��豸Ԥ����������Դ������������\n2.���¼ƻ������ģ��ѵ���벿��ģ�鿪������չ�㷨����'
+    Col 1: [gridSpan=7, vMerge=none] '������飺\n1.������ƣ���С�����ƽ̨���ӻ���ά������ƣ�֧�������ء��豸Ԥ����������Դ������������\n2.���¼ƻ������ģ��ѵ���벿��ģ�鿪������չ�㷨����'
+    Col 2: [gridSpan=7, vMerge=none] '������飺\n1.������ƣ���С�����ƽ̨���ӻ���ά������ƣ�֧�������ء��豸Ԥ����������Դ������������\n2.���¼ƻ������ģ��ѵ���벿��ģ�鿪������չ�㷨����'
+    Col 3: [gridSpan=7, vMerge=none] '������飺\n1.������ƣ���С�����ƽ̨���ӻ���ά������ƣ�֧�������ء��豸Ԥ����������Դ������������\n2.���¼ƻ������ģ��ѵ���벿��ģ�鿪������չ�㷨����'
+    Col 4: [gridSpan=7, vMerge=none] '������飺\n1.������ƣ���С�����ƽ̨���ӻ���ά������ƣ�֧�������ء��豸Ԥ����������Դ������������\n2.���¼ƻ������ģ��ѵ���벿��ģ�鿪������չ�㷨����'
+    Col 5: [gridSpan=7, vMerge=none] '������飺\n1.������ƣ���С�����ƽ̨���ӻ���ά������ƣ�֧�������ء��豸Ԥ����������Դ������������\n2.���¼ƻ������ģ��ѵ���벿��ģ�鿪������չ�㷨����'
+    Col 6: [gridSpan=7, vMerge=none] '������飺\n1.������ƣ���С�����ƽ̨���ӻ���ά������ƣ�֧�������ء��豸Ԥ����������Դ������������\n2.���¼ƻ������ģ��ѵ���벿��ģ�鿪������չ�㷨����'
+
+  Row 5:
+    Col 0: [gridSpan=7, vMerge=none] '�λ���Աǩ�֣�'
+    Col 1: [gridSpan=7, vMerge=none] '�λ���Աǩ�֣�'
+    Col 2: [gridSpan=7, vMerge=none] '�λ���Աǩ�֣�'
+    Col 3: [gridSpan=7, vMerge=none] '�λ���Աǩ�֣�'
+    Col 4: [gridSpan=7, vMerge=none] '�λ���Աǩ�֣�'
+    Col 5: [gridSpan=7, vMerge=none] '�λ���Աǩ�֣�'
+    Col 6: [gridSpan=7, vMerge=none] '�λ���Աǩ�֣�'
+
+================================================================================
+FILE: 2511-��Ӧ��ϵͳ������AI�Ӿ�Ӧ�ÿ�������.docx
+================================================================================
+
+--- ALL PARAGRAPHS ---
+[0] style=Normal, align=CENTER (1), runs=['font=None, bold=None, size=None', 'font=None, bold=True, size=203200']
+    text='�����Ҫ'
+[1] style=Normal, align=None, runs=['font=None, bold=None, size=114300', 'font=None, bold=None, size=114300', 'font=None, bold=None, size=114300', 'font=None, bold=None, size=114300', 'font=None, bold=None, size=114300', 'font=None, bold=None, size=114300', 'font=None, bold=None, size=114300', 'font=None, bold=None, size=114300']
+    text='�������ޣ�5��                                   �汾�ţ�1.0                          �����ţ� DZ-HY-2511001 '
+[2] style=Normal, align=None, runs=[]
+    text=''
+[3] style=Normal, align=None, runs=[]
+    text=''
+
+--- TABLES (with cell merging info) ---
+
+Table 0: 6 rows x 7 cols
+
+  Row 0:
+    Col 0: [gridSpan=1, vMerge=none] '�������⣺'
+    Col 1: [gridSpan=4, vMerge=none] '��Ӧ��ϵͳ������AI�Ӿ�Ӧ�ÿ�������'
+    Col 2: [gridSpan=4, vMerge=none] '��Ӧ��ϵͳ������AI�Ӿ�Ӧ�ÿ�������'
+    Col 3: [gridSpan=4, vMerge=none] '��Ӧ��ϵͳ������AI�Ӿ�Ӧ�ÿ�������'
+    Col 4: [gridSpan=4, vMerge=none] '��Ӧ��ϵͳ������AI�Ӿ�Ӧ�ÿ�������'
+    Col 5: [gridSpan=1, vMerge=none] 'ʱ�䣺'
+    Col 6: [gridSpan=1, vMerge=none] '2025��11��30��\n����10:30-11:30'
+
+  Row 1:
+    Col 0: [gridSpan=1, vMerge=none] '�����ˣ�'
+    Col 1: [gridSpan=2, vMerge=none] '������'
+    Col 2: [gridSpan=2, vMerge=none] '������'
+    Col 3: [gridSpan=1, vMerge=none] '��¼��'
+    Col 4: [gridSpan=1, vMerge=none] '������'
+    Col 5: [gridSpan=1, vMerge=none] '�ص㣺'
+    Col 6: [gridSpan=1, vMerge=none] '��˾������'
+
+  Row 2:
+    Col 0: [gridSpan=2, vMerge=none] '������Ա�����'
+    Col 1: [gridSpan=2, vMerge=none] '������Ա�����'
+    Col 2: [gridSpan=5, vMerge=none] '��ľǧ�֡�������������̹�������ԡ���С�ݡ���ΰ�ܡ�������������'
+    Col 3: [gridSpan=5, vMerge=none] '��ľǧ�֡�������������̹�������ԡ���С�ݡ���ΰ�ܡ�������������'
+    Col 4: [gridSpan=5, vMerge=none] '��ľǧ�֡�������������̹�������ԡ���С�ݡ���ΰ�ܡ�������������'
+    Col 5: [gridSpan=5, vMerge=none] '��ľǧ�֡�������������̹�������ԡ���С�ݡ���ΰ�ܡ�������������'
+    Col 6: [gridSpan=5, vMerge=none] '��ľǧ�֡�������������̹�������ԡ���С�ݡ���ΰ�ܡ�������������'
+
+  Row 3:
+    Col 0: [gridSpan=7, vMerge=none] '��Ҫ���ݣ�\n1.�㷨���ԣ�ȱ�ݼ�⡢����ʶ���㷨׼ȷ�ʴ�95%���ϣ����㹤ҵ�ֳ�Ӧ��Ҫ��\n2.�豸������ʵ��AI�Ӿ��������������ִ�С��豸����ʵʱ�������γ�'
+    Col 1: [gridSpan=7, vMerge=none] '��Ҫ���ݣ�\n1.�㷨���ԣ�ȱ�ݼ�⡢����ʶ���㷨׼ȷ�ʴ�95%���ϣ����㹤ҵ�ֳ�Ӧ��Ҫ��\n2.�豸������ʵ��AI�Ӿ��������������ִ�С��豸����ʵʱ�������γ�'
+    Col 2: [gridSpan=7, vMerge=none] '��Ҫ���ݣ�\n1.�㷨���ԣ�ȱ�ݼ�⡢����ʶ���㷨׼ȷ�ʴ�95%���ϣ����㹤ҵ�ֳ�Ӧ��Ҫ��\n2.�豸������ʵ��AI�Ӿ��������������ִ�С��豸����ʵʱ�������γ�'
+    Col 3: [gridSpan=7, vMerge=none] '��Ҫ���ݣ�\n1.�㷨���ԣ�ȱ�ݼ�⡢����ʶ���㷨׼ȷ�ʴ�95%���ϣ����㹤ҵ�ֳ�Ӧ��Ҫ��\n2.�豸������ʵ��AI�Ӿ��������������ִ�С��豸����ʵʱ�������γ�'
+    Col 4: [gridSpan=7, vMerge=none] '��Ҫ���ݣ�\n1.�㷨���ԣ�ȱ�ݼ�⡢����ʶ���㷨׼ȷ�ʴ�95%���ϣ����㹤ҵ�ֳ�Ӧ��Ҫ��\n2.�豸������ʵ��AI�Ӿ��������������ִ�С��豸����ʵʱ�������γ�'
+    Col 5: [gridSpan=7, vMerge=none] '��Ҫ���ݣ�\n1.�㷨���ԣ�ȱ�ݼ�⡢����ʶ���㷨׼ȷ�ʴ�95%���ϣ����㹤ҵ�ֳ�Ӧ��Ҫ��\n2.�豸������ʵ��AI�Ӿ��������������ִ�С��豸����ʵʱ�������γ�'
+    Col 6: [gridSpan=7, vMerge=none] '��Ҫ���ݣ�\n1.�㷨���ԣ�ȱ�ݼ�⡢����ʶ���㷨׼ȷ�ʴ�95%���ϣ����㹤ҵ�ֳ�Ӧ��Ҫ��\n2.�豸������ʵ��AI�Ӿ��������������ִ�С��豸����ʵʱ�������γ�'
+
+  Row 4:
+    Col 0: [gridSpan=7, vMerge=none] '������飺\n1.��ά�Ż������ƿ��ӻ���ά���棬������ء�������Ԥ�����������ԡ�\n2.���¼ƻ�������豸����ģ����ԣ�����AI-Native���صʹ���ƽ̨�з���'
+    Col 1: [gridSpan=7, vMerge=none] '������飺\n1.��ά�Ż������ƿ��ӻ���ά���棬������ء�������Ԥ�����������ԡ�\n2.���¼ƻ�������豸����ģ����ԣ�����AI-Native���صʹ���ƽ̨�з���'
+    Col 2: [gridSpan=7, vMerge=none] '������飺\n1.��ά�Ż������ƿ��ӻ���ά���棬������ء�������Ԥ�����������ԡ�\n2.���¼ƻ�������豸����ģ����ԣ�����AI-Native���صʹ���ƽ̨�з���'
+    Col 3: [gridSpan=7, vMerge=none] '������飺\n1.��ά�Ż������ƿ��ӻ���ά���棬������ء�������Ԥ�����������ԡ�\n2.���¼ƻ�������豸����ģ����ԣ�����AI-Native���صʹ���ƽ̨�з���'
+    Col 4: [gridSpan=7, vMerge=none] '������飺\n1.��ά�Ż������ƿ��ӻ���ά���棬������ء�������Ԥ�����������ԡ�\n2.���¼ƻ�������豸����ģ����ԣ�����AI-Native���صʹ���ƽ̨�з���'
+    Col 5: [gridSpan=7, vMerge=none] '������飺\n1.��ά�Ż������ƿ��ӻ���ά���棬������ء�������Ԥ�����������ԡ�\n2.���¼ƻ�������豸����ģ����ԣ�����AI-Native���صʹ���ƽ̨�з���'
+    Col 6: [gridSpan=7, vMerge=none] '������飺\n1.��ά�Ż������ƿ��ӻ���ά���棬������ء�������Ԥ�����������ԡ�\n2.���¼ƻ�������豸����ģ����ԣ�����AI-Native���صʹ���ƽ̨�з���'
+
+  Row 5:
+    Col 0: [gridSpan=7, vMerge=none] '�λ���Աǩ�֣�'
+    Col 1: [gridSpan=7, vMerge=none] '�λ���Աǩ�֣�'
+    Col 2: [gridSpan=7, vMerge=none] '�λ���Աǩ�֣�'
+    Col 3: [gridSpan=7, vMerge=none] '�λ���Աǩ�֣�'
+    Col 4: [gridSpan=7, vMerge=none] '�λ���Աǩ�֣�'
+    Col 5: [gridSpan=7, vMerge=none] '�λ���Աǩ�֣�'
+    Col 6: [gridSpan=7, vMerge=none] '�λ���Աǩ�֣�'
+
+

@@ -1,0 +1,17 @@
+# bash log — 2026/7/14 17:50:48
+# session: (none)
+# exit: 0  duration: 279ms
+# command:
+powershell -NoProfile -ExecutionPolicy Bypass -File list_files.ps1
+
+
+
+# stderr (468 chars):
+Get-ChildItem : �Ҳ���·����C:\Users\dmql\Desktop\25立项������Ϊ��·�������ڡ�
+����λ�� C:\.Yi\list_files.ps1:1 �ַ�: 1
++ Get-ChildItem "C:\Users\dmql\Desktop\25立项" -Force | Select-Object Na ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (C:\Users\dmql\Desktop\25立项:String) [Get-ChildItem], ItemNotFoundExcep
+t    ion
+    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 

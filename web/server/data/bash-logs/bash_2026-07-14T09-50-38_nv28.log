@@ -1,0 +1,10 @@
+# bash log — 2026/7/14 17:50:38
+# session: (none)
+# exit: 0  duration: 182ms
+# command:
+powershell -NoProfile -Command "ls 'C:\Users\dmql\Desktop\25立项' -Force | % { $_.Name }"
+
+# stdout (56 chars):
+ls 'C:\Users\dmql\Desktop\25����' -Force | % { .Name }
+
+

@@ -1,0 +1,31 @@
+# bash log — 2026/7/14 17:54:56
+# session: (none)
+# exit: 1  duration: 152ms
+# command:
+python reconstruct_v2.py
+
+
+
+# stderr (1517 chars):
+Traceback (most recent call last):
+  File "C:\.Yi\reconstruct_v2.py", line 86, in <module>
+    doc.save(output_path)
+    ~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages\docx\document.py", line 204, in save
+    self._part.save(path_or_stream)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages\docx\parts\document.py", line 114, in save
+    self.package.save(path_or_stream)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages\docx\opc\package.py", line 166, in save
+    PackageWriter.write(pkg_file, self.rels, self.parts)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages\docx\opc\pkgwriter.py", line 34, in write
+    phys_writer = PhysPkgWriter(pkg_file)
+  File "C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages\docx\opc\phys_pkg.py", line 109, in __init__
+    self._zipf = ZipFile(pkg_file, "w", compression=ZIP_DEFLATED)
+                 ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\zipfile\__init__.py", line 1362, in __init__
+    self.fp = io.open(file, filemode)
+              ~~~~~~~^^^^^^^^^^^^^^^^
+PermissionError: [Errno 13] Permission denied: 'C:\\Users\\dmql\\Desktop\\25����\\2509-��Ӧ��ϵͳ������AI�Ӿ�Ӧ�ÿ�������.docx'

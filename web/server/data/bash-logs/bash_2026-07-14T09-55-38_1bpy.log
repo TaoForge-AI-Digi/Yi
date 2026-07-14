@@ -1,0 +1,20 @@
+# bash log — 2026/7/14 17:55:38
+# session: (none)
+# exit: 0  duration: 10076ms
+# command:
+python copy_final.py
+
+# stdout (437 chars):
+ϵͳ�Ҳ���ָ�����ļ���
+Source: C:\.Yi\_2509_temp.docx
+Dest: C:\Users\dmql\Desktop\25����\2509-��Ӧ��ϵͳ������AI�Ӿ�Ӧ�ÿ�������.docx
+Dest exists: True
+Attempt 1 failed: [WinError 2] ϵͳ�Ҳ���ָ�����ļ���
+Attempt 2 failed: [WinError 2] ϵͳ�Ҳ���ָ�����ļ���
+Attempt 3 failed: [WinError 2] ϵͳ�Ҳ���ָ�����ļ���
+Attempt 4 failed: [WinError 2] ϵͳ�Ҳ���ָ�����ļ���
+Attempt 5 failed: [WinError 2] ϵͳ�Ҳ���ָ�����ļ���
+Trying os.system copy...
+copy result: 1
+
+

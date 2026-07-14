@@ -1,0 +1,17 @@
+# bash log — 2026/7/14 17:51:00
+# session: (none)
+# exit: 0  duration: 22ms
+# command:
+dir /x C:\Users\dmql\Desktop\25* 2>&1
+
+# stdout (227 chars):
+ ������ C �еľ�û�б�ǩ��
+ �������к��� 8E39-83CC
+
+ C:\Users\dmql\Desktop ��Ŀ¼
+
+2026/07/14  17:45    <DIR>                       25����
+               0 ���ļ�              0 �ֽ�
+               1 ��Ŀ¼ 734,586,847,232 �����ֽ�
+
+

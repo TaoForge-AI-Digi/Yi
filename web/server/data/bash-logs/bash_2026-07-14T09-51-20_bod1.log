@@ -1,0 +1,25 @@
+# bash log — 2026/7/14 17:51:20
+# session: (none)
+# exit: 1  duration: 217ms
+# command:
+python read_docx.py 2>&1
+
+# stdout (1218 chars):
+================================================================================
+FILE: 2509
+================================================================================
+Traceback (most recent call last):
+  File "C:\.Yi\read_docx.py", line 11, in <module>
+    doc = Document(file_2509)
+  File "C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages\docx\api.py", line 27, in Document
+    document_part = cast("DocumentPart", Package.open(docx).main_document_part)
+                                         ~~~~~~~~~~~~^^^^^^
+  File "C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages\docx\opc\package.py", line 126, in open
+    pkg_reader = PackageReader.from_file(pkg_file)
+  File "C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages\docx\opc\pkgreader.py", line 22, in from_file
+    phys_reader = PhysPkgReader(pkg_file)
+  File "C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages\docx\opc\phys_pkg.py", line 21, in __new__
+    raise PackageNotFoundError("Package not found at '%s'" % pkg_file)
+docx.opc.exceptions.PackageNotFoundError: Package not found at 'C:\Users\dmql\Desktop\25����\2509-��Ӧϵͳ�ｨ��AI�Ӿ�Ӧ�ÿ���.docx'
+
+

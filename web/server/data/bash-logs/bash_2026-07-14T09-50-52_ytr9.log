@@ -1,0 +1,10 @@
+# bash log — 2026/7/14 17:50:52
+# session: (none)
+# exit: 0  duration: 19ms
+# command:
+if exist "C:\Users\dmql\Desktop\25立项" (echo EXISTS) else (echo NOT_FOUND)
+
+# stdout (11 chars):
+NOT_FOUND
+
+

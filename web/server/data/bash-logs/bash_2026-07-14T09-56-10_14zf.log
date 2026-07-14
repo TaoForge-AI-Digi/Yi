@@ -1,0 +1,10 @@
+# bash log — 2026/7/14 17:56:10
+# session: (none)
+# exit: 1  duration: 20ms
+# command:
+del /f /q "C:\.Yi\_2509_temp.docx" "C:\.Yi\_2509_content.txt" "C:\.Yi\list_files.ps1" "C:\.Yi\list_folder.bat" "C:\.Yi\list_folder.py" "C:\.Yi\check_files.py" "C:\.Yi\find_and_read.py" "C:\.Yi\read_docx.py" "C:\.Yi\read_all.py" "C:\.Yi\read_2509_details.py" "C:\.Yi\read_all_meetings.py" "C:\.Yi\reconstruct_v2.py" "C:\.Yi\reconstruct_v3.py" "C:\.Yi\copy_final.py" "C:\.Yi\verify_2509.py" "C:\.Yi\verify_2509_readable.py" 2>&1
+
+# stdout (27 chars):
+�ļ�����Ŀ¼��������﷨����ȷ��
+
+

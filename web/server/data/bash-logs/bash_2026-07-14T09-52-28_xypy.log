@@ -1,0 +1,8 @@
+# bash log — 2026/7/14 17:52:28
+# session: (none)
+# exit: 0  duration: 26ms
+# command:
+del list_folder.py check_files.py find_and_read.py read_all.py read_2509_details.py read_all_meetings.py reconstruct_2509.py verify_2509.py list_folder.bat
+
+
+

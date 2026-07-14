@@ -1,0 +1,10 @@
+# bash log — 2026/7/14 17:50:53
+# session: (none)
+# exit: 1  duration: 19ms
+# command:
+dir /b "C:\Users\dmql\Desktop" 2>&1
+
+# stdout (27 chars):
+�ļ�����Ŀ¼��������﷨����ȷ��
+
+

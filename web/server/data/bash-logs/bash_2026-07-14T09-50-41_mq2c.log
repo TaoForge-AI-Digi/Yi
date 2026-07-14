@@ -1,0 +1,10 @@
+# bash log — 2026/7/14 17:50:41
+# session: (none)
+# exit: 0  duration: 175ms
+# command:
+powershell -NoProfile -Command "[Console]::OutputEncoding = [Text.Encoding]::UTF8; ls 'C:\Users\dmql\Desktop' | Where-Object { $_.Name -like '*25*' } | ForEach-Object { Write-Host $_.FullName }"
+
+# stdout (159 chars):
+[Console]::OutputEncoding = [Text.Encoding]::UTF8; ls 'C:\Users\dmql\Desktop' | Where-Object { .Name -like '*25*' } | ForEach-Object { Write-Host .FullName }
+
+

@@ -1,0 +1,10 @@
+# bash log — 2026/7/14 17:55:17
+# session: (none)
+# exit: 128  duration: 511ms
+# command:
+taskkill /F /IM WINWORD.EXE 2>&1
+
+# stdout (34 chars):
+����: û���ҵ����� "WINWORD.EXE"��
+
+

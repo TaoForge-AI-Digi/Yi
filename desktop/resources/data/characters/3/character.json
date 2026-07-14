@@ -23,6 +23,9 @@
       "name": "character_manager"
     },
     {
+      "name": "mcp_manager"
+    },
+    {
       "name": "edit"
     },
     {
@@ -50,7 +53,10 @@
       "name": "task_complete"
     },
     {
-      "name": "mcp:codegraph"
+      "name": "provider_manager"
+    },
+    {
+      "name": "mcp_manager"
     },
     {
       "name": "mcp:playwright"
@@ -59,12 +65,5 @@
   "groups": [
     "弈"
   ],
-  "skills": [
-    "character-creation",
-    "mcp-setup",
-    "model-provider-setup",
-    "session-management",
-    "skill-authoring",
-    "tool-constraint"
-  ]
+  "skills": []
 }

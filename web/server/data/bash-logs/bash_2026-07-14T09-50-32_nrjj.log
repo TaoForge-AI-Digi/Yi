@@ -1,0 +1,11 @@
+# bash log — 2026/7/14 17:50:32
+# session: (none)
+# exit: 1  duration: 32ms
+# command:
+cmd /c "dir "C:\Users\dmql\Desktop\25立项""
+
+
+
+# stderr (89 chars):
+'\"dir \"C:\Users\dmql\Desktop\25����\"\"' �����ڲ����ⲿ���Ҳ���ǿ����еĳ���
+���������ļ���

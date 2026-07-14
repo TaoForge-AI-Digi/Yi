@@ -1,4 +1,4 @@
-import { spawn } from 'child_process'
+import { spawn, execSync } from 'child_process'
 import { writeFileSync, appendFileSync, mkdirSync, existsSync } from 'fs'
 import { resolve as pathResolve } from 'path'
 import type { ToolModule } from '../types.js'
@@ -6,6 +6,28 @@ import { assertPathSafe } from '../utils.js'
 import { z } from 'zod'
 import { validate } from '../validate.js'
 import { getOutputDir } from '../truncate.js'
+import * as iconv from 'iconv-lite'
+
+let consoleEncoding = 'utf8'
+try {
+  if (process.platform === 'win32') {
+    const cp = execSync('chcp.com', { encoding: 'utf8', timeout: 2000 })
+    const m = cp.match(/:(\d+)/)
+    if (m) {
+      const codePage = parseInt(m[1])
+      if (codePage === 936) consoleEncoding = 'cp936'
+      else if (codePage === 950) consoleEncoding = 'cp950'
+      else if (codePage === 932) consoleEncoding = 'cp932'
+      else if (codePage === 949) consoleEncoding = 'cp949'
+      else if (codePage === 65001) consoleEncoding = 'utf8'
+    }
+  }
+} catch { /* keep utf8 */ }
+
+function decodeBuffer(buf: Buffer): string {
+  if (consoleEncoding === 'utf8') return buf.toString('utf8')
+  return iconv.decode(buf, consoleEncoding)
+}
 
 const LOG_DIR = pathResolve(process.cwd(), 'data', 'bash-logs')
 function logBash(sessionId: string | undefined, cmd: string, stdout: string, stderr: string, exitCode: number | null, duration: number) {
@@ -192,7 +214,7 @@ export const tool: ToolModule = {
           }
 
           function appendOutput(buf: Buffer, isStdout: boolean) {
-            const chunk = buf.toString()
+            const chunk = decodeBuffer(buf)
             const target = isStdout ? stdout : stderr
 
             if (isStdout) fullStdout += chunk

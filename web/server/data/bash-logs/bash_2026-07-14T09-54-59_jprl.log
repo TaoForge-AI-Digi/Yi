@@ -1,0 +1,10 @@
+# bash log — 2026/7/14 17:54:59
+# session: (none)
+# exit: 0  duration: 181ms
+# command:
+powershell -NoProfile -Command "Get-Process | Where-Object { $_.ProcessName -like '*WINWORD*' -or $_.ProcessName -like '*Word*' } | Select-Object ProcessName,Id"
+
+# stdout (126 chars):
+Get-Process | Where-Object { .ProcessName -like '*WINWORD*' -or .ProcessName -like '*Word*' } | Select-Object ProcessName,Id
+
+
