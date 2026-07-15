@@ -166,6 +166,15 @@ function shouldSnip(messages: LLMMessage[], contextWindow = DEFAULT_CONTEXT_WIND
   return estimateTokens(messages) > contextWindow * SNIP_RATIO
 }
 
+function persistComposeChanges(master: LLMMessage[], composed: LLMMessage[]): void {
+  if (master.length !== composed.length) return
+  for (let i = 0; i < master.length; i++) {
+    if (master[i].role === 'user' && master[i].content !== composed[i].content) {
+      master[i] = { ...master[i], content: composed[i].content }
+    }
+  }
+}
+
 function trimToolResults(messages: LLMMessage[]): boolean {
   let trimmed = false
   let turnCount = 0
@@ -619,8 +628,10 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
       console.log(`[session] ${sessionId} turn ${turn}: heap ${heapMB}/${totalMB}MB, ${messages.length} msgs, ctx ${ctxPct}%`)
     }
 
-    // Compose dynamic context into last user message (turn tail) — never pollute messages array
+    // Compose dynamic context into last user message (turn tail)
     const composedMsgs = composeMessages(messages, composeCtx)
+    // Persist compose content changes to master array so prefix stays stable across turns
+    persistComposeChanges(messages, composedMsgs)
 
     // Prefix-shape diagnostics: detect what changed versus last request
     const curShape = capturePrefixShape(composedMsgs, tools)
