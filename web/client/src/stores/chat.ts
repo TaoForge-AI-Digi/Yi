@@ -39,7 +39,6 @@ export interface Message {
 export interface Session {
   id: string; character_id: string; title: string; messages: Message[]
   model?: string; provider_id?: string; workspace?: string; workspaces?: string[]
-  allowed_paths?: string[]
   pinned?: boolean
   thinking?: boolean
   reasoning_effort?: string
@@ -258,10 +257,10 @@ export const useChatStore = defineStore('chat', () => {
     socket.on('run.completed', onPersistentCompleted)
     socket.off('run.compacted', onPersistentCompacted)
     socket.on('run.compacted', onPersistentCompacted)
-    socket.off('workspace.paths.updated')
-    socket.on('workspace.paths.updated', (data: { session_id: string; allowed_paths: string[] }) => {
+    socket.off('workspace.updated')
+    socket.on('workspace.updated', (data: { session_id: string; workspaces: string[] }) => {
       const s = sessions.value.find(x => x.id === data.session_id)
-      if (s) s.allowed_paths = data.allowed_paths
+      if (s) s.workspaces = data.workspaces
     })
     socket.off('run.started')
     socket.on('run.started', (data: RunEvent & { context_window?: number }) => {
@@ -664,13 +663,6 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  function removeAllowedPath(path: string) {
-    const socket = getSocket()
-    if (socket && activeSessionId.value) {
-      socket.emit('workspace.remove_allowed', { session_id: activeSessionId.value, path })
-    }
-  }
-
   function addWorkspace(path: string) {
     const session = activeSession.value
     if (!session) return
@@ -734,7 +726,7 @@ export const useChatStore = defineStore('chat', () => {
     loadSessions, createSession, switchSession, sendMessage, setStrategy, respondApproval, abortRun,
     renameSession, deleteSingleSession, resetToMessage,
     toggleSessionStar, getChildSessions,
-    addWorkspace, removeWorkspace, removeAllowedPath,
+    addWorkspace, removeWorkspace,
     toggleWorkspaceCollapse, toggleBatchMode, toggleSessionSelection, selectAllSessions, batchDeleteSessions,
   }
 })

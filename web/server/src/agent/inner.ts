@@ -4,12 +4,13 @@ import { streamChatCompletion, type LLMMessage, type ToolCall } from '../llm/cli
 import { getDangerousTools, validateConstraints } from '../tools/definitions.js'
 import { executeTool } from '../tools/executor.js'
 import type { ToolResult } from '../tools/types.js'
-import { getSessionState, isToolApprovedForSession, approveToolForSession, getAllowedPaths, addAllowedPath } from './session.js'
+import { getSessionState, isToolApprovedForSession, approveToolForSession } from './session.js'
 import { logLLMCall } from '../debug/llm-logger.js'
 import type { Strategy } from './session.js'
 import type { Server, Socket } from 'socket.io'
 import type { MCPClient } from '../tools/mcp-client.js'
-import { resolve as pathResolve } from 'path'
+import { resolve as pathResolve, dirname } from 'path'
+import { sessionStore } from '../db/sessionStore.js'
 
 import { truncateToolOutput as truncate, truncateError } from '../tools/truncate.js'
 
@@ -398,10 +399,8 @@ export async function innerLoop(
     const startTime = Date.now()
 
     async function execWithRoots(extraRoots?: string[]): Promise<ToolResult> {
-      const roots = sessionId ? getAllowedPaths(sessionId) : undefined
-      const allRoots = extraRoots ? [...(roots || []), ...extraRoots] : roots
       try {
-        return await executeTool(p.name, p.args, workspace || process.cwd(), signal, mcpClients, allRoots, (chunk) => {
+        return await executeTool(p.name, p.args, workspace || process.cwd(), signal, mcpClients, extraRoots, (chunk) => {
           socket?.emit('tool.output', { session_id: sessionId, tool_call_id: p.tc.id, output: chunk })
         }, workspaces)
       } catch (err: any) {
@@ -413,15 +412,15 @@ export async function innerLoop(
 
     if (result.escaped && sessionId && socket) {
       const escapedPath = result.error?.replace('Path escapes workspace: ', '') || ''
-      // Resolve to absolute path relative to workspace so allowedRoots
-      // work correctly in assertPathSafe (avoid double-resolve bug with relative paths)
       const absEscapedPath = pathResolve(workspace || process.cwd(), escapedPath)
+      // Always approve the PARENT directory, not a specific file
+      const approvedDir = dirname(absEscapedPath)
       const choice = await new Promise<'once' | 'always' | 'reject'>((resolve) => {
         socket.emit('approval.requested', {
           session_id: sessionId,
           tool_call_id: p.tc.id,
           tool_name: `[Workspace] ${p.name}`,
-          tool_input: JSON.stringify({ ...p.args, _escaped_path: absEscapedPath }),
+          tool_input: JSON.stringify({ ...p.args, _escaped_path: approvedDir }),
         })
         const handler = (data: { tool_call_id: string; choice: 'once' | 'always' | 'reject' }) => {
           if (data.tool_call_id === p.tc.id) { socket.off('approval.respond', handler); resolve(data.choice) }
@@ -431,10 +430,23 @@ export async function innerLoop(
       })
       if (choice !== 'reject') {
         if (choice === 'always') {
-          addAllowedPath(sessionId, absEscapedPath)
-          socket.emit('workspace.paths.updated', { session_id: sessionId, allowed_paths: getAllowedPaths(sessionId) })
+          // Add directory to session's workspaces in DB (persists across restarts)
+          let updatedWorkspaces: string[] | undefined
+          const dbSession = sessionStore.getById(sessionId)
+          if (dbSession) {
+            const ws = dbSession.workspaces ? JSON.parse(dbSession.workspaces) : []
+            if (!ws.includes(approvedDir)) {
+              ws.push(approvedDir)
+              sessionStore.update(sessionId, { workspaces: JSON.stringify(ws) })
+            }
+            updatedWorkspaces = ws
+          }
+          socket.emit('workspace.updated', {
+            session_id: sessionId,
+            workspaces: updatedWorkspaces,
+          })
         }
-        result = await execWithRoots(choice === 'once' ? [absEscapedPath] : undefined)
+        result = await execWithRoots([approvedDir])
       }
     }
 

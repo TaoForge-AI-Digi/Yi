@@ -18,11 +18,7 @@ const workspaceList = computed(() => {
     : s.workspace ? [s.workspace] : []
 })
 
-const allowedPathList = computed(() => {
-  const s = session.value
-  if (!s || !s.allowed_paths || s.allowed_paths.length === 0) return []
-  return s.allowed_paths
-})
+
 </script>
 
 <template>
@@ -36,8 +32,7 @@ const allowedPathList = computed(() => {
     <label class="ws-label">{{ t('chat.workspace') }}
       <div class="ws-chips">
         <span v-for="ws in workspaceList" :key="ws" class="ws-chip" :class="{ 'ws-chip-default': ws === session?.workspace }" :title="ws">{{ ws }}</span>
-        <span v-for="ap in allowedPathList" :key="ap" class="ws-chip ws-chip-allowed" :title="ap">{{ ap }}</span>
-        <span v-if="workspaceList.length === 0 && allowedPathList.length === 0" class="ws-empty">未设置</span>
+        <span v-if="workspaceList.length === 0" class="ws-empty">未设置</span>
       </div>
     </label>
   </div>
@@ -57,5 +52,4 @@ const allowedPathList = computed(() => {
 }
 .ws-empty { font-size: 12px; color: #999; font-style: italic; }
 .ws-chip-default { background: #e8f5e9; color: #2e7d32; border-color: #c8e6c9; }
-.ws-chip-allowed { background: #fff3e0; color: #e65100; border-color: #ffe0b2; }
 </style>
