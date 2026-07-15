@@ -145,6 +145,42 @@ export function diagnoseMiss(id: string, cur: FingerprintComponents): string[] {
   return changes
 }
 
+// ── Prefix-shape diagnostics (Reasonix cache_shape.go port) ──
+
+export interface PrefixShape {
+  systemHash: string
+  toolsHash: string
+  historyHash: string
+}
+
+export function capturePrefixShape(
+  messages: Array<{ role: string; content?: string | null }>,
+  tools?: unknown[],
+): PrefixShape {
+  const sysText = messages
+    .filter(m => m.role === 'system')
+    .map(m => m.content || '')
+    .join('\n')
+  const toolsText = JSON.stringify(tools ?? [])
+  const historyText = messages
+    .filter(m => m.role !== 'system')
+    .map(m => `${m.role}:${(m.content || '').slice(0, 200)}`)
+    .join('|')
+  return {
+    systemHash: shortHash(sysText),
+    toolsHash: shortHash(toolsText),
+    historyHash: shortHash(historyText),
+  }
+}
+
+export function compareShapes(prev: PrefixShape, cur: PrefixShape): string[] {
+  const changes: string[] = []
+  if (prev.systemHash !== cur.systemHash) changes.push('system prompt changed')
+  if (prev.toolsHash !== cur.toolsHash) changes.push('tools schema changed')
+  if (prev.historyHash !== cur.historyHash) changes.push('history changed')
+  return changes
+}
+
 export function pruneOldCache(maxAgeMs: number = 7 * 24 * 60 * 60 * 1000): void {
   try {
     const now = Date.now()

@@ -9,7 +9,8 @@ import { detectInsight } from '../evolution/index.js'
 import { spawnAndRunSubAgent, summarizeAndMerge } from './sub-agent.js'
 import { buildSkillIndex } from './skill-loader.js'
 import { getCharacterToolDefinitions } from '../tools/definitions.js'
-import { stableKey, getCached, setCached, normalizeTools, extractComponents, diagnoseMiss } from './system-cache.js'
+import { stableKey, getCached, setCached, normalizeTools, extractComponents, diagnoseMiss, capturePrefixShape, compareShapes, type PrefixShape } from './system-cache.js'
+import { composeMessages, buildComposeContext, type ComposeContext } from './compose.js'
 import { connectMCPServer, disconnectMCPServer } from '../tools/mcp-client.js'
 import { mcpServerStore } from '../db/toolStore.js'
 import { setMCPStatus } from '../tools/mcp-status.js'
@@ -484,23 +485,19 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
     setCached(key, systemPrompt)
   }
 
-  // Memory is always a separate system message (msg[1]) so it never invalidates the prefix cache
+  // Memory + compaction summary at fixed positions so prefix cache stays stable
   const messages: LLMMessage[] = [{ role: 'system', content: systemPrompt }]
   if (charContent.memory) {
     messages.push({ role: 'system', content: `## Memory\n${charContent.memory}` })
   }
+  if (session.compaction_summary) {
+    messages.push({ role: 'system', content: `[Compacted History]\n${session.compaction_summary}` })
+  }
 
   const rows = messageStore.getMessages(sessionId)
   const compactUntilId = session.compaction_until_id || 0
-  let summaryInserted = false
   for (const row of rows) {
-    if (compactUntilId > 0 && row.id <= compactUntilId) {
-      if (!summaryInserted && session.compaction_summary) {
-        messages.push({ role: 'system', content: `[Compacted History]\n${session.compaction_summary}` })
-        summaryInserted = true
-      }
-      continue
-    }
+    if (compactUntilId > 0 && row.id <= compactUntilId) continue
     let m = rowToLLMMessage(row)
     if (m && m.role === 'user' && m.content && /@(file|folder|url):/.test(m.content)) {
       const refResult = await preprocessContextReferences(m.content, resolveWorkspace(session.workspace))
@@ -571,6 +568,8 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
   let overflowCompacted = false
   const toolCallHistory: ToolCallRecord[] = []
   let insightDispatched = false
+  const composeCtx: ComposeContext = { systemAlerts: [] }
+  let prevPrefixShape: PrefixShape | undefined
 
   socket.emit('run.started', { session_id: sessionId, context_window: contextWindow })
 
@@ -586,18 +585,24 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
       console.log(`[session] ${sessionId} turn ${turn}: heap ${heapMB}/${totalMB}MB, ${messages.length} msgs, ctx ${ctxPct}%`)
     }
 
-    // Inject current timestamp before each turn so LLM knows the real time
-    const now = new Date()
-    const offset = -now.getTimezoneOffset()
-    const tz = `UTC${offset >= 0 ? '+' : ''}${Math.floor(offset / 60)}:${String(offset % 60).padStart(2, '0')}`
-    const timeMsg: LLMMessage = { role: 'system', content: `[Current time: ${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')} (${tz})]` }
-    // Replace previous timestamp if exists, otherwise append
-    const timeIdx = messages.findIndex(m => (m as any).__isTimestamp)
-    if (timeIdx >= 0) messages[timeIdx] = { ...timeMsg, __isTimestamp: true } as any
-    else messages.push({ ...timeMsg, __isTimestamp: true } as any)
+    // Compose dynamic context into last user message (turn tail) — never pollute messages array
+    composeCtx.timestamp = buildComposeContext(new Date()).timestamp
+    const composedMsgs = composeMessages(messages, composeCtx)
 
-    const result = await innerLoop(
-      messages, tools, provider, model, session.character_id,
+    // Prefix-shape diagnostics: detect what changed versus last request
+    const curShape = capturePrefixShape(composedMsgs, tools)
+    if (prevPrefixShape) {
+      const reasons = compareShapes(prevPrefixShape, curShape)
+      if (reasons.length > 0) {
+        console.log(`[cache-shape] ${sessionId} turn ${turn}: ${reasons.join(', ')}`)
+      }
+    } else {
+      console.log(`[cache-shape] ${sessionId} turn ${turn}: cold start`)
+    }
+    prevPrefixShape = curShape
+
+    const result = await innerLoop(composedMsgs,
+      tools, provider, model, session.character_id,
       workspace, io, socket, sessionId, signal, opts, turn,
       mcpClients, workspaces,
     )
@@ -643,9 +648,8 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
         }
         return { status: 'stop', sessionId, totalInputTokens, totalOutputTokens, totalCacheHitTokens, totalCacheMissTokens }
       }
-      // First non-context error — report and let the model try again
-      const guidance = `[System: An API error occurred (${result.error}). This may be transient. Please retry your last action with a simpler approach or different strategy.]`
-      messages.push({ role: 'system', content: guidance })
+      // First non-context error — report via compose (turn tail), not system message
+      composeCtx.systemAlerts!.push(`[System Note] An API error occurred (${result.error}). This may be transient. Please retry your last action with a simpler approach or different strategy.`)
       continue
     }
     consecutiveErrors = 0
@@ -655,6 +659,8 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
     }
 
     messages.push(...result.messages)
+    // Consumed compose alerts have been sent; clear for next turn
+    composeCtx.systemAlerts = []
 
     if (result.type === 'sub_agent_request' && result.subAgentRequest) {
       const req = result.subAgentRequest
@@ -743,10 +749,7 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
     if (result.toolCallRecords?.length && detectDoomLoop(toolCallHistory)) {
       const recent = toolCallHistory.slice(-6)
       const lastTool = recent[recent.length - 1]?.toolName || 'unknown'
-      messages.push({
-        role: 'system',
-        content: `[System Alert] Repeated failures detected (last: ${lastTool}). Two strikes with the same tool type — do NOT retry with minor changes. Switch to a completely different tool category.`
-      })
+      composeCtx.systemAlerts!.push(`[System Alert] Repeated failures detected (last: ${lastTool}). Two strikes with the same tool type — do NOT retry with minor changes. Switch to a completely different tool category.`)
     }
 
     if (shouldCompact(messages, contextWindow)) {
@@ -764,13 +767,8 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
 
     if (result.type === 'aborted') break
     if (result.type === 'final_answer') {
-      // Only inject [Continue] if AI produced no text (empty response) but used tools before.
-      // If AI already said something (summary, question, options), let it stop naturally.
       if (toolCallHistory.length > 0 && !result.fullText) {
-        messages.push({
-          role: 'system',
-          content: '[Continue] The task is not complete. Review what you have so far and continue working. Use tools as needed.'
-        })
+        composeCtx.systemAlerts!.push('[System Note] The task is not complete. Review what you have so far and continue working. Use tools as needed.')
         continue
       }
       break
@@ -782,8 +780,9 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
   const detail = toolCallHistory.length === 0 ? 'stop (no tools used)' : completedStatus
   const totalTokens = totalCacheHitTokens + totalCacheMissTokens
   const hitRatio = totalTokens > 0 ? ((totalCacheHitTokens / totalTokens) * 100).toFixed(1) : 'N/A'
+  const finalShape = prevPrefixShape
   console.log(`[session] ${sessionId} completed: ${detail} (${turn} turns, ${toolCallHistory.length} tool calls)`)
-  console.log(`[cache] ${sessionId}: hit=${totalCacheHitTokens} miss=${totalCacheMissTokens} ratio=${hitRatio}%`)
+  console.log(`[cache] ${sessionId}: hit=${totalCacheHitTokens} miss=${totalCacheMissTokens} ratio=${hitRatio}% system=${finalShape?.systemHash?.slice(0,8)||'?'} tools=${finalShape?.toolsHash?.slice(0,8)||'?'}`)
   socket.emit('run.completed', {
     session_id: sessionId,
     status: completedStatus,
