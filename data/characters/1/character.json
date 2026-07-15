@@ -13,10 +13,13 @@
   "role": "both",
   "groups": [],
   "default_strategy": "Bypass",
-  "skills": [],
+  "skills": [
+    "agent-reach",
+    "graphify"
+  ],
   "enabled": true,
   "createdAt": 1782738601774,
-  "updatedAt": 1784022432085,
+  "updatedAt": 1784092785826,
   "tools": [
     {
       "name": "read"
@@ -65,6 +68,9 @@
     },
     {
       "name": "mcp:tab-bridge"
+    },
+    {
+      "name": "mcp:codebase-memory-mcp"
     }
   ]
 }

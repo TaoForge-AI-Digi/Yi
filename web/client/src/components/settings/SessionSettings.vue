@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SettingRow from './SettingRow.vue'
+import { fetchDefaultPrompt, saveDefaultPrompt } from '@/api/prompts'
 
 const { t } = useI18n()
 
@@ -14,14 +15,17 @@ const DEFAULT_DEFAULT_WORKSPACE = 'C:\\.Yi'
 const PERSIST_KEY = 'yi-lin-chat-defaults'
 
 const defaultWorkspace = ref(DEFAULT_DEFAULT_WORKSPACE)
+const defaultPrompt = ref('')
+const promptSaved = ref(false)
 
-onMounted(() => {
+onMounted(async () => {
   try {
     const raw = localStorage.getItem(PERSIST_KEY)
     if (raw) {
       const parsed = JSON.parse(raw)
       if (parsed.defaultWorkspace) defaultWorkspace.value = parsed.defaultWorkspace
     }
+    defaultPrompt.value = await fetchDefaultPrompt()
   } catch { /* ignore */ }
 })
 
@@ -31,6 +35,14 @@ function saveDefaultWorkspace() {
     const existing = raw ? JSON.parse(raw) : {}
     existing.defaultWorkspace = defaultWorkspace.value || DEFAULT_DEFAULT_WORKSPACE
     localStorage.setItem(PERSIST_KEY, JSON.stringify(existing))
+  } catch { /* ignore */ }
+}
+
+async function saveDefaultPrompt() {
+  try {
+    await saveDefaultPrompt(defaultPrompt.value)
+    promptSaved.value = true
+    setTimeout(() => promptSaved.value = false, 2000)
   } catch { /* ignore */ }
 }
 </script>
@@ -73,6 +85,16 @@ function saveDefaultWorkspace() {
         <span class="switch-slider"></span>
       </label>
     </SettingRow>
+  </section>
+
+  <section class="settings-section" style="margin-top: 32px;">
+    <h3 class="section-title">默认系统提示词</h3>
+    <p class="section-desc">所有未自定义 prompt.md 的角色使用此模板。<code>{{GUIDANCE}}</code> 会被自动替换为工具使用指引。</p>
+    <textarea v-model="defaultPrompt" class="prompt-editor" />
+    <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px;">
+      <button class="btn-save" @click="saveDefaultPrompt">保存</button>
+      <span v-if="promptSaved" class="save-hint">已保存</span>
+    </div>
   </section>
 </template>
 
@@ -157,4 +179,28 @@ function saveDefaultWorkspace() {
   font-size: 13px;
   box-sizing: border-box;
 }
+.prompt-editor {
+  width: 100%;
+  min-height: 250px;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.prompt-editor:focus { border-color: #1976d2; outline: none; }
+.btn-save {
+  padding: 6px 16px;
+  background: #1976d2;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.btn-save:hover { background: #1565c0; }
+.save-hint { font-size: 12px; color: #2e7d32; }
 </style>

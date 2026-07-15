@@ -105,7 +105,8 @@
       "memory": "Memory",
       "skills": "Skills",
       "tools": "Tools",
-      "knowledge": "Knowledge"
+      "knowledge": "Knowledge",
+      "prompt": "System Prompt"
     },
     "uploadAvatar": "Upload",
     "removeAvatar": "Remove",

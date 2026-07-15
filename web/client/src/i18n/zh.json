@@ -105,7 +105,8 @@
       "memory": "记忆",
       "skills": "技能",
       "tools": "工具",
-      "knowledge": "知识"
+      "knowledge": "知识",
+      "prompt": "系统提示词"
     },
     "uploadAvatar": "上传",
     "removeAvatar": "移除",

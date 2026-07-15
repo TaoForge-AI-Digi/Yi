@@ -132,6 +132,7 @@ function select(id: string) {
       default_strategy: c.default_strategy || 'Ask',
       skills: c.skills ? [...c.skills] : [],
       enabled: c.enabled ?? true,
+      customPrompt: c.customPrompt || '',
     }
   }
 }
@@ -157,6 +158,7 @@ function startCreate() {
     default_strategy: 'Ask',
     skills: [],
     enabled: true,
+    customPrompt: '',
   }
 }
 
@@ -320,7 +322,7 @@ function saveEdit() {
           <!-- Sub Tabs -->
           <div class="sub-tabs">
             <button
-              v-for="tab in (isNew ? ['basic'] : ['basic', 'memory', 'tools', 'skills', 'knowledge'])"
+              v-for="tab in (isNew ? ['basic'] : ['basic', 'memory', 'tools', 'skills', 'knowledge', 'prompt'])"
               :key="tab"
               :class="['sub-tab', { active: activeTab === tab }]"
               @click="activeTab = tab as any"
@@ -560,6 +562,30 @@ function saveEdit() {
           <div v-if="activeTab === 'knowledge'" class="tab-content">
             <div class="placeholder-tab">
               <p>{{ t('role.knowledgePlaceholder') }}</p>
+            </div>
+          </div>
+
+          <!-- Prompt Tab -->
+          <div v-if="activeTab === 'prompt'" class="tab-content">
+            <div class="section-header" style="margin-bottom: 12px;">
+              <div class="section-title-row">
+                <span class="section-title">自定义提示词</span>
+              </div>
+              <div class="section-header-right">
+                <label class="toggle-sm" style="font-size: 12px; gap: 6px;">
+                  <input type="checkbox" class="toggle-input" :checked="!!form.customPrompt" @change="form.customPrompt = form.customPrompt ? '' : (form.customPrompt || '# 自定义提示词\n\n## System Prompt\n\n{{GUIDANCE}}')" />
+                  <span class="toggle-switch"></span>
+                  使用自定义提示词
+                </label>
+              </div>
+            </div>
+            <p style="font-size: 12px; color: #888; margin: -8px 0 12px;">
+              未开启时使用默认提示词模板（<code>data/prompts/default.md</code>）。
+              开启后使用下方内容，<code>{{GUIDANCE}}</code> 会被自动替换为工具使用指引。
+            </p>
+            <textarea v-if="form.customPrompt" v-model="form.customPrompt" class="prompt-editor" placeholder="输入自定义提示词..." />
+            <div v-else class="placeholder-tab">
+              <p>使用默认提示词</p>
             </div>
           </div>
 
@@ -1282,4 +1308,17 @@ function saveEdit() {
   flex-shrink: 0;
   background: #fafafa;
 }
+.prompt-editor {
+  width: 100%;
+  min-height: 300px;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.prompt-editor:focus { border-color: #1976d2; outline: none; }
 </style>

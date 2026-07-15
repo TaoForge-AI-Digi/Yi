@@ -6,6 +6,7 @@
     "C:\\.Yi\\agent-tab-bridge\\mcp\\index.js"
   ],
   "env": {
-    "AGENT_NAME": "codex"
-  }
+    "AGENT_NAME": "YI"
+  },
+  "timeout": 60
 }

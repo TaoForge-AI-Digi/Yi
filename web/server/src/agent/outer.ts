@@ -77,6 +77,23 @@ Rules:
 - Preserve exact file paths, commands, error strings, and identifiers when known.
 - Do not mention the summary process or that context was compacted.`
 
+import { readFileSync, existsSync } from 'fs'
+import { resolve } from 'path'
+
+const DATA_DIR = process.env.DATA_DIR || resolve(import.meta.dirname, '../../../../data')
+const DEFAULT_PROMPT_FILE = resolve(DATA_DIR, 'prompts', 'default.md')
+
+function loadPromptTemplate(charId: string): string {
+  // Per-character prompt overrides default
+  const charPrompt = resolve(DATA_DIR, 'characters', charId, 'prompt.md')
+  const file = existsSync(charPrompt) ? charPrompt : DEFAULT_PROMPT_FILE
+  try {
+    return readFileSync(file, 'utf-8')
+  } catch {
+    return '## System Prompt\n\n{{GUIDANCE}}'
+  }
+}
+
 function assembleStaticPrompt(
   charMeta: CharacterRecord,
   charContent: { soul: string; user: string },
@@ -88,10 +105,8 @@ function assembleStaticPrompt(
   if (charContent.soul) parts.push(`## Character\n${charContent.soul}`)
   if (charContent.user) parts.push(`## User Info\n${charContent.user}`)
 
-  // Guidance blocks — only when tools are available
-  if (toolDefs.length > 0) {
-    parts.push(TOOL_USE_GUIDANCE)
-  }
+  // Load configurable prompt template
+  parts.push(loadPromptTemplate(charMeta.id).trim())
 
   // List available tools — sorted for deterministic ordering (Reasonix #6)
   if (toolDefs.length > 0) {
@@ -103,7 +118,6 @@ function assembleStaticPrompt(
   }
 
   // Skills: index only (names + descriptions, no bodies — Reasonix #3)
-  // buildSkillIndex is called here and will be cached via the system prompt key
   const skillIndex = buildSkillIndex(charMeta)
   if (skillIndex.length > 0) {
     const skillList = skillIndex.map(s => s.listing).join('\n')
@@ -115,7 +129,7 @@ function assembleStaticPrompt(
     }
   }
 
-  parts.push(`## Workspace\nYour working directory is: ${workspace}\nAll file operations use this directory as root.`)
+  parts.push(`## Workspace\nYou can access: ${workspace}\nCreate it if it does not exist.`)    
 
   return parts.join('\n\n')
 }
@@ -750,7 +764,9 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
 
     if (result.type === 'aborted') break
     if (result.type === 'final_answer') {
-      if (toolCallHistory.length > 0) {
+      // Only inject [Continue] if AI produced no text (empty response) but used tools before.
+      // If AI already said something (summary, question, options), let it stop naturally.
+      if (toolCallHistory.length > 0 && !result.fullText) {
         messages.push({
           role: 'system',
           content: '[Continue] The task is not complete. Review what you have so far and continue working. Use tools as needed.'

@@ -32,6 +32,7 @@ export interface Character {
   userProfile?: string
   memory?: CharacterMemory
   memoryContent?: string
+  customPrompt?: string
   model?: string
   provider?: string
   tools?: ToolBinding[]

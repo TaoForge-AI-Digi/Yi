@@ -12,6 +12,17 @@ function realRoot(root: string): string {
 function resolvedSafe(p: string, root: string): boolean {
   const full = resolve(root, p)
   const base = realRoot(root)
+
+  // If both full and root are the same (path was approved as an allowed root),
+  // do a string-level containment check instead of requiring filesystem existence.
+  // This handles paths that haven't been created yet (e.g., a venv directory
+  // that will be created by the approved command).
+  const normalizedFull = full.replace(/[/\\]+$/, '')
+  const normalizedRoot = root.replace(/[/\\]+$/, '')
+  if (normalizedFull === normalizedRoot || normalizedFull.startsWith(normalizedRoot + '\\') || normalizedFull.startsWith(normalizedRoot + '/')) {
+    return true
+  }
+
   let target = full
   try { target = realpathSync(full) } catch {
     const parent = resolve(full, '..')

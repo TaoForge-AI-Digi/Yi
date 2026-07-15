@@ -11,3 +11,7 @@ data/providers.json
 data/debug/
 setup/*.msi
 setup/*.zip
+/web/server/data/bash-logs
+/data/mcpservers
+/data/mcpservers
+/data/mcpservers
