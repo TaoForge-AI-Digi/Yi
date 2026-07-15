@@ -1,0 +1,17 @@
+# bash log — 2026/7/15 10:27:41
+# session: (none)
+# exit: (null)  duration: 98290ms
+# command:
+pipx install https://github.com/Panniantong/agent-reach/archive/main.zip 2>&1
+
+# stdout (394 chars):
+creating virtual environment...
+determining package name from 'https://github.com/Panniantong/agent-reach/archive/main.zip'...
+creating virtual environment...
+installing agent-reach from spec 'https://github.com/Panniantong/agent-reach/archive/main.zip'...
+done! 
+  installed package agent-reach 1.5.0, installed using Python 3.13.0
+  These apps are now available
+    - agent-reach.exe
+
+

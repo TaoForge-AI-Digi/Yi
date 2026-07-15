@@ -1,0 +1,11 @@
+# bash log — 2026/7/15 10:33:54
+# session: (none)
+# exit: 1  duration: 34ms
+# command:
+cmd /c "where gh" 2>&1
+
+# stdout (61 chars):
+'\"where gh\"' �����ڲ����ⲿ���Ҳ���ǿ����еĳ���
+���������ļ���
+
+

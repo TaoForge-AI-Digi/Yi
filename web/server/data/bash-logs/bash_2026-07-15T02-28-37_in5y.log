@@ -1,0 +1,15 @@
+# bash log — 2026/7/15 10:28:37
+# session: (none)
+# exit: 0  duration: 20302ms
+# command:
+pip install yt-dlp 2>&1
+
+# stdout (295 chars):
+Looking in indexes: https://pypi.tuna.tsinghua.edu.cn/simple
+Collecting yt-dlp
+  Downloading yt_dlp-2026.7.4-py3-none-any.whl (3.2 MB)
+     ---------------------------------------- 3.2/3.2 MB 695.1 kB/s  0:00:04
+Installing collected packages: yt-dlp
+Successfully installed yt-dlp-2026.7.4
+
+

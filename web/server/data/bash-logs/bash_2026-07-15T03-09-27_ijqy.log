@@ -1,0 +1,18 @@
+# bash log — 2026/7/15 11:09:27
+# session: (none)
+# exit: 0  duration: 2764ms
+# command:
+npm install -g @jackwener/opencli 2>&1
+
+# stdout (463 chars):
+
+added 17 packages in 3s
+
+1 package is looking for funding
+  run `npm fund` for details
+npm warn allow-scripts 1 package has install scripts not yet covered by allowScripts:
+npm warn allow-scripts   @jackwener/opencli@1.8.6 (postinstall: node scripts/postinstall.js || true; node scripts/fetch-adapters.js || true)
+npm warn allow-scripts
+npm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.
+
+

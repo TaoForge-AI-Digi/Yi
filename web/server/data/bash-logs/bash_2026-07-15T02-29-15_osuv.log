@@ -1,0 +1,70 @@
+# bash log — 2026/7/15 10:29:15
+# session: (none)
+# exit: 0  duration: 15711ms
+# command:
+pip install bilibili-cli 2>&1
+
+# stdout (7052 chars):
+Looking in indexes: https://pypi.tuna.tsinghua.edu.cn/simple
+Collecting bilibili-cli
+  Downloading bilibili_cli-0.6.2-py3-none-any.whl (47 kB)
+Requirement already satisfied: aiohttp>=3.0 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from bilibili-cli) (3.13.5)
+Collecting bilibili-api-python>=16.0 (from bilibili-cli)
+  Downloading bilibili_api_python-17.4.2-py3-none-any.whl (387 kB)
+Collecting browser-cookie3>=0.19 (from bilibili-cli)
+  Downloading browser_cookie3-0.20.1-py3-none-any.whl (17 kB)
+Requirement already satisfied: click>=8.0 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from bilibili-cli) (8.4.2)
+Requirement already satisfied: pyyaml>=6.0 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from bilibili-cli) (6.0.3)
+Requirement already satisfied: qrcode>=7.0 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from bilibili-cli) (8.2)
+Requirement already satisfied: rich>=13.0 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from bilibili-cli) (14.3.4)
+Requirement already satisfied: aiohappyeyeballs>=2.5.0 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from aiohttp>=3.0->bilibili-cli) (2.6.1)
+Requirement already satisfied: aiosignal>=1.4.0 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from aiohttp>=3.0->bilibili-cli) (1.4.0)
+Requirement already satisfied: attrs>=17.3.0 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from aiohttp>=3.0->bilibili-cli) (26.1.0)
+Requirement already satisfied: frozenlist>=1.1.1 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from aiohttp>=3.0->bilibili-cli) (1.8.0)
+Requirement already satisfied: multidict<7.0,>=4.5 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from aiohttp>=3.0->bilibili-cli) (6.7.1)
+Requirement already satisfied: propcache>=0.2.0 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from aiohttp>=3.0->bilibili-cli) (0.5.2)
+Requirement already satisfied: yarl<2.0,>=1.17.0 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from aiohttp>=3.0->bilibili-cli) (1.23.0)
+Requirement already satisfied: idna>=2.0 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from yarl<2.0,>=1.17.0->aiohttp>=3.0->bilibili-cli) (3.13)
+Requirement already satisfied: beautifulsoup4 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from bilibili-api-python>=16.0->bilibili-cli) (4.14.3)
+Requirement already satisfied: colorama in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from bilibili-api-python>=16.0->bilibili-cli) (0.4.6)
+Requirement already satisfied: lxml in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from bilibili-api-python>=16.0->bilibili-cli) (6.1.0)
+Requirement already satisfied: brotli in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from bilibili-api-python>=16.0->bilibili-cli) (1.2.0)
+Requirement already satisfied: APScheduler in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from bilibili-api-python>=16.0->bilibili-cli) (3.11.2)
+Requirement already satisfied: pillow in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from bilibili-api-python>=16.0->bilibili-cli) (12.2.0)
+Collecting pycryptodomex (from bilibili-api-python>=16.0->bilibili-cli)
+  Downloading pycryptodomex-3.23.0-cp37-abi3-win_amd64.whl (1.8 MB)
+     ---------------------------------------- 1.8/1.8 MB 1.2 MB/s  0:00:01
+Collecting qrcode_terminal (from bilibili-api-python>=16.0->bilibili-cli)
+  Downloading qrcode-terminal-0.8.tar.gz (1.7 kB)
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Requirement already satisfied: PyJWT in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from bilibili-api-python>=16.0->bilibili-cli) (2.12.1)
+Collecting lz4 (from browser-cookie3>=0.19->bilibili-cli)
+  Downloading lz4-4.4.5-cp313-cp313-win_amd64.whl (99 kB)
+Collecting shadowcopy (from browser-cookie3>=0.19->bilibili-cli)
+  Downloading shadowcopy-0.0.4-py3-none-any.whl (4.2 kB)
+Requirement already satisfied: markdown-it-py>=2.2.0 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from rich>=13.0->bilibili-cli) (4.2.0)
+Requirement already satisfied: pygments<3.0.0,>=2.13.0 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from rich>=13.0->bilibili-cli) (2.20.0)
+Requirement already satisfied: mdurl~=0.1 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from markdown-it-py>=2.2.0->rich>=13.0->bilibili-cli) (0.1.2)
+Requirement already satisfied: tzlocal>=3.0 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from APScheduler->bilibili-api-python>=16.0->bilibili-cli) (5.3.1)
+Requirement already satisfied: tzdata in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from tzlocal>=3.0->APScheduler->bilibili-api-python>=16.0->bilibili-cli) (2026.2)
+Requirement already satisfied: soupsieve>=1.6.1 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from beautifulsoup4->bilibili-api-python>=16.0->bilibili-cli) (2.8.3)
+Requirement already satisfied: typing-extensions>=4.0.0 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from beautifulsoup4->bilibili-api-python>=16.0->bilibili-cli) (4.16.0)
+Collecting wmi (from shadowcopy->browser-cookie3>=0.19->bilibili-cli)
+  Downloading WMI-1.5.1-py2.py3-none-any.whl (28 kB)
+Requirement already satisfied: pywin32 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from wmi->shadowcopy->browser-cookie3>=0.19->bilibili-cli) (311)
+Building wheels for collected packages: qrcode_terminal
+  Building wheel for qrcode_terminal (pyproject.toml): started
+  Building wheel for qrcode_terminal (pyproject.toml): finished with status 'done'
+  Created wheel for qrcode_terminal: filename=qrcode_terminal-0.8-py3-none-any.whl size=2662 sha256=9f1421719044ca30dfc8c932376eb20376a92e22093fa2f4e052627950d80707
+  Stored in directory: c:\users\dmql\appdata\local\pip\cache\wheels\fb\03\e5\0e8fb66b51334f187db25d69677e13a328c81cbebb4aa60930
+Successfully built qrcode_terminal
+Installing collected packages: wmi, pycryptodomex, lz4, shadowcopy, qrcode_terminal, browser-cookie3, bilibili-api-python, bilibili-cli
+
+Successfully installed bilibili-api-python-17.4.2 bilibili-cli-0.6.2 browser-cookie3-0.20.1 lz4-4.4.5 pycryptodomex-3.23.0 qrcode_terminal-0.8 shadowcopy-0.0.4 wmi-1.5.1
+
+

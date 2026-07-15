@@ -1,0 +1,13 @@
+# bash log — 2026/7/15 10:57:27
+# session: (none)
+# exit: 0  duration: 69ms
+# command:
+python --version 2>&1 && where python 2>&1
+
+# stdout (216 chars):
+Python 3.13.0
+C:\Users\dmql\AppData\Local\Programs\Python\Python313\python.exe
+C:\Users\dmql\AppData\Local\Microsoft\WindowsApps\python.exe
+C:\Users\dmql\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe
+
+

@@ -1,0 +1,14 @@
+# bash log — 2026/7/15 10:28:54
+# session: (none)
+# exit: 0  duration: 16896ms
+# command:
+npm install -g mcporter 2>&1
+
+# stdout (93 chars):
+
+added 120 packages in 17s
+
+49 packages are looking for funding
+  run `npm fund` for details
+
+

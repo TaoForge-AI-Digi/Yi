@@ -197,10 +197,24 @@ function selectEntries(
   }
 
   if (split === 0) return
-  return {
-    head: serialized.slice(0, split).map(e => e.msg),
-    recent: serialized.slice(split).map(e => e.msg),
+
+  const recentMsgs = serialized.slice(split).map(e => e.msg)
+  const headMsgs = serialized.slice(0, split).map(e => e.msg)
+
+  // Ensure split doesn't break tool_calls/tool_response pairs
+  // If the first message in recent is a tool response, its parent assistant(tool_calls)
+  // must also stay in recent — find it in head and move everything after it to recent
+  if (recentMsgs.length > 0 && recentMsgs[0].role === 'tool') {
+    for (let i = headMsgs.length - 1; i >= 0; i--) {
+      if (headMsgs[i].role === 'assistant' && headMsgs[i].tool_calls) {
+        const moved = headMsgs.splice(i)
+        recentMsgs.unshift(...moved)
+        break
+      }
+    }
   }
+
+  return { head: headMsgs, recent: recentMsgs }
 }
 
 function buildCompactionSummary(msgs: LLMMessage[]): string {
@@ -484,6 +498,30 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
     if (m) {
       ;(m as any).__dbId = row.id
       messages.push(m)
+    }
+  }
+
+  // Fix orphaned tool_calls: ensure every assistant(tool_calls) has matching tool responses
+  // If a tool response was dropped (old DB format), inject a placeholder
+  for (let i = 0; i < messages.length; i++) {
+    const m = messages[i]
+    if (m.role === 'assistant' && m.tool_calls) {
+      const expectedIds = new Set(m.tool_calls.filter(tc => tc.id).map(tc => tc.id!))
+      // Look ahead for matching tool responses
+      for (let j = i + 1; j < messages.length; j++) {
+        const toolId = messages[j].tool_call_id
+        if (messages[j].role === 'tool' && toolId && expectedIds.has(toolId)) {
+          expectedIds.delete(toolId)
+        }
+        if (messages[j].role === 'assistant') break
+      }
+      // Inject placeholders for missing tool responses
+      if (expectedIds.size > 0) {
+        for (const id of expectedIds) {
+          messages.splice(i + 1, 0, { role: 'tool', content: JSON.stringify({ output: '', error: '[reconstructed]' }), tool_call_id: id })
+          console.warn(`[messages] Injected placeholder tool response for missing call_id: ${id}`)
+        }
+      }
     }
   }
 

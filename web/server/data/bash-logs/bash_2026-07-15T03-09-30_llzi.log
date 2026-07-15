@@ -1,0 +1,12 @@
+# bash log — 2026/7/15 11:09:30
+# session: (none)
+# exit: 1  duration: 420ms
+# command:
+npm approve-scripts @jackwener/opencli 2>&1
+
+# stdout (217 chars):
+npm error code ENOMATCH
+npm error No installed packages match: @jackwener/opencli
+npm error A complete log of this run can be found in: C:\Users\dmql\AppData\Local\npm-cache\_logs\2026-07-15T03_09_30_451Z-debug-0.log
+
+

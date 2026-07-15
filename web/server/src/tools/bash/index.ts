@@ -195,6 +195,12 @@ export const tool: ToolModule = {
             stderr += msg
             onOutput?.(msg)
             twoStageKill(child)
+            // Force resolve even if child process doesn't die
+            setTimeout(() => {
+              if (!child.killed) child.kill('SIGKILL')
+              const combined = (fullStdout || stdout) + (stderr ? `\n${stderr}` : '')
+              resolvePromise({ output: combined.trim(), error: stderr.trim() || 'Aborted' })
+            }, FORCE_KILL_MS + 1000)
           }
           signal?.addEventListener('abort', abortHandler, { once: true })
           if (signal?.aborted) abortHandler()

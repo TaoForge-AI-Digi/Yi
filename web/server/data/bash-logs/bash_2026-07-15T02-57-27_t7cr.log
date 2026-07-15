@@ -1,0 +1,10 @@
+# bash log — 2026/7/15 10:57:27
+# session: (none)
+# exit: 0  duration: 275ms
+# command:
+py --version 2>&1
+
+# stdout (15 chars):
+Python 3.13.0
+
+

@@ -1,0 +1,11 @@
+# bash log — 2026/7/15 10:57:25
+# session: (none)
+# exit: 1  duration: 21ms
+# command:
+pip3 --version 2>/dev/null || pip --version 2>/dev/null
+
+
+
+# stderr (38 chars):
+ϵͳ�Ҳ���ָ����·����
+ϵͳ�Ҳ���ָ����·����

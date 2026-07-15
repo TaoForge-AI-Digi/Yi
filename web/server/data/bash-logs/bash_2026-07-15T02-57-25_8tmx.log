@@ -1,0 +1,12 @@
+# bash log — 2026/7/15 10:57:25
+# session: (none)
+# exit: 0  duration: 20ms
+# command:
+pipx --version 2>/dev/null || echo "pipx not found"
+
+# stdout (20 chars):
+\"pipx not found\"
+
+
+# stderr (19 chars):
+ϵͳ�Ҳ���ָ����·����

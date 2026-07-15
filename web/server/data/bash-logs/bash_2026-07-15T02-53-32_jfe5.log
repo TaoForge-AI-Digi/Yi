@@ -1,0 +1,10 @@
+# bash log — 2026/7/15 10:53:32
+# session: (none)
+# exit: 0  duration: 52ms
+# command:
+python fix_ytdlp.py 2>&1
+
+# stdout (64 chars):
+yt-dlp configured: C:\Users\dmql\AppData\Roaming\yt-dlp\config
+
+

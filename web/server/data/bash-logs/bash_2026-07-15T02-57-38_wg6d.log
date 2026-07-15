@@ -1,0 +1,12 @@
+# bash log — 2026/7/15 10:57:38
+# session: (none)
+# exit: 1  duration: 724ms
+# command:
+pip install "https://github.com/Panniantong/agent-reach/archive/main.zip" 2>&1
+
+# stdout (227 chars):
+ERROR: Invalid requirement: '"https://github.com/Panniantong/agent-reach/archive/main.zip"': Expected package name at the start of dependency specifier
+    "https://github.com/Panniantong/agent-reach/archive/main.zip"
+    ^
+
+

@@ -1,0 +1,23 @@
+# bash log — 2026/7/15 10:53:22
+# session: (none)
+# exit: 1  duration: 52ms
+# command:
+python -c "
+import subprocess
+# Configure yt-dlp to use Node.js
+cfg_dir = r'C:\Users\dmql\AppData\Roaming\yt-dlp'
+import os
+os.makedirs(cfg_dir, exist_ok=True)
+cfg_file = os.path.join(cfg_dir, 'config')
+with open(cfg_file, 'w') as f:
+    f.write('--js-runtimes node\n')
+print('yt-dlp configured')
+"
+
+
+
+# stderr (104 chars):
+  File "<string>", line 1
+    "
+    ^
+SyntaxError: unterminated string literal (detected at line 1)

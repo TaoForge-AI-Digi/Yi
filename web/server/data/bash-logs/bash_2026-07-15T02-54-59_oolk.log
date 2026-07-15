@@ -1,0 +1,11 @@
+# bash log — 2026/7/15 10:54:59
+# session: (none)
+# exit: 1  duration: 32ms
+# command:
+cmd /c "mkdir ""%APPDATA%\yt-dlp"" 2>nul & echo --js-runtimes node > ""%APPDATA%\yt-dlp\config.txt""" 2>&1
+
+# stdout (193 chars):
+'\"mkdir \"\"C:\Users\dmql\AppData\Roaming\yt-dlp\"\" 2>nul & echo --js-runtimes node > \"\"C:\Users\dmql\AppData\Roaming\yt-dlp\config.txt\"\"\"' �����ڲ����ⲿ���Ҳ���ǿ����еĳ���
+���������ļ���
+
+

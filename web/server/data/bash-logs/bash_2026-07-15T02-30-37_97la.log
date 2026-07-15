@@ -1,0 +1,10 @@
+# bash log — 2026/7/15 10:30:37
+# session: (none)
+# exit: 1  duration: 58ms
+# command:
+where gh 2>&1 && gh --version 2>&1
+
+# stdout (26 chars):
+��Ϣ: ���ṩ��ģʽ�޷��ҵ��ļ���
+
+

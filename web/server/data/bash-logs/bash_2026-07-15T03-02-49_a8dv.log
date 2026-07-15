@@ -1,0 +1,54 @@
+# bash log — 2026/7/15 11:02:49
+# session: (none)
+# exit: 0  duration: 24302ms
+# command:
+agent-reach install --env=auto 2>&1
+
+# stdout (1984 chars):
+
+Agent Reach Installer
+========================================
+Environment: Local computer (auto-detected)
+
+Checking system dependencies...
+  ✅ gh CLI already installed
+  ✅ Node.js already installed
+  ✅ undici already installed (Node.js proxy support)
+  ✅ yt-dlp JS runtime already configured
+
+Setting up mcporter (search backend)...
+  ✅ mcporter already installed
+  [!]  Could not configure Exa. Run manually: mcporter config add exa https://mcp.exa.ai/mcp
+
+Testing channels...
+
+[bold cyan]Agent Reach 状态[/bold cyan]
+[cyan]========================================[/cyan]
+图例：[green]✅[/green] 可用  [yellow][!][/yellow] 已装但需配置/登录  [red][X][/red] 未安装
+
+[bold]✅ 装好即用：[/bold]
+  [yellow][!][/yellow]  [bold]GitHub 仓库和代码[/bold] — gh CLI 已安装但未认证。运行 gh auth login 可解锁完整功能
+  [green]✅[/green] [bold]YouTube 视频和字幕[/bold] — 可提取视频信息和字幕
+  [yellow][!][/yellow]  [bold]V2EX 节点、主题与回复[/bold] — V2EX API 连接失败（可能需要代理）：<urlopen error _ssl.c:1003: The handshake operation timed out>
+  [green]✅[/green] [bold]RSS/Atom 订阅源[/bold] — 可读取 RSS/Atom 源
+  [green]✅[/green] [bold]全网语义搜索[/bold] — 全网语义搜索可用（免费，无需 API Key）
+  [green]✅[/green] [bold]任意网页[/bold] — 通过 Jina Reader 读取任意网页（curl https://r.jina.ai/URL）
+
+[bold]可选渠道（已安装）：[/bold]
+  [green]✅[/green] [bold]B站视频、字幕和搜索[/bold] — bili-cli 可用（搜索/热门/排行/视频详情/音频，无需登录；字幕需 OpenCLI。上游 2026-03 起停更） [dim]（当前后端：bili-cli）[/dim]
+
+状态：[yellow]5/15[/yellow] 个渠道可用
+还有 8 个可选渠道可以解锁（Twitter/X 推文、Reddit 帖子和评论、Facebook 帖子、主页和群组、Instagram 用户、主页和指定用户帖子、小红书笔记、小宇宙播客转文字、雪球股票行情与社区动态、LinkedIn 职业社交），告诉你的 Agent「帮我装 XXX」即可
+
+Skill installed for Claude Code: C:\Users\dmql/.claude/skills\agent-reach
+✅ Installation complete! 5/15 channels active.
+
+More channels available! Use --channels to install:
+   agent-reach install --channels=twitter,xiaohongshu,reddit,facebook,instagram,...
+   agent-reach install --channels=all  (install everything)
+
+如果 Agent Reach 帮到了你，给个 Star 让更多人发现它吧：
+   https://github.com/Panniantong/Agent-Reach
+   只需一秒，对独立开发者意义很大。谢谢！
+
+

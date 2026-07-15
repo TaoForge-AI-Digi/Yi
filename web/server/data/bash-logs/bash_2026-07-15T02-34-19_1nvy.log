@@ -1,0 +1,12 @@
+# bash log — 2026/7/15 10:34:19
+# session: (none)
+# exit: 0  duration: 107ms
+# command:
+python check_gh.py 2>&1
+
+# stdout (81 chars):
+where gh: ��Ϣ: ���ṩ��ģʽ�޷��ҵ��ļ���
+
+Found: C:\Program Files\GitHub CLI\gh.exe
+
+

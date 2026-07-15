@@ -1,0 +1,13 @@
+# bash log — 2026/7/15 10:55:59
+# session: (none)
+# exit: 1  duration: 53ms
+# command:
+python -c "import os; [os.remove(os.path.join('C:\\.Yi', f)) for f in ['fix_gh.py','fix_ytdlp.py','check_gh.py'] if os.path.exists(os.path.join('C:\\.Yi', f))]" 2>&1
+
+# stdout (110 chars):
+  File "<string>", line 1
+    "import
+    ^
+SyntaxError: unterminated string literal (detected at line 1)
+
+

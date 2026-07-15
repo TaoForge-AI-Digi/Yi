@@ -1,0 +1,46 @@
+# bash log — 2026/7/15 10:57:50
+# session: (none)
+# exit: (null)  duration: 9706ms
+# command:
+pip install https://github.com/Panniantong/agent-reach/archive/main.zip 2>&1
+
+# stdout (3944 chars):
+Looking in indexes: https://pypi.tuna.tsinghua.edu.cn/simple
+Collecting https://github.com/Panniantong/agent-reach/archive/main.zip
+  Downloading main.zip (502 kB)
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Collecting feedparser>=6.0 (from agent-reach==1.5.0)
+  Downloading feedparser-6.0.12-py3-none-any.whl (81 kB)
+Requirement already satisfied: loguru>=0.7 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from agent-reach==1.5.0) (0.7.3)
+Requirement already satisfied: python-dotenv>=1.0 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from agent-reach==1.5.0) (1.2.2)
+Requirement already satisfied: pyyaml>=6.0 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from agent-reach==1.5.0) (6.0.3)
+Requirement already satisfied: requests>=2.28 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from agent-reach==1.5.0) (2.32.5)
+Requirement already satisfied: rich>=13.0 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from agent-reach==1.5.0) (14.3.4)
+Requirement already satisfied: yt-dlp>=2024.0 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from agent-reach==1.5.0) (2026.7.4)
+Collecting sgmllib3k (from feedparser>=6.0->agent-reach==1.5.0)
+  Using cached sgmllib3k-1.0.0-py3-none-any.whl
+Requirement already satisfied: colorama>=0.3.4 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from loguru>=0.7->agent-reach==1.5.0) (0.4.6)
+Requirement already satisfied: win32-setctime>=1.0.0 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from loguru>=0.7->agent-reach==1.5.0) (1.2.0)
+Requirement already satisfied: charset_normalizer<4,>=2 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from requests>=2.28->agent-reach==1.5.0) (3.4.7)
+Requirement already satisfied: idna<4,>=2.5 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from requests>=2.28->agent-reach==1.5.0) (3.13)
+Requirement already satisfied: urllib3<3,>=1.21.1 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from requests>=2.28->agent-reach==1.5.0) (2.6.3)
+Requirement already satisfied: certifi>=2017.4.17 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from requests>=2.28->agent-reach==1.5.0) (2026.4.22)
+Requirement already satisfied: markdown-it-py>=2.2.0 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from rich>=13.0->agent-reach==1.5.0) (4.2.0)
+Requirement already satisfied: pygments<3.0.0,>=2.13.0 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from rich>=13.0->agent-reach==1.5.0) (2.20.0)
+Requirement already satisfied: mdurl~=0.1 in C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages (from markdown-it-py>=2.2.0->rich>=13.0->agent-reach==1.5.0) (0.1.2)
+Building wheels for collected packages: agent-reach
+  Building wheel for agent-reach (pyproject.toml): started
+  Building wheel for agent-reach (pyproject.toml): finished with status 'done'
+  Created wheel for agent-reach: filename=agent_reach-1.5.0-py3-none-any.whl size=105046 sha256=0658677f6852fbb4a50bc6323077dcda1189103d26a6534e925b8053419d86e7
+  Stored in directory: C:\Users\dmql\AppData\Local\Temp\pip-ephem-wheel-cache-qqu9v_xv\wheels\cc\48\2e\787429cf342d32630dbcfcfe709f7dab22964d740fd0fbe73b
+Successfully built agent-reach
+Installing collected packages: sgmllib3k, feedparser, agent-reach
+
+Successfully installed agent-reach-1.5.0 feedparser-6.0.12 sgmllib3k-1.0.0
+
+

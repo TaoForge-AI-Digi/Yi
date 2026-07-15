@@ -1,0 +1,13 @@
+# bash log — 2026/7/15 10:55:03
+# session: (none)
+# exit: 1  duration: 54ms
+# command:
+python -c "import os; os.makedirs(os.path.expandvars('%APPDATA%\\yt-dlp'), exist_ok=True); open(os.path.expandvars('%APPDATA%\\yt-dlp\\config.txt'), 'w').write('--js-runtimes node\n')" 2>&1
+
+# stdout (110 chars):
+  File "<string>", line 1
+    "import
+    ^
+SyntaxError: unterminated string literal (detected at line 1)
+
+

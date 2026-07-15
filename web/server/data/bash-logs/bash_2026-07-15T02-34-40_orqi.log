@@ -1,0 +1,12 @@
+# bash log — 2026/7/15 10:34:40
+# session: (none)
+# exit: 0  duration: 9117ms
+# command:
+python fix_gh.py 2>&1
+
+# stdout (113 chars):
+gh version: gh version 2.96.0 (2026-07-02)
+https://github.com/cli/cli/releases/tag/v2.96.0
+Added to user PATH
+
+

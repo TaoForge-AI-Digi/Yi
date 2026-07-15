@@ -1,0 +1,10 @@
+# bash log — 2026/7/15 10:57:30
+# session: (none)
+# exit: 0  duration: 225ms
+# command:
+pip --version 2>&1
+
+# stdout (108 chars):
+pip 26.1.2 from C:\Users\dmql\AppData\Local\Programs\Python\Python313\Lib\site-packages\pip (python 3.13)
+
+
