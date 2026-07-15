@@ -10,7 +10,7 @@ import { spawnAndRunSubAgent, summarizeAndMerge } from './sub-agent.js'
 import { buildSkillIndex } from './skill-loader.js'
 import { getCharacterToolDefinitions } from '../tools/definitions.js'
 import { stableKey, getCached, setCached, normalizeTools, extractComponents, diagnoseMiss, capturePrefixShape, compareShapes, type PrefixShape } from './system-cache.js'
-import { composeMessages, buildComposeContext, type ComposeContext } from './compose.js'
+import { composeMessages, type ComposeContext } from './compose.js'
 import { connectMCPServer, disconnectMCPServer } from '../tools/mcp-client.js'
 import { mcpServerStore } from '../db/toolStore.js'
 import { setMCPStatus } from '../tools/mcp-status.js'
@@ -620,7 +620,6 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
     }
 
     // Compose dynamic context into last user message (turn tail) — never pollute messages array
-    composeCtx.timestamp = buildComposeContext(new Date()).timestamp
     const composedMsgs = composeMessages(messages, composeCtx)
 
     // Prefix-shape diagnostics: detect what changed versus last request

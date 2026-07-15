@@ -15,3 +15,6 @@ setup/*.zip
 /data/mcpservers
 /data/mcpservers
 /data/mcpservers
+data /sessions.db-shm
+data /providers.json
+data /sessions.db-wal

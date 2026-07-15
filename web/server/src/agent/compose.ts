@@ -1,14 +1,7 @@
 import type { LLMMessage } from '../llm/client.js'
 
 export interface ComposeContext {
-  timestamp?: string
   systemAlerts?: string[]
-}
-
-function formatTimestamp(now: Date): string {
-  const offset = -now.getTimezoneOffset()
-  const tz = `UTC${offset >= 0 ? '+' : ''}${Math.floor(offset / 60)}:${String(offset % 60).padStart(2, '0')}`
-  return `[Current time: ${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} (${tz})]`
 }
 
 function lastUserIdx(messages: LLMMessage[]): number {
@@ -18,19 +11,13 @@ function lastUserIdx(messages: LLMMessage[]): number {
   return -1
 }
 
-export function buildComposeContext(now: Date): ComposeContext {
-  return { timestamp: formatTimestamp(now), systemAlerts: [] }
-}
-
 export function composeMessages(
   messages: LLMMessage[],
   ctx: ComposeContext,
 ): LLMMessage[] {
-  const parts: string[] = []
-  if (ctx.timestamp) parts.push(ctx.timestamp)
-  if (ctx.systemAlerts?.length) parts.push(...ctx.systemAlerts)
+  if (!ctx.systemAlerts?.length) return messages.map(stripReasoning)
 
-  const prefix = parts.join('\n')
+  const prefix = ctx.systemAlerts.join('\n')
   if (!prefix) return messages.map(stripReasoning)
 
   const result = messages.map(stripReasoning)
