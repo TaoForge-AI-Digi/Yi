@@ -1,3 +1,7 @@
+// Toggle streaming usage info. Some providers (proxies) may handle
+// include_usage differently and affect prefix caching. Disable to probe.
+const INCLUDE_USAGE = process.env.LLM_INCLUDE_USAGE !== 'false'
+
 export interface LLMMessage {
   role: 'system' | 'user' | 'assistant' | 'tool'
   content: string | null
@@ -53,7 +57,8 @@ export async function* streamChatCompletion(opts: LLMOptions): AsyncGenerator<LL
   const { baseUrl, apiKey, model, messages, tools, thinking, reasoning_effort, signal } = opts
   const url = `${baseUrl.replace(/\/+$/, '')}/chat/completions`
   const body: Record<string, unknown> = {
-    model, messages, stream: true, stream_options: { include_usage: true },
+    model, messages, stream: true,
+    ...(INCLUDE_USAGE ? { stream_options: { include_usage: true } } : {}),
   }
   if (tools && tools.length > 0) body.tools = tools
   if (thinking) {

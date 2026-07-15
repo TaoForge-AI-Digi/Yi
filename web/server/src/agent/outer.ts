@@ -42,9 +42,11 @@ function resolveWorkspaces(session: { workspace?: string | null; workspaces?: st
   return [resolveWorkspace(session.workspace)]
 }
 const SOFT_COMPACT_RATIO = 0.5
+const SNIP_RATIO = 0.6
 const COMPACT_THRESHOLD = 0.75
 const COLD_RESUME_MS = 24 * 60 * 60 * 1000
 const KEEP_TOKENS = 8000
+const SNIP_KEEP_TOOL_TURNS = 3
 const SUMMARY_OUTPUT_TOKENS = 2048
 
 const SUMMARY_TEMPLATE = `Output exactly the structure below and keep section order. Do not include <template> tags.
@@ -158,6 +160,31 @@ function estimateTokens(messages: LLMMessage[]): number {
     total += 4
   }
   return Math.ceil(total)
+}
+
+function shouldSnip(messages: LLMMessage[], contextWindow = DEFAULT_CONTEXT_WINDOW): boolean {
+  return estimateTokens(messages) > contextWindow * SNIP_RATIO
+}
+
+function trimToolResults(messages: LLMMessage[]): boolean {
+  let trimmed = false
+  let turnCount = 0
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i]
+    if (m.role === 'assistant' && m.tool_calls && m.tool_calls.length > 0) {
+      turnCount++
+      if (turnCount > SNIP_KEEP_TOOL_TURNS) {
+        const toolIds = new Set(m.tool_calls.filter(tc => tc.id).map(tc => tc.id!))
+        for (let j = i + 1; j < messages.length; j++) {
+          if (messages[j].role === 'tool' && messages[j].tool_call_id && toolIds.has(messages[j].tool_call_id!)) {
+            messages[j] = { ...messages[j], content: JSON.stringify({ output: '[trimmed]' }) }
+            trimmed = true
+          }
+        }
+      }
+    }
+  }
+  return trimmed
 }
 
 function shouldCompact(messages: LLMMessage[], contextWindow = DEFAULT_CONTEXT_WINDOW): boolean {
@@ -551,12 +578,19 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
     }
   }
 
-  // ── #4 Soft compaction warning at 50% ──
+  // ── #4 Snip stale tool results at 60% before considering compaction ──
   const estTokens = estimateTokens(messages)
   if (estTokens > contextWindow * SOFT_COMPACT_RATIO && estTokens < contextWindow * COMPACT_THRESHOLD) {
     const pct = ((estTokens / contextWindow) * 100).toFixed(0)
     console.log(`[session] ${sessionId} context at ${pct}% (soft threshold 50%)`)
-    // warn only; no compaction until hard threshold
+  }
+  if (shouldSnip(messages, contextWindow)) {
+    const snipTokensBefore = estimateTokens(messages)
+    const didSnip = trimToolResults(messages)
+    if (didSnip) {
+      const after = estimateTokens(messages)
+      console.log(`[session] ${sessionId} snip: trimmed old tool results (${snipTokensBefore}→${after} tok)`)
+    }
   }
 
   let turn = 0
@@ -752,6 +786,15 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
       composeCtx.systemAlerts!.push(`[System Alert] Repeated failures detected (last: ${lastTool}). Two strikes with the same tool type — do NOT retry with minor changes. Switch to a completely different tool category.`)
     }
 
+    // Snip stale tool results first (cache-friendly), then compact if still over limit
+    if (shouldSnip(messages, contextWindow)) {
+      const snipTokensBefore = estimateTokens(messages)
+      const didSnip = trimToolResults(messages)
+      if (didSnip) {
+        const after = estimateTokens(messages)
+        console.log(`[session] ${sessionId} turn ${turn}: snip trimmed (${snipTokensBefore}→${after} tok)`)
+      }
+    }
     if (shouldCompact(messages, contextWindow)) {
       const result = await selectAndSummarize(messages, provider, model)
       if (result.didCompact) {
