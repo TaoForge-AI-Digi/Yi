@@ -4,7 +4,7 @@ const INCLUDE_USAGE = process.env.LLM_INCLUDE_USAGE !== 'false'
 
 export interface LLMMessage {
   role: 'system' | 'user' | 'assistant' | 'tool'
-  content: string | null
+  content: string | null | import('../agent/attachments.js').ProviderContentBlock[]
   reasoning_content?: string
   tool_calls?: ToolCall[]
   tool_call_id?: string

@@ -31,6 +31,15 @@ function resetHere() {
         />
       </div>
       <div v-else class="text-content">
+        <div v-if="message.attachments && message.attachments.length" class="msg-attachments">
+          <template v-for="(a, i) in message.attachments" :key="i">
+            <img v-if="a.dataUrl" :src="a.dataUrl" class="msg-attach-thumb" :alt="a.name" />
+            <div v-else class="msg-attach-file">
+              <span class="msg-attach-icon">📎</span>
+              <span class="msg-attach-name">{{ a.name }}</span>
+            </div>
+          </template>
+        </div>
         <span v-if="message.is_streaming && !message.content" class="cursor-blink">▋</span>
         <MarkdownRenderer :content="message.content" />
         <span v-if="message.is_streaming && message.content" class="cursor-blink">▋</span>
@@ -51,6 +60,11 @@ function resetHere() {
 .message.user .bubble { background: #007aff; color: white; }
 .bubble { max-width: 80%; padding: 10px 14px; border-radius: 12px; font-size: 14px; line-height: 1.5; }
 .tool-message { width: 100%; }
+.msg-attachments { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.msg-attach-thumb { max-width: 200px; max-height: 200px; border-radius: 8px; object-fit: cover; display: block; }
+.msg-attach-file { display: inline-flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; padding: 4px 8px; font-size: 12px; max-width: 220px; }
+.message.assistant .msg-attach-file { background: #e8e8e8; border-color: #ccc; }
+.msg-attach-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cursor-blink { animation: blink 1s step-end infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 .message-footer { margin-top: 6px; display: flex; align-items: center; gap: 6px; }

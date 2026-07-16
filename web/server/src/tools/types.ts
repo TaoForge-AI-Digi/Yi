@@ -26,6 +26,10 @@ export interface ToolResult {
   output: string
   error?: string
   escaped?: boolean
+  // Media produced by the tool (e.g. an image fetched by webfetch). Bytes are
+  // passed inline as base64; the agent layer persists them via the media store
+  // and re-emits them as multimodal content blocks for vision-capable models.
+  attachments?: Array<{ name: string; mime: string; data: string }>
 }
 
 export interface ToolContext {

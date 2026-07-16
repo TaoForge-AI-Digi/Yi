@@ -27,6 +27,7 @@ function uid(): string { return Date.now().toString(36) + Math.random().toString
 
 export interface Message {
   id: string; role: 'user' | 'assistant' | 'tool'; content: string
+  attachments?: { name: string; mime: string; dataUrl?: string }[]
   tool_name?: string; tool_input?: string; tool_output?: string
   tool_call_id?: string
   tool_status?: 'running' | 'done' | 'success' | 'error'
@@ -84,6 +85,7 @@ export const useChatStore = defineStore('chat', () => {
   const selectedSessionIds = ref<Set<string>>(new Set())
   const evolutionNotification = ref<{ session_id: string; insight_type: string; description: string } | null>(null)
   let notificationTimer: ReturnType<typeof setTimeout> | null = null
+  let currentCleanup: (() => void) | null = null
 
   const tokenUsage = ref({ input: 0, output: 0, total: 0 })
 
@@ -109,25 +111,18 @@ export const useChatStore = defineStore('chat', () => {
     }
   })
 
-  const attachments = ref<{ name: string; content: string; type: 'text' | 'image' }[]>([])
+  const attachments = ref<{ name: string; mime: string; data: string; dataUrl?: string }[]>([])
 
   function toggleAllTools() { toolExpandAll.value = !toolExpandAll.value }
 
-  function addAttachment(name: string, content: string, type: 'text' | 'image') {
-    attachments.value.push({ name, content, type })
+  function addAttachment(name: string, mime: string, data: string, dataUrl?: string) {
+    attachments.value.push({ name, mime, data, dataUrl })
   }
   function removeAttachment(idx: number) {
     attachments.value.splice(idx, 1)
   }
   function clearAttachments() {
     attachments.value = []
-  }
-  function getAttachmentPreviewText(): string {
-    return attachments.value.map(a =>
-      a.type === 'image'
-        ? `![${a.name}](${a.content})`
-        : `[Attachment: ${a.name}]\n\`\`\`\n${a.content}\n\`\`\``
-    ).join('\n\n')
   }
 
   function getChildSessions(parentId: string): Session[] {
@@ -425,6 +420,10 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   async function switchSession(id: string) {
+    if (currentCleanup) {
+      currentCleanup()
+      isStreaming.value = false
+    }
     activeSessionId.value = id
     const s = sessions.value.find(s => s.id === id)
     if (!s || s.messages.length > 0) return
@@ -457,13 +456,17 @@ export const useChatStore = defineStore('chat', () => {
     }
 
     let fullInput = input
-    if (attachments.value.length > 0) {
-      const attachText = getAttachmentPreviewText()
-      fullInput = `${attachText}\n\n${input}`
-      attachments.value = []
-    }
+    const attachPayload = attachments.value.length > 0
+      ? attachments.value.map(a => ({ name: a.name, mime: a.mime, data: a.data, dataUrl: a.dataUrl }))
+      : undefined
+    attachments.value = []
 
-    const userMsg: Message = { id: uid(), role: 'user', content: fullInput, timestamp: Date.now() }
+    const userMsg: Message = {
+      id: uid(), role: 'user', content: fullInput, timestamp: Date.now(),
+      attachments: attachPayload
+        ? attachPayload.map(a => ({ name: a.name, mime: a.mime, dataUrl: a.dataUrl }))
+        : undefined,
+    }
     session.messages.push(userMsg)
     isStreaming.value = true
 
@@ -478,6 +481,7 @@ export const useChatStore = defineStore('chat', () => {
       session_id: session.id,
       character_id: session.character_id,
       input: fullInput,
+      attachments: attachPayload,
       model: session.model || undefined,
       provider_id: session.provider_id || undefined,
       workspace: session.workspace || undefined,
@@ -594,6 +598,7 @@ export const useChatStore = defineStore('chat', () => {
       socket.off('usage', onUsage)
       socket.off('run.compacted', onCompacted)
       socket.off('run.failed', onFailed)
+      if (currentCleanup === cleanup) currentCleanup = null
     }
 
     socket.on('strategy.updated', onStrategyUpdated)
@@ -607,6 +612,7 @@ export const useChatStore = defineStore('chat', () => {
     socket.on('usage', onUsage)
     socket.on('run.compacted', onCompacted)
     socket.on('run.failed', onFailed)
+    currentCleanup = cleanup
   }
 
   function respondApproval(choice: 'once' | 'always' | 'reject') {

@@ -5,6 +5,7 @@ export interface MessageRow {
   reasoning_content: string | null
   tool_name: string | null; tool_input: string | null
   tool_output: string | null; tool_status: string | null
+  attachments: string | null
   created_at: number
 }
 
@@ -28,9 +29,10 @@ export const messageStore = {
       reasoning_content: data.reasoning_content || null,
       tool_name: data.tool_name || null, tool_input: data.tool_input || null,
       tool_output: data.tool_output || null, tool_status: data.tool_status || null,
+      attachments: data.attachments || null,
       created_at: now,
     }
-    const result = getDb().prepare(`INSERT INTO messages (session_id, role, content, reasoning_content, tool_name, tool_input, tool_output, tool_status, created_at) VALUES (@session_id, @role, @content, @reasoning_content, @tool_name, @tool_input, @tool_output, @tool_status, @created_at)`).run(row)
+    const result = getDb().prepare(`INSERT INTO messages (session_id, role, content, reasoning_content, tool_name, tool_input, tool_output, tool_status, attachments, created_at) VALUES (@session_id, @role, @content, @reasoning_content, @tool_name, @tool_input, @tool_output, @tool_status, @attachments, @created_at)`).run(row)
     row.id = Number(result.lastInsertRowid)
     getDb().prepare('UPDATE sessions SET updated_at = ? WHERE id = ?').run(now, sessionId)
     return row

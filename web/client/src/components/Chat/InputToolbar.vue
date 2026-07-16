@@ -36,6 +36,15 @@ function shortenPath(p: string, maxLen = 30): string {
   return prefix + result
 }
 
+async function triggerDirPicker() {
+  if (window.electronAPI) {
+    const p = await window.electronAPI.openDirectoryDialog()
+    if (p) addWorkspacePath(p)
+    return
+  }
+  showWorkspacePicker.value = true
+}
+
 function onWorkspacePicked(paths: string[]) {
   const s = session.value
   if (!s) return
@@ -46,6 +55,13 @@ function onWorkspacePicked(paths: string[]) {
     s.workspace = paths[0]
   }
   showWorkspacePicker.value = false
+}
+
+function addWorkspacePath(p: string) {
+  const s = session.value
+  if (!s) return
+  chatStore.addWorkspace(p)
+  if (!s.workspace) s.workspace = p
 }
 function toggleThinking() {
   const s = session.value
@@ -59,19 +75,37 @@ function onReasoningEffortChange(e: Event) {
   if (s) s.reasoning_effort = (e.target as HTMLSelectElement).value || undefined
 }
 function triggerFilePicker() { fileInput.value?.click() }
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  let binary = ''
+  const bytes = new Uint8Array(buffer)
+  const chunk = 0x8000
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)))
+  }
+  return btoa(binary)
+}
+
 function onFilePicked(e: Event) {
   const input = e.target as HTMLInputElement
   const files = input.files
   if (!files || files.length === 0) return
   for (const file of Array.from(files)) {
-    if (file.type.startsWith('image/')) {
+    const mime = file.type || 'application/octet-stream'
+    if (mime.startsWith('image/')) {
       const reader = new FileReader()
-      reader.onload = () => chatStore.addAttachment(file.name, reader.result as string, 'image')
+      reader.onload = () => {
+        const result = reader.result as string
+        const base64 = result.includes(',') ? result.split(',', 2)[1] : result
+        chatStore.addAttachment(file.name, mime, base64, result)
+      }
       reader.readAsDataURL(file)
     } else {
       const reader = new FileReader()
-      reader.onload = () => chatStore.addAttachment(file.name, reader.result as string, 'text')
-      reader.readAsText(file)
+      reader.onload = () => {
+        const buffer = reader.result as ArrayBuffer
+        chatStore.addAttachment(file.name, mime, arrayBufferToBase64(buffer))
+      }
+      reader.readAsArrayBuffer(file)
     }
   }
   input.value = ''
@@ -122,7 +156,7 @@ function onFilePicked(e: Event) {
             <span class="ws-chip-name">{{ shortenPath(ws) }}</span>
             <span v-if="ws !== session?.workspace" class="ws-chip-remove" @click="chatStore.removeWorkspace(ws)">&times;</span>
           </span>
-          <button class="ws-add-btn" @click="showWorkspacePicker = true" title="添加工作区">+</button>
+          <button class="ws-add-btn" @click="triggerDirPicker" title="添加工作区">+</button>
           <WorkspacePicker v-if="showWorkspacePicker" :selected="workspaceList" @select="onWorkspacePicked" @close="showWorkspacePicker = false" />
         </div>
       </div>
@@ -135,7 +169,7 @@ function onFilePicked(e: Event) {
 
       <div v-if="chatStore.attachments.length > 0" class="attach-chips">
         <span v-for="(a, i) in chatStore.attachments" :key="i" class="attach-chip">
-          <img v-if="a.type === 'image'" :src="a.content" class="attach-chip-thumb" />
+          <img v-if="a.dataUrl" :src="a.dataUrl" class="attach-chip-thumb" />
           <span class="attach-chip-name">{{ a.name }}</span>
           <span class="attach-chip-remove" @click="chatStore.removeAttachment(i)">&times;</span>
         </span>

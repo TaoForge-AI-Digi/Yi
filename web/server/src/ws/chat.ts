@@ -5,6 +5,7 @@ import { providerStore } from '../db/providerStore.js'
 import { sessionLoop } from '../agent/loop.js'
 import { setSessionStrategy, removeSessionState, getSessionState } from '../agent/session.js'
 import { enqueueRun, abortSession, getRunState, getQueueLength } from '../agent/session-runner.js'
+import { saveAttachment, type AttachmentMeta } from '../agent/media-store.js'
 import type { Strategy } from '../agent/session.js'
 
 export function registerChatSocket(io: Server, socket: Socket) {
@@ -50,8 +51,25 @@ export function registerChatSocket(io: Server, socket: Socket) {
     }
 
     const input = (data.input as string) || ''
-    if (input.trim()) {
-      messageStore.addMessage(sessionId, { role: 'user', content: input })
+    let attachmentsJson: string | null = null
+    const rawAttachments = data.attachments as
+      | Array<{ name?: string; filename?: string; mime?: string; mediaType?: string; data?: string }>
+      | undefined
+    if (Array.isArray(rawAttachments) && rawAttachments.length > 0) {
+      const metas: AttachmentMeta[] = []
+      for (const a of rawAttachments) {
+        if (!a.data) continue
+        const meta = saveAttachment(sessionId, {
+          filename: a.filename || a.name || 'attachment',
+          mediaType: a.mediaType || a.mime || 'application/octet-stream',
+          data: a.data,
+        })
+        metas.push(meta)
+      }
+      if (metas.length > 0) attachmentsJson = JSON.stringify(metas)
+    }
+    if (input.trim() || attachmentsJson) {
+      messageStore.addMessage(sessionId, { role: 'user', content: input, attachments: attachmentsJson })
     }
 
     enqueueRun(sessionId, async (signal) => {

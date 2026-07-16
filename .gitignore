@@ -1,20 +1,19 @@
 node_modules/
 dist/
-*.db
 
+# Database files
+*.db
+data/*.db*
 web/server/data/*.db*
+
+# Runtime data
+data/providers.json
+data/debug/
+/data/mcpservers
+
+# Web server logs & data
+/web/server/data/bash-logs
 web/server/data/providers.json
 web/server/data/debug/
 web/data/
-data/*.db*
-data/providers.json
-data/debug/
-setup/*.msi
-setup/*.zip
-/web/server/data/bash-logs
-/data/mcpservers
-/data/mcpservers
-/data/mcpservers
-data /sessions.db-shm
-data /providers.json
-data /sessions.db-wal
+

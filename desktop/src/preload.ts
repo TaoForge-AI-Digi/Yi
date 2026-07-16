@@ -7,4 +7,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('update-status', (_event, status: string) => callback(status))
   },
   checkForUpdates: () => ipcRenderer.send('check-for-updates'),
+  openDirectoryDialog: () => ipcRenderer.invoke('dialog:openDirectory'),
 })

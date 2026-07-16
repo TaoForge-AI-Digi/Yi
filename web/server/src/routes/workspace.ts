@@ -2,14 +2,28 @@ import { Hono } from 'hono'
 import * as fs from 'fs'
 import * as path from 'path'
 import os from 'os'
+import cp from 'child_process'
 
 const workspaceRouter = new Hono()
 
 const HOME = os.homedir()
 
-const DEFAULT_ROOTS: string[] = process.platform === 'win32'
-  ? ['C:\\', 'D:\\', HOME]
-  : ['/', HOME]
+const QUICK_ACCESS: { name: string; path: string }[] = [
+  { name: '桌面', path: path.join(HOME, 'Desktop') },
+  { name: '下载', path: path.join(HOME, 'Downloads') },
+  { name: '文档', path: path.join(HOME, 'Documents') },
+  { name: '项目根目录', path: process.cwd() },
+].filter(e => { try { return fs.existsSync(e.path) } catch { return false } })
+
+function getAvailableDrives(): string[] {
+  if (process.platform !== 'win32') return []
+  try {
+    const out = cp.execSync('wmic logicaldisk get name', { encoding: 'utf8', timeout: 3000 })
+    return out.split(/\s+/).filter(s => /^[A-Z]:$/.test(s)).map(s => s + '\\')
+  } catch {
+    return []
+  }
+}
 
 interface DirEntry {
   name: string
@@ -48,8 +62,11 @@ workspaceRouter.get('/list', (c) => {
   const targetPath = rawPath ? path.resolve(rawPath) : ''
 
   if (!targetPath) {
-    const roots = DEFAULT_ROOTS.map(p => ({ name: p, path: p, isDir: true }))
-    return c.json({ entries: roots, currentPath: '', parentPath: null })
+    const drives = getAvailableDrives()
+    const quickItems = QUICK_ACCESS.filter(q => !drives.includes(q.path))
+    const entries = drives.map(p => ({ name: p, path: p, isDir: true }))
+      .concat(quickItems.map(q => ({ name: q.name, path: q.path, isDir: true })))
+    return c.json({ entries, currentPath: '', parentPath: null })
   }
 
   if (!fs.existsSync(targetPath)) {
@@ -68,6 +85,14 @@ workspaceRouter.get('/list', (c) => {
     currentPath: targetPath,
     parentPath: isRoot ? null : parentPath,
   })
+})
+
+workspaceRouter.post('/resolve', async (c) => {
+  const { name } = await c.req.json()
+  if (!name || typeof name !== 'string') return c.json({ path: null })
+  const trimmed = name.trim()
+  if (fs.existsSync(trimmed)) return c.json({ path: path.resolve(trimmed) })
+  return c.json({ path: null })
 })
 
 export default workspaceRouter

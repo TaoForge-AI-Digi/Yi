@@ -121,6 +121,7 @@ function trySpawn(shell: ShellInfo, cmd: string, workspace: string, windowsHide:
       const child = spawn(shell.path, [...shell.args, cmd], {
         cwd: workspace,
         windowsHide,
+        windowsVerbatimArguments: process.platform === 'win32',
         stdio: ['ignore', 'pipe', 'pipe'],
       })
       let settled = false

@@ -25,8 +25,14 @@ export function composeMessages(
   if (idx < 0) return result
 
   const userMsg = { ...result[idx] }
-  const existing = userMsg.content || ''
-  userMsg.content = prefix + (existing ? '\n\n' + existing : '')
+  const existing = userMsg.content
+  if (typeof existing === 'string') {
+    userMsg.content = prefix + (existing ? '\n\n' + existing : '')
+  } else if (Array.isArray(existing)) {
+    userMsg.content = [{ type: 'text', text: prefix }, ...existing] as LLMMessage['content']
+  } else {
+    userMsg.content = prefix
+  }
   result[idx] = userMsg
   return result
 }

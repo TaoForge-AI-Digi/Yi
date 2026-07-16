@@ -13,13 +13,10 @@
   "role": "both",
   "groups": [],
   "default_strategy": "Bypass",
-  "skills": [
-    "agent-reach",
-    "graphify"
-  ],
+  "skills": [],
   "enabled": true,
   "createdAt": 1782738601774,
-  "updatedAt": 1784092785826,
+  "updatedAt": 1784105251668,
   "tools": [
     {
       "name": "read"
@@ -71,6 +68,9 @@
     },
     {
       "name": "mcp:codebase-memory-mcp"
+    },
+    {
+      "name": "get_time"
     }
   ]
 }

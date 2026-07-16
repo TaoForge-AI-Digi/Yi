@@ -24,6 +24,7 @@ export function getDb(): Database.Database {
   try { db.exec('ALTER TABLE events ADD COLUMN model TEXT') } catch { }
   try { db.exec('ALTER TABLE events ADD COLUMN provider_id TEXT') } catch { }
   try { db.exec('ALTER TABLE events ADD COLUMN workspace TEXT') } catch { }
+  try { db.exec('ALTER TABLE messages ADD COLUMN attachments TEXT') } catch { }
   db.exec(`
     CREATE TABLE IF NOT EXISTS sessions (
       id TEXT PRIMARY KEY,

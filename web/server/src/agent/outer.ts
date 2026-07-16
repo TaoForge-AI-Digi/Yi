@@ -20,6 +20,7 @@ import { evolutionConfig } from '../evolution/evolutionConfig.js'
 import * as fs from 'fs'
 import * as path from 'path'
 import { streamChatCompletion, type LLMMessage } from '../llm/client.js'
+import { reconstructParts, lowerContentToProvider, textPart, resolveCapability, resolveProviderFormat, type ProviderCapability, type ProviderFormat } from './attachments.js'
 import type { Server, Socket } from 'socket.io'
 import type { MessageRow } from '../db/messageStore.js'
 import type { MCPClient } from '../tools/mcp-client.js'
@@ -147,10 +148,32 @@ const TOOL_USE_GUIDANCE =`
 `;
   
 
+const IMAGE_TOKEN_EQUIVALENT = 1100
+
+/** Flatten any LLMMessage content (string or multimodal parts) into plain text. */
+function contentToText(content: LLMMessage['content']): string {
+  if (!content) return ''
+  if (typeof content === 'string') return content
+  return content
+    .map((p) => {
+      if ('text' in p) return p.text || ''
+      return '[media attachment]'
+    })
+    .join('\n')
+}
+
 function estimateTokens(messages: LLMMessage[]): number {
   let total = 0
   for (const m of messages) {
-    if (m.content) total += m.content.length / 4
+    if (m.content) {
+      if (typeof m.content === 'string') total += m.content.length / 4
+      else {
+        for (const p of m.content) {
+          if ('text' in p) total += (p.text?.length || 0) / 4
+          else total += IMAGE_TOKEN_EQUIVALENT
+        }
+      }
+    }
     if (m.tool_calls) {
       for (const tc of m.tool_calls) {
         total += tc.function.name.length / 4 + tc.function.arguments.length / 4
@@ -208,8 +231,9 @@ function systemMessageEnd(messages: LLMMessage[]): number {
 
 function extractPreviousSummary(messages: LLMMessage[]): string | undefined {
   const sysEnd = systemMessageEnd(messages)
-  if (sysEnd < messages.length && messages[sysEnd].role === 'system' && messages[sysEnd].content?.startsWith('[Compacted History]')) {
-    return messages[sysEnd].content!.replace('[Compacted History]\n', '')
+  const c = sysEnd < messages.length ? contentToText(messages[sysEnd].content) : ''
+  if (sysEnd < messages.length && messages[sysEnd].role === 'system' && c.startsWith('[Compacted History]')) {
+    return c.replace('[Compacted History]\n', '')
   }
 }
 
@@ -221,20 +245,20 @@ function selectEntries(
   const serialized: SerEntry[] = []
   for (const m of msgs) {
     if (m.role === 'user' && m.content) {
-      serialized.push({ text: `[User]: ${m.content}`, msg: m })
+      serialized.push({ text: `[User]: ${contentToText(m.content)}`, msg: m })
     } else if (m.role === 'assistant') {
       const parts: string[] = []
-      if (m.content) parts.push(`[Assistant]: ${m.content}`)
+      if (m.content) parts.push(`[Assistant]: ${contentToText(m.content)}`)
       if (m.tool_calls) {
         for (const tc of m.tool_calls) parts.push(`[Tool call]: ${tc.function.name}`)
       }
       if (parts.length) serialized.push({ text: parts.join('\n'), msg: m })
     } else if (m.role === 'tool') {
-      const content = m.content || ''
+      const content = contentToText(m.content)
       const status = content.includes('error') ? content.slice(0, 100) : 'success'
       serialized.push({ text: `[Tool result]: ${status}`, msg: m })
     } else if (m.role === 'system' && m.content) {
-      serialized.push({ text: `[System]: ${m.content.slice(0, 200)}`, msg: m })
+      serialized.push({ text: `[System]: ${contentToText(m.content).slice(0, 200)}`, msg: m })
     }
   }
   if (serialized.length === 0) return
@@ -272,14 +296,18 @@ function buildCompactionSummary(msgs: LLMMessage[]): string {
   const parts: string[] = []
   for (const m of msgs) {
     if (m.role === 'user' && m.content) {
-      parts.push(`User: ${m.content.length > 200 ? m.content.slice(0, 200) + '...' : m.content}`)
+      const c = contentToText(m.content)
+      parts.push(`User: ${c.length > 200 ? c.slice(0, 200) + '...' : c}`)
     } else if (m.role === 'assistant') {
-      if (m.content) parts.push(`Assistant: ${m.content.length > 200 ? m.content.slice(0, 200) + '...' : m.content}`)
+      if (m.content) {
+        const c = contentToText(m.content)
+        parts.push(`Assistant: ${c.length > 200 ? c.slice(0, 200) + '...' : c}`)
+      }
       if (m.tool_calls) {
         for (const tc of m.tool_calls) parts.push(`Tool Call: ${tc.function.name}`)
       }
     } else if (m.role === 'tool') {
-      const c = m.content || ''
+      const c = contentToText(m.content)
       parts.push(`Tool Result: ${c.includes('error') ? c.slice(0, 100) + '...' : 'success'}`)
     }
   }
@@ -290,9 +318,13 @@ function serializeForSummary(msgs: LLMMessage[]): string {
   const lines: string[] = []
   for (const m of msgs) {
     if (m.role === 'user' && m.content) {
-      lines.push(m.content.length > 800 ? `[User]: ${m.content.slice(0, 800)}...` : `[User]: ${m.content}`)
+      const c = contentToText(m.content)
+      lines.push(c.length > 800 ? `[User]: ${c.slice(0, 800)}...` : `[User]: ${c}`)
     } else if (m.role === 'assistant') {
-      if (m.content) lines.push(m.content.length > 400 ? `[Assistant]: ${m.content.slice(0, 400)}...` : `[Assistant]: ${m.content}`)
+      if (m.content) {
+        const c = contentToText(m.content)
+        lines.push(c.length > 400 ? `[Assistant]: ${c.slice(0, 400)}...` : `[Assistant]: ${c}`)
+      }
       if (m.tool_calls) {
         for (const tc of m.tool_calls) lines.push(`[Tool call]: ${tc.function.name}`)
       }
@@ -366,7 +398,12 @@ async function selectAndSummarize(
   return { messages: compacted, didCompact: true, summary, recent: selected.recent, compactedUntilId }
 }
 
-function rowToLLMMessage(row: MessageRow): LLMMessage | null {
+function rowToLLMMessage(
+  row: MessageRow,
+  sessionId: string,
+  cap: ProviderCapability,
+  format: ProviderFormat,
+): LLMMessage | null {
   if (row.role === 'tool') {
     let callId = ''
     try { const p = JSON.parse(row.tool_input || '{}'); if (p.call_id) callId = p.call_id } catch {}
@@ -378,6 +415,13 @@ function rowToLLMMessage(row: MessageRow): LLMMessage | null {
       if (parsed.error) parsed.error = truncateToolOutput(String(parsed.error))
       content = JSON.stringify(parsed)
     } catch {}
+    // Tool-produced media (e.g. webfetch images) ride the same media pipe.
+    if (row.attachments) {
+      const { media } = reconstructParts(content, row.attachments, sessionId)
+      if (media.length > 0) {
+        return { role: 'tool', content: lowerContentToProvider([textPart(content), ...media], cap, format), tool_call_id: callId }
+      }
+    }
     return { role: 'tool', content, tool_call_id: callId }
   }
   if (row.role === 'assistant' && row.tool_input) {
@@ -388,6 +432,12 @@ function rowToLLMMessage(row: MessageRow): LLMMessage | null {
     } catch {}
   }
   if (row.role === 'assistant' && !row.content && !row.tool_input) return null
+  if (row.role === 'user' && row.attachments) {
+    const { media } = reconstructParts(row.content || '', row.attachments, sessionId)
+    if (media.length > 0) {
+      return { role: 'user', content: lowerContentToProvider([textPart(row.content || ''), ...media], cap, format) }
+    }
+  }
   const msg: LLMMessage = { role: row.role as LLMMessage['role'], content: row.content || '' }
   if (row.reasoning_content) msg.reasoning_content = row.reasoning_content
   return msg
@@ -423,6 +473,8 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
   const modelConfig = provider.models.find(m => m.id === model)
   const contextWindow = modelConfig?.context_window || DEFAULT_CONTEXT_WINDOW
   sessionStore.update(sessionId, { context_window: contextWindow })
+
+  const cap: ProviderCapability = resolveCapability(model, modelConfig?.supports_vision)
 
   const workspaces = resolveWorkspaces(session)
   const workspace = resolveWorkspace(session.workspace)
@@ -534,8 +586,8 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
   const compactUntilId = session.compaction_until_id || 0
   for (const row of rows) {
     if (compactUntilId > 0 && row.id <= compactUntilId) continue
-    let m = rowToLLMMessage(row)
-    if (m && m.role === 'user' && m.content && /@(file|folder|url):/.test(m.content)) {
+    let m = rowToLLMMessage(row, sessionId, cap, resolveProviderFormat(provider.base_url))
+    if (m && m.role === 'user' && typeof m.content === 'string' && /@(file|folder|url):/.test(m.content)) {
       const refResult = await preprocessContextReferences(m.content, resolveWorkspace(session.workspace))
       if (refResult.expanded) {
         m = { ...m, content: refResult.message }
@@ -648,7 +700,7 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
     const result = await innerLoop(composedMsgs,
       tools, provider, model, session.character_id,
       workspace, io, socket, sessionId, signal, opts, turn,
-      mcpClients, workspaces,
+      mcpClients, workspaces, cap,
     )
 
     totalInputTokens += result.totalInputTokens

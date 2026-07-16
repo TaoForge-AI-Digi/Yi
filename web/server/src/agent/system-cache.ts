@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs'
 import { resolve } from 'node:path'
+import type { LLMMessage } from '../llm/client.js'
 
 const CACHE_DIR = process.env.SYSTEM_CACHE_DIR
   ? resolve(process.env.SYSTEM_CACHE_DIR)
@@ -153,18 +154,24 @@ export interface PrefixShape {
   historyHash: string
 }
 
+function flatContent(content: LLMMessage['content']): string {
+  if (!content) return ''
+  if (typeof content === 'string') return content
+  return content.map(p => ('text' in p ? p.text || '' : '[media]')).join('\n')
+}
+
 export function capturePrefixShape(
-  messages: Array<{ role: string; content?: string | null }>,
+  messages: LLMMessage[],
   tools?: unknown[],
 ): PrefixShape {
   const sysText = messages
     .filter(m => m.role === 'system')
-    .map(m => m.content || '')
+    .map(m => flatContent(m.content))
     .join('\n')
   const toolsText = JSON.stringify(tools ?? [])
   const historyText = messages
     .filter(m => m.role !== 'system')
-    .map(m => `${m.role}:${(m.content || '').slice(0, 200)}`)
+    .map(m => `${m.role}:${flatContent(m.content).slice(0, 200)}`)
     .join('|')
   return {
     systemHash: shortHash(sysText),

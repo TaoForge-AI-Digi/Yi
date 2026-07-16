@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu } from 'electron'
+import { app, BrowserWindow, Menu, dialog, ipcMain } from 'electron'
 import { spawn, ChildProcess } from 'child_process'
 import path from 'path'
 import { checkForUpdates } from './updater'
@@ -84,6 +84,14 @@ app.whenReady().then(async () => {
     app.quit()
     return
   }
+
+  ipcMain.handle('dialog:openDirectory', async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ['openDirectory'],
+      title: '选择工作区目录',
+    })
+    return result.canceled ? null : result.filePaths[0]
+  })
 
   createWindow()
   checkForUpdates(mainWindow!)

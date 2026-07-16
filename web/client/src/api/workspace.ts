@@ -1,4 +1,4 @@
-import { apiGet } from './client'
+import { apiGet, apiPost } from './client'
 
 export interface DirEntry {
   name: string
@@ -15,4 +15,8 @@ export interface BrowseResult {
 export function browseDirectory(path?: string) {
   const q = path ? `?path=${encodeURIComponent(path)}` : ''
   return apiGet<BrowseResult>(`/api/workspace/list${q}`)
+}
+
+export function resolvePath(name: string) {
+  return apiPost<{ path: string | null }>('/api/workspace/resolve', { name })
 }

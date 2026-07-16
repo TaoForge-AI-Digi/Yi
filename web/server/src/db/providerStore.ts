@@ -7,11 +7,11 @@ if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true })
 
 export interface ProviderRecord {
   id: string; name: string; base_url: string; api_key: string
-  models: Array<{ id: string; name: string; context_window?: number }>
+  models: Array<{ id: string; name: string; context_window?: number; supports_vision?: boolean }>
 }
 
 export interface ModelInfo {
-  id: string; name: string; context_window?: number
+  id: string; name: string; context_window?: number; supports_vision?: boolean
 }
 
 function readAll(): ProviderRecord[] {

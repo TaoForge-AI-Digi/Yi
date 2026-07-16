@@ -158,7 +158,13 @@ Use this when you need to retrieve content from a specific URL.`,
       const mime = contentType.split(';')[0]?.trim().toLowerCase() || ''
 
       if (isImageMime(mime)) {
-        return { output: '', error: `Unsupported image content type: ${mime}` }
+        const buf = Buffer.from(buffer)
+        const ext = (mime.split('/')[1] || 'png').replace('+xml', '')
+        const name = (url.split('/').pop()?.split(/[?#]/)[0] || `image.${ext}`) || `image.${ext}`
+        return {
+          output: `已获取图片（${mime}，${(buf.length / 1024).toFixed(1)} KB）：${url}`,
+          attachments: [{ name, mime, data: buf.toString('base64') }],
+        }
       }
       if (!isTextualMime(mime)) {
         return { output: '', error: `Unsupported content type: ${mime}` }

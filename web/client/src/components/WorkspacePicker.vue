@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { browseDirectory, type DirEntry } from '@/api/workspace'
+import { ref, onMounted, watch } from 'vue'
+import { browseDirectory, resolvePath, type DirEntry } from '@/api/workspace'
 
 const props = defineProps<{ selected?: string[] }>()
 const emit = defineEmits<{ select: [paths: string[]]; close: [] }>()
@@ -11,6 +11,9 @@ const entries = ref<DirEntry[]>([])
 const loading = ref(false)
 const error = ref('')
 const checked = ref(new Set<string>())
+const manualPath = ref('')
+const resolving = ref(false)
+const manualError = ref('')
 
 async function load(path?: string) {
   loading.value = true
@@ -50,9 +53,32 @@ function confirmSelection() {
 
 function selectCurrentDir() {
   if (currentPath.value) {
-    checked.value.add(currentPath.value)
     emit('select', [currentPath.value])
   }
+}
+
+async function goToPath() {
+  const p = manualPath.value.trim()
+  if (!p) return
+  manualError.value = ''
+  if (p.includes('..')) { manualError.value = '路径不能包含 ..'; return }
+  resolving.value = true
+  try {
+    const result = await resolvePath(p)
+    if (result.path) {
+      load(result.path)
+    } else {
+      manualError.value = '路径不存在'
+    }
+  } catch {
+    manualError.value = '路径解析失败'
+  } finally {
+    resolving.value = false
+  }
+}
+
+function handleManualKeydown(e: KeyboardEvent) {
+  if (e.key === 'Enter') goToPath()
 }
 
 onMounted(() => load())
@@ -65,6 +91,17 @@ onMounted(() => load())
         <h3>选择工作区目录</h3>
         <button class="close-btn" @click="$emit('close')">&times;</button>
       </div>
+
+      <div class="picker-manual">
+        <input
+          v-model="manualPath"
+          class="manual-input"
+          placeholder="直接输入路径后按回车，如 C:\Users\..."
+          @keydown="handleManualKeydown"
+        />
+        <button class="manual-go" :disabled="!manualPath.trim() || resolving" @click="goToPath">前往</button>
+      </div>
+      <div v-if="manualError" class="manual-error">{{ manualError }}</div>
 
       <div class="picker-nav">
         <button class="nav-btn" :disabled="!parentPath" @click="goUp">.. 上级</button>
@@ -89,7 +126,7 @@ onMounted(() => load())
           <input type="checkbox" :checked="checked.has(entry.path)" class="item-checkbox" />
           <span class="item-icon">📁</span>
           <span class="item-name">{{ entry.name }}</span>
-          <span class="item-path">{{ entry.path }}</span>
+          <span class="item-path">{{ currentPath ? entry.path : '' }}</span>
           <button class="enter-btn" @click.stop="enterDir(entry)" title="进入">▸</button>
         </div>
         <div v-if="entries.length === 0" class="picker-empty">空目录</div>
@@ -119,8 +156,8 @@ onMounted(() => load())
 .picker-dialog {
   background: white;
   border-radius: 12px;
-  width: 560px;
-  max-height: 70vh;
+  width: 600px;
+  max-height: 75vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
@@ -137,6 +174,40 @@ onMounted(() => load())
   color: #888; padding: 0 4px;
 }
 .close-btn:hover { color: #333; }
+
+.picker-manual {
+  display: flex;
+  gap: 6px;
+  padding: 6px 20px 4px;
+}
+.manual-input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.manual-input:focus { border-color: #007aff; }
+.manual-go {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  background: #007aff;
+  color: white;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.manual-go:disabled { opacity: 0.5; cursor: default; }
+.manual-go:hover:not(:disabled) { background: #0056b3; }
+.manual-error {
+  padding: 0 20px 4px;
+  font-size: 12px;
+  color: #d32f2f;
+}
+
 .picker-nav {
   display: flex;
   align-items: center;
@@ -187,7 +258,7 @@ onMounted(() => load())
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 160px;
+  max-width: 200px;
 }
 .item-path {
   font-size: 11px; color: #999;

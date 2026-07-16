@@ -11,6 +11,8 @@ import type { Server, Socket } from 'socket.io'
 import type { MCPClient } from '../tools/mcp-client.js'
 import { resolve as pathResolve, dirname } from 'path'
 import { sessionStore } from '../db/sessionStore.js'
+import { saveAttachment } from './media-store.js'
+import { textPart, mediaPart, lowerContentToProvider, type ProviderCapability, type AttachmentRecord, type ContentPart } from './attachments.js'
 
 import { truncateToolOutput as truncate, truncateError } from '../tools/truncate.js'
 
@@ -206,6 +208,7 @@ export async function innerLoop(
   turn: number = 0,
   mcpClients?: Map<string, MCPClient>,
   workspaces?: string[],
+  cap?: ProviderCapability,
 ): Promise<InnerResult> {
   let totalInputTokens = 0
   let totalOutputTokens = 0
@@ -456,12 +459,25 @@ export async function innerLoop(
     toolCallRecords.push(rec)
 
     const toolStatus = result.error ? 'error' : result.escaped ? 'denied' : 'success'
-    if (sessionId) {
-      messageStore.addMessage(sessionId, { role: 'tool', content: JSON.stringify({ output: result.output, error: result.error }), tool_name: p.name, tool_input: JSON.stringify({ call_id: p.tc.id, args: p.argsStr }), tool_output: result.error || result.output, tool_status: toolStatus })
+
+    // Persist any media the tool produced (e.g. webfetch images) through the
+    // media pipe, and emit it as multimodal content for vision-capable models.
+    let storedAttachments: AttachmentRecord[] | undefined
+    let toolContent: string | import('../llm/client.js').LLMMessage['content']
+    if (result.attachments && result.attachments.length > 0 && sessionId) {
+      storedAttachments = result.attachments.map(a => saveAttachment(sessionId, { filename: a.name, mediaType: a.mime, data: a.data }))
+      const parts: ContentPart[] = []
+      if (result.output) parts.push(textPart(result.output))
+      for (const a of result.attachments) parts.push(mediaPart({ mediaType: a.mime, data: a.data, filename: a.name }))
+      toolContent = lowerContentToProvider(parts, cap || { supportsVision: false, supportsFiles: false })
+    } else {
+      toolContent = JSON.stringify({ output: truncate(result.output || ''), error: truncateError(result.error || '') })
     }
-    const llmOutput = truncate(result.output || '')
-    const llmError = truncateError(result.error || '')
-    newMessages.push({ role: 'tool', content: JSON.stringify({ output: llmOutput, error: llmError }), tool_call_id: p.tc.id })
+
+    if (sessionId) {
+      messageStore.addMessage(sessionId, { role: 'tool', content: JSON.stringify({ output: result.output, error: result.error }), tool_name: p.name, tool_input: JSON.stringify({ call_id: p.tc.id, args: p.argsStr }), tool_output: result.error || result.output, tool_status: toolStatus, attachments: storedAttachments ? JSON.stringify(storedAttachments) : null })
+    }
+    newMessages.push({ role: 'tool', content: toolContent, tool_call_id: p.tc.id })
     socket?.emit('tool.completed', { session_id: sessionId, tool_call_id: p.tc.id, tool_name: p.name, tool_output: result.error || result.output, tool_status: toolStatus, duration_ms: duration })
   }
 
