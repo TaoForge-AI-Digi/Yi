@@ -22,6 +22,12 @@ cpSync(serverDist, resolve(serverDest, 'dist'), { recursive: true })
 copyFileSync(resolve(serverRoot, 'package.json'), resolve(serverDest, 'package.json'))
 cpSync(resolve(serverRoot, 'node_modules'), resolve(serverDest, 'node_modules'), { recursive: true })
 
+console.log('Obfuscating server code...')
+execSync('npx javascript-obfuscator dist --output dist --compact true --string-array true --string-array-encoding base64 --unicode-escape-sequence false --rename-globals false --self-defending false --debug-protection false', {
+  cwd: resolve(serverDest),
+  stdio: 'inherit',
+})
+
 console.log('Rebuilding native modules for Electron...')
 execSync('npx @electron/rebuild -f -w better-sqlite3', { cwd: serverDest, stdio: 'inherit' })
 

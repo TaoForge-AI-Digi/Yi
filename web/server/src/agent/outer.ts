@@ -811,6 +811,20 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
       const completeCall = result.toolCalls?.find(tc => tc.function.name === 'task_complete')
       const toolCallId = completeCall?.id || `complete_${Date.now()}`
       const summaryOutput = result.taskCompleteSummary || 'Task marked complete'
+      // Emit summary as assistant delta so the client's streaming renders it
+      if (socket && sessionId && summaryOutput) {
+        socket.emit('message.delta', { session_id: sessionId, delta: '\n\n' + summaryOutput })
+      }
+      // Update the last assistant message content with the summary for DB persistence
+      if (summaryOutput && sessionId) {
+        const msgs = messageStore.getMessages(sessionId)
+        for (let i = msgs.length - 1; i >= 0; i--) {
+          if (msgs[i].role === 'assistant') {
+            messageStore.updateContent(msgs[i].id, (msgs[i].content || '') + '\n\n' + summaryOutput)
+            break
+          }
+        }
+      }
       messages.push({
         role: 'tool',
         content: JSON.stringify({ output: summaryOutput }),
@@ -823,11 +837,6 @@ export async function sessionLoop(io: Server, socket: Socket, sessionId: string,
         tool_input: JSON.stringify({ call_id: toolCallId }),
         tool_output: summaryOutput,
         tool_status: 'success',
-      })
-      socket.emit('tool.completed', {
-        session_id: sessionId, tool_call_id: toolCallId,
-        tool_name: 'task_complete', tool_output: summaryOutput,
-        tool_status: 'success', duration_ms: 0,
       })
       socket.emit('run.completed', { session_id: sessionId, status: 'task_complete' })
       if (totalInputTokens > 0 || totalOutputTokens > 0) {

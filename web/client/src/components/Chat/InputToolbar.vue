@@ -37,11 +37,6 @@ function shortenPath(p: string, maxLen = 30): string {
 }
 
 async function triggerDirPicker() {
-  if (window.electronAPI) {
-    const p = await window.electronAPI.openDirectoryDialog()
-    if (p) addWorkspacePath(p)
-    return
-  }
   showWorkspacePicker.value = true
 }
 
@@ -57,12 +52,6 @@ function onWorkspacePicked(paths: string[]) {
   showWorkspacePicker.value = false
 }
 
-function addWorkspacePath(p: string) {
-  const s = session.value
-  if (!s) return
-  chatStore.addWorkspace(p)
-  if (!s.workspace) s.workspace = p
-}
 function toggleThinking() {
   const s = session.value
   if (s) {
@@ -85,12 +74,28 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary)
 }
 
+function mimeFromExt(name: string): string | null {
+  const ext = name.split('.').pop()?.toLowerCase()
+  if (!ext) return null
+  const map: Record<string, string> = {
+    md: 'text/markdown', txt: 'text/plain', json: 'application/json',
+    xml: 'application/xml', csv: 'text/csv', yaml: 'application/x-yaml', yml: 'application/x-yaml',
+    toml: 'application/toml', js: 'application/javascript', ts: 'application/typescript',
+    py: 'text/x-python', sh: 'text/x-shellscript', html: 'text/html', htm: 'text/html',
+    css: 'text/css', log: 'text/plain', env: 'text/plain', ini: 'text/plain',
+    cfg: 'text/plain', conf: 'text/plain',
+    png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
+    webp: 'image/webp', bmp: 'image/bmp', svg: 'image/svg+xml', ico: 'image/x-icon',
+    pdf: 'application/pdf',
+  }
+  return map[ext] ?? null
+}
 function onFilePicked(e: Event) {
   const input = e.target as HTMLInputElement
   const files = input.files
   if (!files || files.length === 0) return
   for (const file of Array.from(files)) {
-    const mime = file.type || 'application/octet-stream'
+    const mime = file.type || mimeFromExt(file.name) || 'application/octet-stream'
     if (mime.startsWith('image/')) {
       const reader = new FileReader()
       reader.onload = () => {

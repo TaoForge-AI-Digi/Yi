@@ -47,9 +47,6 @@
       "name": "provider_manager"
     },
     {
-      "name": "mcp_manager"
-    },
-    {
       "name": "mcp:codegraph"
     },
     {

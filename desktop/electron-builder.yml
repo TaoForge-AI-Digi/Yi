@@ -31,7 +31,7 @@ asarUnpack:
 
 win:
   target:
-    - target: portable
+    - target: dir
       arch: [x64]
   icon: icon.png
 

@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
 import { useChatStore } from '@/stores/chat'
 import ChatView from '@/views/ChatView.vue'
 import SettingsView from '@/components/settings/SettingsView.vue'
@@ -21,7 +21,11 @@ function loadPersistedDefaults() {
 }
 
 const router = createRouter({
-  history: createWebHistory(),
+  // Electron loads the client from file:// (via loadFile), where the page
+  // pathname is the absolute file path and HTML5 history routing resolves to
+  // a 404 on first launch. Hash history keeps the route in the URL fragment so
+  // the initial load matches "/" and redirects to the chat view.
+  history: createWebHashHistory(),
   routes: [
     {
       path: '/',

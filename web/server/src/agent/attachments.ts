@@ -49,7 +49,7 @@ export interface ProviderCapability {
 const VISION_HINTS = [
   'vision', 'vl', 'gpt-4o', 'gpt-4.1', 'gpt-4-turbo', 'gpt-4v', 'claude',
   'gemini', 'qwen-vl', 'qwen2-vl', 'glm-4v', 'minimax', 'pixtral', 'llava',
-  'internvl', 'deepseek-vl', 'step', 'kimi', 'moonshot', 'qwq-vl',
+  'internvl', 'deepseek-vl', 'step', 'kimi', 'moonshot', 'qwq-vl', 'mimo', 'hy3',
 ]
 
 /** Resolve whether the target model can consume multimodal input.
@@ -97,6 +97,29 @@ export function isTextLike(mediaType: string): boolean {
   ].includes(mediaType)
 }
 
+const TEXT_EXTENSIONS = new Set([
+  'md', 'txt', 'json', 'xml', 'yaml', 'yml', 'toml',
+  'js', 'ts', 'jsx', 'tsx', 'py', 'rb', 'go', 'rs', 'sh',
+  'html', 'htm', 'css', 'scss', 'less',
+  'log', 'env', 'ini', 'cfg', 'conf', 'yml',
+  'csv', 'tsv',
+])
+
+export function isTextExtension(ext: string): boolean {
+  return TEXT_EXTENSIONS.has(ext.toLowerCase().replace(/^\./, ''))
+}
+
+export function resolveMediaType(mediaType: string, ext?: string, filename?: string): string {
+  if (mediaType !== 'application/octet-stream' && mediaType !== '') return mediaType
+  const e = ext || (filename ? filename.split('.').pop() || '' : '')
+  if (!e) return mediaType
+  const extLower = e.toLowerCase().replace(/^\./, '')
+  if (isTextExtension(extLower)) return 'text/plain'
+  if (['png','jpg','jpeg','gif','webp','bmp','svg','ico'].includes(extLower)) return 'image/png'
+  if (extLower === 'pdf') return 'application/pdf'
+  return mediaType
+}
+
 /**
  * Lower structured ContentPart[] into the OpenAI-compatible content blocks the
  * LLM API expects. Images become `image_url` multimodal blocks ONLY when the
@@ -114,29 +137,30 @@ export function lowerContentToProvider(
       if (part.text) out.push({ type: 'text', text: part.text })
       continue
     }
+    const effectiveType = resolveMediaType(part.mediaType, part.ext, part.filename)
     const label = part.filename ? `「${part.filename}」` : '附件'
-    if (isImage(part.mediaType)) {
+    if (isImage(effectiveType)) {
       if (cap.supportsVision) {
         if (format === 'anthropic') {
-          out.push({ type: 'image', source: { type: 'base64', media_type: part.mediaType, data: part.data } })
+          out.push({ type: 'image', source: { type: 'base64', media_type: effectiveType, data: part.data } })
         } else if (format === 'gemini') {
-          out.push({ inline_data: { mime_type: part.mediaType, data: part.data } })
+          out.push({ inline_data: { mime_type: effectiveType, data: part.data } })
         } else {
-          out.push({ type: 'image_url', image_url: { url: `data:${part.mediaType};base64,${part.data}` } })
+          out.push({ type: 'image_url', image_url: { url: `data:${effectiveType};base64,${part.data}` } })
         }
       } else {
         out.push({ type: 'text', text: `[图片附件${label}：当前模型不支持视觉输入，无法查看图片内容]` })
       }
       continue
     }
-    if (isTextLike(part.mediaType)) {
+    if (isTextLike(effectiveType)) {
       let decoded = ''
       try { decoded = Buffer.from(part.data, 'base64').toString('utf-8') } catch { decoded = '' }
-      out.push({ type: 'text', text: `文件${label}（${part.mediaType}）内容：\n${decoded}` })
+      out.push({ type: 'text', text: `文件${label}（${effectiveType}）内容：\n${decoded}` })
       continue
     }
     // Binary / unsupported type: describe rather than silently drop.
-    if (cap.supportsFiles && part.mediaType === 'application/pdf') {
+    if (cap.supportsFiles && effectiveType === 'application/pdf') {
       out.push({ type: 'text', text: `[PDF 附件${label}：当前模型暂不支持直接解析 PDF，已跳过]` })
     } else {
       out.push({ type: 'text', text: `[附件${label}（${part.mediaType}）：当前模型不支持该类型，已跳过]` })

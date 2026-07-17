@@ -13,10 +13,17 @@
   "role": "both",
   "groups": [],
   "default_strategy": "Bypass",
-  "skills": [],
+  "skills": [
+    "agent-reach",
+    "xhs-auth",
+    "xhs-content-ops",
+    "xhs-explore",
+    "xhs-interact",
+    "xhs-publish"
+  ],
   "enabled": true,
   "createdAt": 1782738601774,
-  "updatedAt": 1784105251668,
+  "updatedAt": 1784273340337,
   "tools": [
     {
       "name": "read"

@@ -22,6 +22,9 @@ export const messageStore = {
     if (ids.length < count) return
     getDb().prepare('DELETE FROM messages WHERE session_id = ? AND id > ?').run(sessionId, ids[ids.length - 1].id)
   },
+  updateContent(id: number, content: string) {
+    getDb().prepare('UPDATE messages SET content = ? WHERE id = ?').run(content, id)
+  },
   addMessage(sessionId: string, data: Partial<MessageRow> & { role: string }): MessageRow {
     const now = Date.now()
     const row: MessageRow = {

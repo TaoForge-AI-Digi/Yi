@@ -9,14 +9,14 @@
     "selfEvolution": false,
     "charLimit": 2200
   },
-  "maxSteps": 10,
+  "maxSteps": 999,
   "role": "both",
   "groups": [],
   "default_strategy": "Bypass",
   "skills": [],
   "enabled": true,
   "createdAt": 1782738601774,
-  "updatedAt": 1783927680337,
+  "updatedAt": 1784105251668,
   "tools": [
     {
       "name": "read"
@@ -61,13 +61,16 @@
       "name": "provider_manager"
     },
     {
-      "name": "mcp_manager"
-    },
-    {
       "name": "character_manager"
     },
     {
       "name": "mcp:tab-bridge"
+    },
+    {
+      "name": "mcp:codebase-memory-mcp"
+    },
+    {
+      "name": "get_time"
     }
   ]
 }

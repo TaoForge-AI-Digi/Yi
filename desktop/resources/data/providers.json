@@ -7,7 +7,7 @@
       {
         "id": "minimax-m3",
         "name": "minimax-m3",
-        "context_window": 1000000,
+        "context_window": 1048576,
         "enabled": true
       },
       {
@@ -23,9 +23,15 @@
         "enabled": true
       },
       {
+        "id": "kimi-k3",
+        "name": "kimi-k3",
+        "context_window": 1048576,
+        "enabled": true
+      },
+      {
         "id": "kimi-k2.7-code",
         "name": "kimi-k2.7-code",
-        "context_window": 256000,
+        "context_window": 262144,
         "enabled": true
       },
       {
@@ -43,7 +49,7 @@
       {
         "id": "glm-5.2",
         "name": "glm-5.2",
-        "context_window": 1048576,
+        "context_window": 1000000,
         "enabled": true
       },
       {
@@ -73,19 +79,19 @@
       {
         "id": "qwen3.7-max",
         "name": "qwen3.7-max",
-        "context_window": 256000,
+        "context_window": 1000000,
         "enabled": true
       },
       {
         "id": "qwen3.7-plus",
         "name": "qwen3.7-plus",
-        "context_window": 991808,
+        "context_window": 1000000,
         "enabled": true
       },
       {
         "id": "qwen3.6-plus",
         "name": "qwen3.6-plus",
-        "context_window": 991000,
+        "context_window": 1000000,
         "enabled": true
       },
       {
@@ -123,9 +129,15 @@
         "name": "hy3-preview",
         "context_window": 256000,
         "enabled": true
+      },
+      {
+        "id": "grok-4.5",
+        "name": "grok-4.5",
+        "context_window": 500000,
+        "enabled": true
       }
     ],
-    "id": "23c085cc-d468-4248-b033-2b75c9665b71"
+    "id": "f7a94b08-6776-4a3a-8dcc-3a6faef16107"
   },
   {
     "name": "OpenCode Zen",
@@ -189,7 +201,7 @@
       {
         "id": "claude-sonnet-4",
         "name": "claude-sonnet-4",
-        "context_window": 216000,
+        "context_window": 200000,
         "enabled": true
       },
       {
@@ -201,7 +213,7 @@
       {
         "id": "gemini-3.5-flash",
         "name": "gemini-3.5-flash",
-        "context_window": 200000,
+        "context_window": 1048576,
         "enabled": true
       },
       {
@@ -237,7 +249,7 @@
       {
         "id": "gpt-5.5",
         "name": "gpt-5.5",
-        "context_window": 400000,
+        "context_window": 1050000,
         "enabled": true
       },
       {
@@ -249,7 +261,7 @@
       {
         "id": "gpt-5.4",
         "name": "gpt-5.4",
-        "context_window": 400000,
+        "context_window": 1050000,
         "enabled": true
       },
       {
@@ -363,7 +375,7 @@
       {
         "id": "glm-5.2",
         "name": "glm-5.2",
-        "context_window": 1048576,
+        "context_window": 1000000,
         "enabled": true
       },
       {
@@ -381,7 +393,7 @@
       {
         "id": "minimax-m3",
         "name": "minimax-m3",
-        "context_window": 1000000,
+        "context_window": 1048576,
         "enabled": true
       },
       {
@@ -399,7 +411,7 @@
       {
         "id": "kimi-k2.7-code",
         "name": "kimi-k2.7-code",
-        "context_window": 256000,
+        "context_window": 262144,
         "enabled": true
       },
       {
@@ -417,7 +429,7 @@
       {
         "id": "qwen3.6-plus",
         "name": "qwen3.6-plus",
-        "context_window": 991000,
+        "context_window": 1000000,
         "enabled": true
       },
       {
@@ -447,7 +459,7 @@
       {
         "id": "hy3-free",
         "name": "hy3-free",
-        "context_window": 256000,
+        "context_window": 190000,
         "enabled": true
       },
       {
@@ -463,26 +475,6 @@
         "enabled": true
       }
     ],
-    "id": "df9cf6e6-0029-4d00-8226-ff68d95b57b2"
-  },
-  {
-    "name": "Deepseek",
-    "base_url": "https://api.deepseek.com",
-    "api_key": "sk-3f147f2a4d1347d1b9c4e6e93de159f9",
-    "models": [
-      {
-        "id": "deepseek-v4-flash",
-        "name": "deepseek-v4-flash",
-        "context_window": 1000000,
-        "enabled": true
-      },
-      {
-        "id": "deepseek-v4-pro",
-        "name": "deepseek-v4-pro",
-        "context_window": 1000000,
-        "enabled": true
-      }
-    ],
-    "id": "f727b871-e12d-4d57-a842-c35f5a327669"
+    "id": "b708d7b4-2955-4f5f-8730-04209e53976a"
   }
 ]

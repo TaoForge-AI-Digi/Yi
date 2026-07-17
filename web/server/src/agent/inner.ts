@@ -9,7 +9,7 @@ import { logLLMCall } from '../debug/llm-logger.js'
 import type { Strategy } from './session.js'
 import type { Server, Socket } from 'socket.io'
 import type { MCPClient } from '../tools/mcp-client.js'
-import { resolve as pathResolve, dirname } from 'path'
+import { resolve as pathResolve, dirname, relative } from 'path'
 import { sessionStore } from '../db/sessionStore.js'
 import { saveAttachment } from './media-store.js'
 import { textPart, mediaPart, lowerContentToProvider, type ProviderCapability, type AttachmentRecord, type ContentPart } from './attachments.js'
@@ -437,8 +437,9 @@ export async function innerLoop(
           let updatedWorkspaces: string[] | undefined
           const dbSession = sessionStore.getById(sessionId)
           if (dbSession) {
-            const ws = dbSession.workspaces ? JSON.parse(dbSession.workspaces) : []
-            if (!ws.includes(approvedDir)) {
+            const ws: string[] = dbSession.workspaces ? JSON.parse(dbSession.workspaces) : []
+            const isCovered = ws.some((w: string) => !relative(w, approvedDir).startsWith('..'))
+            if (!isCovered && !ws.includes(approvedDir)) {
               ws.push(approvedDir)
               sessionStore.update(sessionId, { workspaces: JSON.stringify(ws) })
             }

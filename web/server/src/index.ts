@@ -53,7 +53,12 @@ httpServer.on('error', (err: any) => {
   process.exit(1)
 })
 
-const io = new Server(httpServer, { cors: { origin: '*', methods: ['GET', 'POST'] } })
+const io = new Server(httpServer, {
+  cors: { origin: '*', methods: ['GET', 'POST'] },
+  // Desktop app sends attachment bytes (base64) through socket.io directly.
+  // A 5 MB photo → ~7 MB base64; accommodate multi-image batches.
+  maxHttpBufferSize: 50 * 1024 * 1024,
+})
 io.on('connection', (socket) => registerChatSocket(io, socket))
 startEventScheduler(io)
 startCronRegistry()
